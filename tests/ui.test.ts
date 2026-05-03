@@ -35,6 +35,10 @@ import {
 } from '../src/spectrum-lattice-motion';
 import { createDefaultStokesColormapDefaultSettings } from '../src/stokes';
 import { AUTO_EXPOSURE_PERCENTILE } from '../src/auto-exposure';
+import {
+  getDefaultImageLoadWorkers,
+  IMAGE_LOAD_WORKERS_STORAGE_KEY
+} from '../src/image-load-workers';
 
 const AUTO_EXPOSURE_PERCENTILE_STORAGE_KEY = 'openexr-viewer:auto-exposure-percentile:v1';
 const RULERS_VISIBLE_STORAGE_KEY = 'openexr-viewer:rulers-visible:v1';
@@ -573,6 +577,42 @@ describe('top bar and display controls', () => {
     expect(restoredInput.value).toBe('99.5');
     expect(window.localStorage.getItem(AUTO_EXPOSURE_PERCENTILE_STORAGE_KEY)).toBeNull();
     expect(restoredCallback).toHaveBeenLastCalledWith(99.5);
+  });
+
+  it('persists and dispatches the image load worker setting', () => {
+    vi.stubGlobal('navigator', { hardwareConcurrency: 4 });
+    installUiFixture();
+
+    const onImageLoadWorkersChange = vi.fn();
+    new ViewerUi(createUiCallbacks({ onImageLoadWorkersChange }));
+    const input = document.getElementById('image-load-workers-input') as HTMLInputElement;
+
+    expect(input.value).toBe('4');
+    expect(input.min).toBe('1');
+    expect(input.max).toBe('4');
+    expect(input.step).toBe('1');
+    expect(onImageLoadWorkersChange).toHaveBeenLastCalledWith(4);
+
+    input.value = '3';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(input.value).toBe('3');
+    expect(window.localStorage.getItem(IMAGE_LOAD_WORKERS_STORAGE_KEY)).toBe('3');
+    expect(onImageLoadWorkersChange).toHaveBeenLastCalledWith(3);
+
+    input.value = '99';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(input.value).toBe('4');
+    expect(window.localStorage.getItem(IMAGE_LOAD_WORKERS_STORAGE_KEY)).toBeNull();
+    expect(onImageLoadWorkersChange).toHaveBeenLastCalledWith(4);
+
+    input.value = 'bad';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(input.value).toBe('4');
+    expect(window.localStorage.getItem(IMAGE_LOAD_WORKERS_STORAGE_KEY)).toBeNull();
+    expect(onImageLoadWorkersChange).toHaveBeenLastCalledWith(4);
   });
 
   it('does not retain focus after pointer auto exposure activation', () => {
@@ -1393,6 +1433,7 @@ describe('panel split sizing', () => {
     );
     window.localStorage.setItem(THEME_STORAGE_KEY, SPECTRUM_LATTICE_THEME_ID);
     window.localStorage.setItem(SPECTRUM_LATTICE_MOTION_STORAGE_KEY, SPECTRUM_LATTICE_MOTION_FOLLOW_SYSTEM);
+    window.localStorage.setItem(IMAGE_LOAD_WORKERS_STORAGE_KEY, '1');
 
     const onResetSettings = vi.fn();
     const ui = new ViewerUi(createUiCallbacks({ onResetSettings }));
@@ -1417,6 +1458,7 @@ describe('panel split sizing', () => {
     const autoExposurePercentileInput = document.getElementById(
       'auto-exposure-percentile-input'
     ) as HTMLInputElement;
+    const imageLoadWorkersInput = document.getElementById('image-load-workers-input') as HTMLInputElement;
     const stokesAolpSelect = document.getElementById('stokes-default-aolp-colormap-select') as HTMLSelectElement;
     const imageButton = document.getElementById('image-panel-collapse-button') as HTMLButtonElement;
     const rightButton = document.getElementById('right-panel-collapse-button') as HTMLButtonElement;
@@ -1431,6 +1473,7 @@ describe('panel split sizing', () => {
     expect(mainLayout.style.getPropertyValue('--bottom-panel-height')).toBe('0px');
     expect(themeSelect.value).toBe(SPECTRUM_LATTICE_THEME_ID);
     expect(spectrumMotionSelect.value).toBe(SPECTRUM_LATTICE_MOTION_FOLLOW_SYSTEM);
+    expect(imageLoadWorkersInput.value).toBe('1');
     expect(stokesAolpSelect.value).toBe('0');
     autoExposurePercentileInput.value = '97.5';
     autoExposurePercentileInput.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1442,11 +1485,13 @@ describe('panel split sizing', () => {
     expect(themeSelect.value).toBe('default');
     expect(spectrumMotionSelect.value).toBe(SPECTRUM_LATTICE_MOTION_ANIMATE);
     expect(autoExposurePercentileInput.value).toBe('99.5');
+    expect(imageLoadWorkersInput.value).toBe(String(getDefaultImageLoadWorkers()));
     expect(stokesAolpSelect.value).toBe('1');
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
     expect(window.localStorage.getItem(SPECTRUM_LATTICE_MOTION_STORAGE_KEY)).toBeNull();
     expect(window.localStorage.getItem(AUTO_EXPOSURE_PERCENTILE_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(IMAGE_LOAD_WORKERS_STORAGE_KEY)).toBeNull();
     expect(imageButton.getAttribute('aria-expanded')).toBe('true');
     expect(rightButton.getAttribute('aria-expanded')).toBe('true');
     expect(bottomButton.getAttribute('aria-expanded')).toBe('true');
@@ -1759,18 +1804,24 @@ describe('view menu', () => {
     const autoExposurePercentileInput = document.getElementById(
       'auto-exposure-percentile-input'
     ) as HTMLInputElement;
+    const imageLoadWorkersInput = document.getElementById('image-load-workers-input') as HTMLInputElement;
 
     expect(labels).toEqual([
       'Theme',
       'Spectrum lattice motion',
       'Stokes Defaults',
       'Auto Exposure Percentile',
+      'Image Load Workers',
       'Memory Budget'
     ]);
     expect(autoExposurePercentileInput.value).toBe('99.5');
     expect(autoExposurePercentileInput.min).toBe('1');
     expect(autoExposurePercentileInput.max).toBe('100');
     expect(autoExposurePercentileInput.step).toBe('0.1');
+    expect(imageLoadWorkersInput.value).toBe(String(getDefaultImageLoadWorkers()));
+    expect(imageLoadWorkersInput.min).toBe('1');
+    expect(Number(imageLoadWorkersInput.max)).toBeGreaterThanOrEqual(1);
+    expect(imageLoadWorkersInput.step).toBe('1');
     expect(Array.from(document.querySelectorAll('#stokes-default-settings-table tbody th')).map((cell) => cell.textContent?.trim())).toEqual([
       'AoLP',
       'Degree',
@@ -2401,6 +2452,7 @@ describe('view menu', () => {
     const autoExposurePercentileInput = document.getElementById(
       'auto-exposure-percentile-input'
     ) as HTMLInputElement;
+    const imageLoadWorkersInput = document.getElementById('image-load-workers-input') as HTMLInputElement;
     const budgetInput = document.getElementById('display-cache-budget-input') as HTMLSelectElement;
     const resetSettingsButton = document.getElementById('reset-settings-button') as HTMLButtonElement;
     const closeButton = document.getElementById('settings-dialog-close-button') as HTMLButtonElement;
@@ -2436,6 +2488,7 @@ describe('view menu', () => {
       normalizedVmax,
       normalizedZeroCenter,
       autoExposurePercentileInput,
+      imageLoadWorkersInput,
       budgetInput,
       resetSettingsButton,
       closeButton
@@ -8602,6 +8655,7 @@ function createUiCallbacksBase() {
     onAutoFitImage: () => {},
     onAutoExposureChange: () => {},
     onAutoExposurePercentileChange: () => {},
+    onImageLoadWorkersChange: () => {},
     onRulersVisibleChange: () => {},
     getScreenshotFitRect: (): ViewportRect | null => null,
     onViewerModeChange: () => {},

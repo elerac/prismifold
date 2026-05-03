@@ -75,11 +75,12 @@ function createFolderFile(
 function createController(options: {
   decodeBytes?: (bytes: Uint8Array, options?: DecodeBytesOptions) => Promise<DecodedExrImage>;
   getFitInsets?: () => { top: number; right: number; bottom: number; left: number } | undefined;
+  maxWorkers?: number;
 } = {}) {
   const core = new ViewerAppCore();
   const controller = new SessionController({
     core,
-    loadQueue: new LoadQueueService(),
+    loadQueue: new LoadQueueService({ maxWorkers: options.maxWorkers }),
     decodeBytes: options.decodeBytes ?? (async () => createDecodedImage()),
     getViewport: () => ({ width: 200, height: 100 }),
     getFitInsets: options.getFitInsets ?? (() => undefined)
@@ -167,6 +168,78 @@ describe('session controller shim', () => {
     expect(controller.getSessions().map((session) => session.filename)).toEqual(['first.exr', 'second.exr']);
     expect(controller.getActiveSession()?.filename).toBe('first.exr');
     expect(core.getState().isLoading).toBe(false);
+  });
+
+  it('starts multi-file decodes in parallel while committing sessions in selection order', async () => {
+    const firstDecode = createDeferred<DecodedExrImage>();
+    const secondDecode = createDeferred<DecodedExrImage>();
+    const decodeBytes = vi
+      .fn<(bytes: Uint8Array, options?: DecodeBytesOptions) => Promise<DecodedExrImage>>()
+      .mockReturnValueOnce(firstDecode.promise)
+      .mockReturnValueOnce(secondDecode.promise);
+    const { controller, core } = createController({ decodeBytes, maxWorkers: 2 });
+
+    const pending = controller.enqueueFiles([
+      createFile('first.exr', [1]),
+      createFile('second.exr', [2])
+    ]);
+    for (let index = 0; index < 6 && decodeBytes.mock.calls.length < 2; index += 1) {
+      await flushMicrotasks();
+    }
+
+    expect(decodeBytes).toHaveBeenCalledTimes(2);
+    expect(controller.getSessions()).toHaveLength(0);
+
+    secondDecode.resolve(createDecodedImage(8, 4));
+    for (let index = 0; index < 6; index += 1) {
+      await flushMicrotasks();
+    }
+    expect(controller.getSessions()).toHaveLength(0);
+    expect(buildOpenedImageOptions(core.getState()).map((option) => ({
+      label: option.label,
+      selectable: option.selectable
+    }))).toEqual([
+      { label: 'first.exr', selectable: false },
+      { label: 'second.exr', selectable: false }
+    ]);
+
+    firstDecode.resolve(createDecodedImage(4, 4));
+    await pending;
+
+    expect(controller.getSessions().map((session) => session.filename)).toEqual(['first.exr', 'second.exr']);
+    expect(controller.getActiveSession()?.filename).toBe('first.exr');
+    expect(core.getState().isLoading).toBe(false);
+  });
+
+  it('activates the first successful parallel decode when earlier files fail', async () => {
+    const firstDecode = createDeferred<DecodedExrImage>();
+    const secondDecode = createDeferred<DecodedExrImage>();
+    const decodeBytes = vi
+      .fn<(bytes: Uint8Array, options?: DecodeBytesOptions) => Promise<DecodedExrImage>>()
+      .mockReturnValueOnce(firstDecode.promise)
+      .mockReturnValueOnce(secondDecode.promise);
+    const { controller, core } = createController({ decodeBytes, maxWorkers: 2 });
+
+    const pending = controller.enqueueFiles([
+      createFile('broken.exr', [1]),
+      createFile('second.exr', [2])
+    ]);
+    for (let index = 0; index < 6 && decodeBytes.mock.calls.length < 2; index += 1) {
+      await flushMicrotasks();
+    }
+
+    secondDecode.resolve(createDecodedImage(8, 4));
+    for (let index = 0; index < 6; index += 1) {
+      await flushMicrotasks();
+    }
+    expect(controller.getSessions()).toHaveLength(0);
+
+    firstDecode.reject(new Error('decode failed'));
+    await pending;
+
+    expect(controller.getSessions().map((session) => session.filename)).toEqual(['second.exr']);
+    expect(controller.getActiveSession()?.filename).toBe('second.exr');
+    expect(core.getState().errorMessage).toBe('Load failed: decode failed');
   });
 
   it('activates the first successful decode when earlier files in a multi-file open fail', async () => {
@@ -691,6 +764,47 @@ describe('session controller shim', () => {
       createFolderFile('shots/aovs/beauty.exr', [10]),
       createFolderFile('shots/aovs/masks/id.exr', [20])
     ]);
+
+    expect(controller.getSessions().map((session) => session.source.kind === 'file'
+      ? session.source.file.webkitRelativePath
+      : session.filename
+    )).toEqual([
+      'shots/aovs/beauty.exr',
+      'shots/aovs/masks/id.exr',
+      'shots/z_last.exr'
+    ]);
+    expect(controller.getSessions().map((session) => session.decoded.width)).toEqual([10, 20, 30]);
+  });
+
+  it('keeps recursive folder session order when parallel decodes finish out of order', async () => {
+    const firstDecode = createDeferred<DecodedExrImage>();
+    const secondDecode = createDeferred<DecodedExrImage>();
+    const thirdDecode = createDeferred<DecodedExrImage>();
+    const decodeBytes = vi
+      .fn<(bytes: Uint8Array, options?: DecodeBytesOptions) => Promise<DecodedExrImage>>()
+      .mockReturnValueOnce(firstDecode.promise)
+      .mockReturnValueOnce(secondDecode.promise)
+      .mockReturnValueOnce(thirdDecode.promise);
+    const { controller } = createController({ decodeBytes, maxWorkers: 3 });
+
+    const pending = controller.enqueueFolderFiles([
+      createFolderFile('shots/z_last.exr', [30]),
+      createFolderFile('shots/aovs/beauty.exr', [10]),
+      createFolderFile('shots/aovs/masks/id.exr', [20])
+    ]);
+    for (let index = 0; index < 6 && decodeBytes.mock.calls.length < 3; index += 1) {
+      await flushMicrotasks();
+    }
+
+    thirdDecode.resolve(createDecodedImage(30, 4));
+    secondDecode.resolve(createDecodedImage(20, 4));
+    for (let index = 0; index < 6; index += 1) {
+      await flushMicrotasks();
+    }
+    expect(controller.getSessions()).toHaveLength(0);
+
+    firstDecode.resolve(createDecodedImage(10, 4));
+    await pending;
 
     expect(controller.getSessions().map((session) => session.source.kind === 'file'
       ? session.source.file.webkitRelativePath

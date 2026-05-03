@@ -1,6 +1,8 @@
 import { createAbortError } from '../lifecycle';
 import { ViewerInteraction } from '../interaction/viewer-interaction';
 import { LoadQueueService } from '../services/load-queue';
+import { readStoredImageLoadWorkers } from '../image-load-workers';
+import { setMaxDecodeWorkers } from '../exr-worker-client';
 import { ViewerAppCore } from './viewer-app-core';
 import { createViewerUi } from './bootstrap/create-ui';
 import {
@@ -32,7 +34,9 @@ export async function bootstrapApp(): Promise<AppHandle> {
     app.dispose();
   };
 
-  const loadQueue = new LoadQueueService();
+  const initialImageLoadWorkers = readStoredImageLoadWorkers();
+  setMaxDecodeWorkers(initialImageLoadWorkers);
+  const loadQueue = new LoadQueueService({ maxWorkers: initialImageLoadWorkers });
   const resolveColormapExportPixels = createColormapExportPixelsResolver({
     core,
     isDisposed
@@ -88,6 +92,10 @@ export async function bootstrapApp(): Promise<AppHandle> {
     getInteraction: () => interaction,
     resolveColormapExportPixels,
     resolveImageExportPixels,
+    onImageLoadWorkersChange: (workerCount) => {
+      loadQueue.setMaxWorkers(workerCount);
+      setMaxDecodeWorkers(workerCount);
+    },
     isDisposed
   });
   const app: AppHandle = {

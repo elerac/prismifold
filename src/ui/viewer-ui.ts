@@ -110,6 +110,14 @@ import {
   formatAutoExposurePercentile,
   parseAutoExposurePercentile
 } from '../analysis/auto-exposure';
+import {
+  MIN_IMAGE_LOAD_WORKERS,
+  getDefaultImageLoadWorkers,
+  getSystemMaxImageLoadWorkers,
+  normalizeImageLoadWorkers,
+  readStoredImageLoadWorkers,
+  saveStoredImageLoadWorkers
+} from '../image-load-workers';
 
 const AUTO_FIT_IMAGE_ON_SELECT_STORAGE_KEY = 'openexr-viewer:auto-fit-image-on-select:v1';
 const AUTO_EXPOSURE_STORAGE_KEY = 'openexr-viewer:auto-exposure:v1';
@@ -178,6 +186,7 @@ export interface UiCallbacks {
   onAutoFitImage: () => void;
   onAutoExposureChange: (enabled: boolean) => void;
   onAutoExposurePercentileChange: (percentile: number) => void;
+  onImageLoadWorkersChange: (workerCount: number) => void;
   onRulersVisibleChange: (enabled: boolean) => void;
   getScreenshotFitRect: () => ViewportRect | null;
   onViewerModeChange: (mode: ViewerMode) => void;
@@ -259,6 +268,7 @@ export class ViewerUi implements Disposable {
   private autoFitImageOnSelect = false;
   private autoExposureEnabled = false;
   private autoExposurePercentile = AUTO_EXPOSURE_PERCENTILE;
+  private imageLoadWorkers = getDefaultImageLoadWorkers();
   private rulersVisible = false;
   private hasActiveChannelImage = false;
   private disposed = false;
@@ -545,6 +555,8 @@ export class ViewerUi implements Disposable {
     this.callbacks.onAutoExposureChange(this.autoExposureEnabled);
     this.setAutoExposurePercentile(readStoredAutoExposurePercentile(), false);
     this.callbacks.onAutoExposurePercentileChange(this.autoExposurePercentile);
+    this.setImageLoadWorkers(readStoredImageLoadWorkers(), false);
+    this.callbacks.onImageLoadWorkersChange(this.imageLoadWorkers);
     this.setRulersVisible(readStoredRulersVisible(), false);
     this.callbacks.onRulersVisibleChange(this.rulersVisible);
     this.updateViewerModeMenuItemsDisabled();
@@ -683,6 +695,21 @@ export class ViewerUi implements Disposable {
     this.elements.autoExposurePercentileInput.value = formatAutoExposurePercentile(this.autoExposurePercentile);
     if (persist) {
       saveStoredAutoExposurePercentile(this.autoExposurePercentile);
+    }
+  }
+
+  setImageLoadWorkers(workerCount: number, persist = false): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.imageLoadWorkers = normalizeImageLoadWorkers(workerCount);
+    this.elements.imageLoadWorkersInput.min = String(MIN_IMAGE_LOAD_WORKERS);
+    this.elements.imageLoadWorkersInput.max = String(getSystemMaxImageLoadWorkers());
+    this.elements.imageLoadWorkersInput.step = '1';
+    this.elements.imageLoadWorkersInput.value = String(this.imageLoadWorkers);
+    if (persist) {
+      saveStoredImageLoadWorkers(this.imageLoadWorkers);
     }
   }
 
@@ -2054,12 +2081,20 @@ export class ViewerUi implements Disposable {
       this.callbacks.onAutoExposurePercentileChange(percentile);
     });
 
+    this.disposables.addEventListener(this.elements.imageLoadWorkersInput, 'change', () => {
+      const workerCount = normalizeImageLoadWorkers(this.elements.imageLoadWorkersInput.value);
+      this.setImageLoadWorkers(workerCount, true);
+      this.callbacks.onImageLoadWorkersChange(this.imageLoadWorkers);
+    });
+
     this.disposables.addEventListener(this.elements.resetSettingsButton, 'click', () => {
       this.layoutSplitController.resetToDefaults();
       this.themeController.reset();
       this.setSpectrumLatticeMotionPreference(DEFAULT_SPECTRUM_LATTICE_MOTION_PREFERENCE);
       this.setAutoExposurePercentile(AUTO_EXPOSURE_PERCENTILE, true);
       this.callbacks.onAutoExposurePercentileChange(this.autoExposurePercentile);
+      this.setImageLoadWorkers(getDefaultImageLoadWorkers(), true);
+      this.callbacks.onImageLoadWorkersChange(this.imageLoadWorkers);
       this.setStokesDefaultSettingsOptions(
         this.stokesColormapOptions,
         createDefaultStokesColormapDefaultSettings()

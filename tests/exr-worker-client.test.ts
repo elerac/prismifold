@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { disposeDecodeWorker, loadExrOffMainThread } from '../src/exr-worker-client';
+import { disposeDecodeWorker, loadExrOffMainThread, setMaxDecodeWorkers } from '../src/exr-worker-client';
+import { getDefaultImageLoadWorkers } from '../src/image-load-workers';
 import type { DecodeErrorPayload } from '../src/exr-decode-context';
 import type { DecodedExrImage } from '../src/types';
 
@@ -36,6 +37,7 @@ class WorkerMock {
 
 afterEach(() => {
   disposeDecodeWorker();
+  setMaxDecodeWorkers(getDefaultImageLoadWorkers());
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -79,7 +81,78 @@ describe('exr worker client', () => {
     await expect(next).resolves.toEqual(decoded);
   });
 
+  it('runs worker decodes concurrently up to the configured limit', async () => {
+    setMaxDecodeWorkers(2);
+    const workers = installWorkerMock();
+    const first = loadExrOffMainThread(new Uint8Array([1, 2, 3]), { filename: 'first.exr' });
+    const second = loadExrOffMainThread(new Uint8Array([4, 5, 6]), { filename: 'second.exr' });
+
+    expect(workers).toHaveLength(2);
+    expect(workers[0]?.postMessage).toHaveBeenCalledTimes(1);
+    expect(workers[1]?.postMessage).toHaveBeenCalledTimes(1);
+
+    const firstDecoded = createDecodedImage(1);
+    const secondDecoded = createDecodedImage(2);
+    const firstRequest = workers[0]?.postMessage.mock.calls[0]?.[0] as { id: number };
+    const secondRequest = workers[1]?.postMessage.mock.calls[0]?.[0] as { id: number };
+
+    workers[1]?.emitMessage({
+      id: secondRequest.id,
+      ok: true,
+      image: secondDecoded
+    });
+    await expect(second).resolves.toEqual(secondDecoded);
+
+    workers[0]?.emitMessage({
+      id: firstRequest.id,
+      ok: true,
+      image: firstDecoded
+    });
+    await expect(first).resolves.toEqual(firstDecoded);
+  });
+
+  it('keeps overflow decodes queued until a worker slot is available', async () => {
+    setMaxDecodeWorkers(2);
+    const workers = installWorkerMock();
+    const first = loadExrOffMainThread(new Uint8Array([1]), { filename: 'first.exr' });
+    const second = loadExrOffMainThread(new Uint8Array([2]), { filename: 'second.exr' });
+    const third = loadExrOffMainThread(new Uint8Array([3]), { filename: 'third.exr' });
+
+    expect(workers).toHaveLength(2);
+    expect(workers[0]?.postMessage).toHaveBeenCalledTimes(1);
+    expect(workers[1]?.postMessage).toHaveBeenCalledTimes(1);
+
+    const firstRequest = workers[0]?.postMessage.mock.calls[0]?.[0] as { id: number };
+    const firstDecoded = createDecodedImage(1);
+    workers[0]?.emitMessage({
+      id: firstRequest.id,
+      ok: true,
+      image: firstDecoded
+    });
+
+    await expect(first).resolves.toEqual(firstDecoded);
+    expect(workers[0]?.postMessage).toHaveBeenCalledTimes(2);
+    const thirdRequest = workers[0]?.postMessage.mock.calls[1]?.[0] as { id: number };
+    const thirdDecoded = createDecodedImage(3);
+    workers[0]?.emitMessage({
+      id: thirdRequest.id,
+      ok: true,
+      image: thirdDecoded
+    });
+    await expect(third).resolves.toEqual(thirdDecoded);
+
+    const secondRequest = workers[1]?.postMessage.mock.calls[0]?.[0] as { id: number };
+    const secondDecoded = createDecodedImage(2);
+    workers[1]?.emitMessage({
+      id: secondRequest.id,
+      ok: true,
+      image: secondDecoded
+    });
+    await expect(second).resolves.toEqual(secondDecoded);
+  });
+
   it('removes queued decodes when their signal aborts before worker start', async () => {
+    setMaxDecodeWorkers(1);
     const workers = installWorkerMock();
     const first = loadExrOffMainThread(new Uint8Array([1, 2, 3]), { filename: 'first.exr' });
     const abortController = new AbortController();
@@ -106,6 +179,7 @@ describe('exr worker client', () => {
   });
 
   it('terminates the active worker decode on abort and recreates it for the next request', async () => {
+    setMaxDecodeWorkers(1);
     const workers = installWorkerMock();
     const abortController = new AbortController();
     const first = loadExrOffMainThread(new Uint8Array([1, 2, 3]), {
@@ -130,6 +204,64 @@ describe('exr worker client', () => {
       image: decoded
     });
     await expect(second).resolves.toEqual(decoded);
+  });
+
+  it('aborts only the active worker slot for the cancelled request', async () => {
+    setMaxDecodeWorkers(2);
+    const workers = installWorkerMock();
+    const abortController = new AbortController();
+    const first = loadExrOffMainThread(new Uint8Array([1]), {
+      signal: abortController.signal,
+      filename: 'first.exr'
+    });
+    const second = loadExrOffMainThread(new Uint8Array([2]), { filename: 'second.exr' });
+
+    expect(workers).toHaveLength(2);
+    abortController.abort();
+
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+    expect(workers[0]?.terminate).toHaveBeenCalledTimes(1);
+    expect(workers[1]?.terminate).not.toHaveBeenCalled();
+
+    const decoded = createDecodedImage(2);
+    const request = workers[1]?.postMessage.mock.calls[0]?.[0] as { id: number };
+    workers[1]?.emitMessage({
+      id: request.id,
+      ok: true,
+      image: decoded
+    });
+    await expect(second).resolves.toEqual(decoded);
+  });
+
+  it('retires excess workers after the decode limit is lowered', async () => {
+    setMaxDecodeWorkers(2);
+    const workers = installWorkerMock();
+    const first = loadExrOffMainThread(new Uint8Array([1]), { filename: 'first.exr' });
+    const second = loadExrOffMainThread(new Uint8Array([2]), { filename: 'second.exr' });
+
+    expect(workers).toHaveLength(2);
+    setMaxDecodeWorkers(1);
+
+    const firstRequest = workers[0]?.postMessage.mock.calls[0]?.[0] as { id: number };
+    const secondRequest = workers[1]?.postMessage.mock.calls[0]?.[0] as { id: number };
+    const firstDecoded = createDecodedImage(1);
+    const secondDecoded = createDecodedImage(2);
+
+    workers[1]?.emitMessage({
+      id: secondRequest.id,
+      ok: true,
+      image: secondDecoded
+    });
+    await expect(second).resolves.toEqual(secondDecoded);
+    expect(workers[1]?.terminate).toHaveBeenCalledTimes(1);
+
+    workers[0]?.emitMessage({
+      id: firstRequest.id,
+      ok: true,
+      image: firstDecoded
+    });
+    await expect(first).resolves.toEqual(firstDecoded);
+    expect(workers[0]?.terminate).not.toHaveBeenCalled();
   });
 
   it('attaches structured context to worker decode failures', async () => {
@@ -189,9 +321,9 @@ function installWorkerMock(): WorkerMock[] {
   return workers;
 }
 
-function createDecodedImage(): DecodedExrImage {
+function createDecodedImage(width = 1): DecodedExrImage {
   return {
-    width: 1,
+    width,
     height: 1,
     layers: []
   };

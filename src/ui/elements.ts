@@ -34,6 +34,7 @@ export interface Elements {
   settingsDialogCloseButton: HTMLButtonElement;
   themeSelect: HTMLSelectElement;
   spectrumLatticeMotionSelect: HTMLSelectElement;
+  imageLoadWorkersInput: HTMLInputElement;
   autoExposurePercentileInput: HTMLInputElement;
   stokesDefaultSettingsTable: HTMLTableElement;
   resetSettingsButton: HTMLButtonElement;
@@ -539,6 +540,7 @@ export function resolveElements(): Elements {
     settingsDialogCloseButton: requireElement('settings-dialog-close-button', HTMLButtonElement),
     themeSelect: requireElement('theme-select', HTMLSelectElement),
     spectrumLatticeMotionSelect: requireElement('spectrum-lattice-motion-select', HTMLSelectElement),
+    imageLoadWorkersInput: requireElement('image-load-workers-input', HTMLInputElement),
     autoExposurePercentileInput: requireElement('auto-exposure-percentile-input', HTMLInputElement),
     stokesDefaultSettingsTable: requireElement('stokes-default-settings-table', HTMLTableElement),
     resetSettingsButton: requireElement('reset-settings-button', HTMLButtonElement),

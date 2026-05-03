@@ -16,6 +16,10 @@ export interface LoadQueueOptions {
   groupId?: string;
 }
 
+export interface LoadQueueServiceOptions {
+  maxWorkers?: number;
+}
+
 interface LoadQueueEntry<T> extends LoadQueueEntryInfo {
   id: number;
   task: (signal: AbortSignal) => Promise<T> | T;
@@ -27,9 +31,24 @@ interface LoadQueueEntry<T> extends LoadQueueEntryInfo {
 export class LoadQueueService implements Disposable {
   private readonly queue: Array<LoadQueueEntry<unknown>> = [];
   private readonly abortController = new AbortController();
-  private active: LoadQueueEntry<unknown> | null = null;
+  private readonly active = new Set<LoadQueueEntry<unknown>>();
+  private maxWorkers: number;
   private nextId = 1;
   private disposed = false;
+
+  constructor(options: LoadQueueServiceOptions = {}) {
+    this.maxWorkers = normalizeMaxWorkers(options.maxWorkers);
+  }
+
+  setMaxWorkers(maxWorkers: number): void {
+    const normalized = normalizeMaxWorkers(maxWorkers);
+    if (this.maxWorkers === normalized) {
+      return;
+    }
+
+    this.maxWorkers = normalized;
+    this.pump();
+  }
 
   enqueue<T>(task: (signal: AbortSignal) => Promise<T> | T, options: LoadQueueOptions = {}): Promise<T> {
     if (this.disposed) {
@@ -70,8 +89,10 @@ export class LoadQueueService implements Disposable {
       entry.reject(error);
     }
 
-    if (this.active && predicate(this.active)) {
-      this.active.controller.abort(error);
+    for (const entry of this.active) {
+      if (predicate(entry)) {
+        entry.controller.abort(error);
+      }
     }
   }
 
@@ -99,17 +120,19 @@ export class LoadQueueService implements Disposable {
   }
 
   private pump(): void {
-    if (this.disposed || this.active) {
+    if (this.disposed) {
       return;
     }
 
-    const entry = this.takeNextEntry();
-    if (!entry) {
-      return;
-    }
+    while (this.active.size < this.maxWorkers) {
+      const entry = this.takeNextEntry();
+      if (!entry) {
+        return;
+      }
 
-    this.active = entry;
-    void this.runEntry(entry);
+      this.active.add(entry);
+      void this.runEntry(entry);
+    }
   }
 
   private takeNextEntry(): LoadQueueEntry<unknown> | null {
@@ -129,10 +152,16 @@ export class LoadQueueService implements Disposable {
     } catch (error) {
       entry.reject(error instanceof Error ? error : new Error('Load task failed.'));
     } finally {
-      if (this.active === entry) {
-        this.active = null;
-      }
+      this.active.delete(entry);
       this.pump();
     }
   }
+}
+
+function normalizeMaxWorkers(value: number | undefined): number {
+  if (!Number.isFinite(value) || value === undefined) {
+    return 1;
+  }
+
+  return Math.max(1, Math.floor(value));
 }

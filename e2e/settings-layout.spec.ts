@@ -1013,6 +1013,7 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   const settingsDialog = page.locator('#settings-dialog');
   const themeInput = page.locator('#theme-select');
   const spectrumMotionInput = page.locator('#spectrum-lattice-motion-select');
+  const imageLoadWorkersInput = page.locator('#image-load-workers-input');
   const budgetInput = page.locator('#display-cache-budget-input');
   const usageReadout = page.locator('#display-cache-usage');
   const resetSettingsButton = page.getByRole('button', { name: 'Reset Settings', exact: true });
@@ -1022,6 +1023,13 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   const imageCollapseButton = page.locator('#image-panel-collapse-button');
   const rightCollapseButton = page.locator('#right-panel-collapse-button');
   const bottomCollapseButton = page.locator('#bottom-panel-collapse-button');
+  const defaultImageLoadWorkers = String(await page.evaluate(() => {
+    return Math.max(1, Math.floor(navigator.hardwareConcurrency || 2));
+  }));
+  const imageLoadWorkersOverride = defaultImageLoadWorkers === '1' ? defaultImageLoadWorkers : '1';
+  const expectedStoredImageLoadWorkers = imageLoadWorkersOverride === defaultImageLoadWorkers
+    ? null
+    : imageLoadWorkersOverride;
 
   const readLayout = async () => {
     return await page.evaluate(() => {
@@ -1050,6 +1058,7 @@ test('resets settings back to the default budget and panel layout', async ({ pag
         rightExpanded: rightCollapseButton.getAttribute('aria-expanded'),
         bottomExpanded: bottomCollapseButton.getAttribute('aria-expanded'),
         storedBudget: window.localStorage.getItem('openexr-viewer:display-cache-budget-mb:v1'),
+        storedImageLoadWorkers: window.localStorage.getItem('openexr-viewer:image-load-workers:v1'),
         storedTheme: window.localStorage.getItem('openexr-viewer:theme:v1'),
         storedSpectrumMotion: window.localStorage.getItem('openexr-viewer:spectrum-lattice-motion:v1'),
         storedPanel: window.localStorage.getItem('openexr-viewer:panel-splits:v1')
@@ -1063,6 +1072,9 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   await expect(themeInput).toHaveValue('spectrum-lattice');
   await spectrumMotionInput.selectOption('system');
   await expect(spectrumMotionInput).toHaveValue('system');
+  await imageLoadWorkersInput.fill(imageLoadWorkersOverride);
+  await imageLoadWorkersInput.dispatchEvent('change');
+  await expect(imageLoadWorkersInput).toHaveValue(imageLoadWorkersOverride);
   await budgetInput.selectOption('128');
   await expect(budgetInput).toHaveValue('128');
   await expect(usageReadout).toContainText('/ 128 MB');
@@ -1087,6 +1099,7 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   expect(mutated.rightExpanded).toBe('false');
   expect(mutated.bottomExpanded).toBe('false');
   expect(mutated.storedBudget).toBe('128');
+  expect(mutated.storedImageLoadWorkers).toBe(expectedStoredImageLoadWorkers);
   expect(mutated.storedTheme).toBe('spectrum-lattice');
   expect(mutated.storedSpectrumMotion).toBe('system');
 
@@ -1094,6 +1107,7 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   await expect(settingsDialog).toBeVisible();
   await expect(themeInput).toHaveValue('spectrum-lattice');
   await expect(spectrumMotionInput).toHaveValue('system');
+  await expect(imageLoadWorkersInput).toHaveValue(imageLoadWorkersOverride);
   await expect(budgetInput).toHaveValue('128');
   await resetSettingsButton.click();
 
@@ -1101,6 +1115,7 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   await expect(settingsDialogButton).toHaveAttribute('aria-expanded', 'true');
   await expect(themeInput).toHaveValue('default');
   await expect(spectrumMotionInput).toHaveValue('animate');
+  await expect(imageLoadWorkersInput).toHaveValue(defaultImageLoadWorkers);
   await expect(budgetInput).toHaveValue('256');
   await expect(usageReadout).toContainText('/ 256 MB');
 
@@ -1112,6 +1127,7 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   expect(afterReset.rightExpanded).toBe('true');
   expect(afterReset.bottomExpanded).toBe('true');
   expect(afterReset.storedBudget).toBe('256');
+  expect(afterReset.storedImageLoadWorkers).toBeNull();
   expect(afterReset.storedTheme).toBeNull();
   expect(afterReset.storedSpectrumMotion).toBeNull();
   expect(JSON.parse(afterReset.storedPanel ?? '{}')).toEqual({
@@ -1130,6 +1146,7 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   await expect(settingsDialog).toBeVisible();
   await expect(themeInput).toHaveValue('default');
   await expect(spectrumMotionInput).toHaveValue('animate');
+  await expect(imageLoadWorkersInput).toHaveValue(defaultImageLoadWorkers);
   await expect(budgetInput).toHaveValue('256');
   await expect(usageReadout).toContainText('/ 256 MB');
 

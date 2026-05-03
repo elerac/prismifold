@@ -187,6 +187,7 @@ test('boots an empty app shell with menu actions gated until an image opens', as
   const autoExposureButton = page.locator('#app-auto-exposure-button');
   const themeInput = page.locator('#theme-select');
   const spectrumMotionInput = page.locator('#spectrum-lattice-motion-select');
+  const imageLoadWorkersInput = page.locator('#image-load-workers-input');
   const budgetInput = page.locator('#display-cache-budget-input');
   const usageReadout = page.locator('#display-cache-usage');
   const viewerStatePanel = page.locator('#viewer-state-panel');
@@ -264,6 +265,14 @@ test('boots an empty app shell with menu actions gated until an image opens', as
   await expect(spectrumMotionInput).toBeVisible();
   await expect(spectrumMotionInput).toHaveValue('animate');
   await expect(spectrumMotionInput.locator('option')).toHaveText(['Animate', 'Follow system']);
+  const defaultImageLoadWorkers = String(await page.evaluate(() => {
+    return Math.max(1, Math.floor(navigator.hardwareConcurrency || 2));
+  }));
+  await expect(imageLoadWorkersInput).toBeVisible();
+  await expect(imageLoadWorkersInput).toHaveValue(defaultImageLoadWorkers);
+  await expect(imageLoadWorkersInput).toHaveAttribute('min', '1');
+  await expect(imageLoadWorkersInput).toHaveAttribute('step', '1');
+  expect(Number(await imageLoadWorkersInput.getAttribute('max'))).toBeGreaterThanOrEqual(1);
   await expect(budgetInput).toBeVisible();
   await expect(budgetInput).toHaveValue('256');
   await expect(budgetInput.locator('option')).toHaveText(['64', '128', '256', '512', '1024']);

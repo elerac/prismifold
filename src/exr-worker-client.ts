@@ -19,6 +19,10 @@ import {
   successResource,
   type AsyncResource
 } from './async-resource';
+import {
+  getDefaultImageLoadWorkers,
+  normalizeImageLoadWorkers
+} from './image-load-workers';
 import type { DecodedExrImage } from './types';
 
 interface DecodeWorkerRequest {
@@ -55,13 +59,22 @@ interface DecodeRequest {
   abortListener?: () => void;
 }
 
-let decodeWorker: Worker | null = null;
+interface DecodeWorkerSlot {
+  id: number;
+  worker: Worker;
+  active: DecodeRequest | null;
+  retireWhenIdle: boolean;
+  onMessage: (event: MessageEvent<DecodeWorkerResponse>) => void;
+  onError: (event: ErrorEvent) => void;
+  onMessageError: () => void;
+}
+
 let nextRequestId = 1;
+let nextWorkerSlotId = 1;
+let maxDecodeWorkers = getDefaultImageLoadWorkers();
+let decodeWorkersUnavailable = false;
 const queuedDecodes: DecodeRequest[] = [];
-let activeDecode: DecodeRequest | null = null;
-let onWorkerMessage: ((event: MessageEvent<DecodeWorkerResponse>) => void) | null = null;
-let onWorkerError: ((event: ErrorEvent) => void) | null = null;
-let onWorkerMessageError: (() => void) | null = null;
+const workerSlots: DecodeWorkerSlot[] = [];
 
 export async function loadExrOffMainThread(
   bytes: Uint8Array,
@@ -72,13 +85,14 @@ export async function loadExrOffMainThread(
     throwIfAborted(options.signal, 'EXR decode was aborted.');
   }
 
-  if (typeof Worker === 'undefined') {
+  if (typeof Worker === 'undefined' || decodeWorkersUnavailable) {
     return await decodeOnMainThread(bytes, options.signal, context);
   }
 
   try {
-    getDecodeWorker();
+    ensureInitialDecodeWorkerSlot();
   } catch {
+    decodeWorkersUnavailable = true;
     return await decodeOnMainThread(bytes, options.signal, context);
   }
 
@@ -103,86 +117,32 @@ export async function loadExrOffMainThread(
   });
 }
 
-function getDecodeWorker(): Worker {
-  if (decodeWorker) {
-    return decodeWorker;
+export function setMaxDecodeWorkers(workerCount: number): void {
+  const normalized = normalizeImageLoadWorkers(workerCount);
+  if (maxDecodeWorkers === normalized) {
+    return;
   }
 
-  decodeWorker = new Worker(new URL('./exr-worker.ts', import.meta.url), { type: 'module' });
-  onWorkerMessage = (event: MessageEvent<DecodeWorkerResponse>) => {
-    const response = event.data;
-    const request = activeDecode;
-    if (!request || request.id !== response.id) {
-      return;
-    }
-
-    activeDecode = null;
-    if (response.ok) {
-      request.resource = successResource(request.key, response.image);
-      cleanupDecodeRequest(request);
-      request.resolve(response.image);
-      pumpDecodeQueue();
-      return;
-    }
-
-    request.reject(createDecodeErrorFromPayload(normalizeWorkerErrorPayload(response.error, request.context)));
-    pumpDecodeQueue();
-  };
-  onWorkerError = (event: ErrorEvent) => {
-    rejectActiveDecodeWithPayload(createDecodeErrorPayload(
-      new Error(event.message || 'EXR decode worker failed.'),
-      activeDecode?.context ?? createEmptyDecodeContext()
-    ));
-    terminateDecodeWorkerInstance();
-    pumpDecodeQueue();
-  };
-  onWorkerMessageError = () => {
-    rejectActiveDecodeWithPayload(createDecodeErrorPayload(
-      new Error('EXR decode worker returned an unreadable response.'),
-      activeDecode?.context ?? createEmptyDecodeContext()
-    ));
-    terminateDecodeWorkerInstance();
-    pumpDecodeQueue();
-  };
-  decodeWorker.addEventListener('message', onWorkerMessage);
-  decodeWorker.addEventListener('error', onWorkerError);
-  decodeWorker.addEventListener('messageerror', onWorkerMessageError);
-
-  return decodeWorker;
+  maxDecodeWorkers = normalized;
+  enforceDecodeWorkerLimit();
+  pumpDecodeQueue();
 }
 
 export function disposeDecodeWorker(error: Error = createAbortError('EXR decode worker was terminated.')): void {
   for (const request of queuedDecodes.splice(0)) {
     rejectDecodeRequest(request, error);
   }
-  if (activeDecode) {
-    const request = activeDecode;
-    activeDecode = null;
-    rejectDecodeRequest(request, error);
+
+  for (const slot of [...workerSlots]) {
+    if (slot.active) {
+      const request = slot.active;
+      slot.active = null;
+      rejectDecodeRequest(request, error);
+    }
+    terminateDecodeWorkerSlot(slot);
   }
 
-  terminateDecodeWorkerInstance();
-}
-
-function terminateDecodeWorkerInstance(): void {
-  if (!decodeWorker) {
-    return;
-  }
-  if (onWorkerMessage) {
-    decodeWorker.removeEventListener('message', onWorkerMessage);
-  }
-  if (onWorkerError) {
-    decodeWorker.removeEventListener('error', onWorkerError);
-  }
-  if (onWorkerMessageError) {
-    decodeWorker.removeEventListener('messageerror', onWorkerMessageError);
-  }
-
-  decodeWorker.terminate();
-  decodeWorker = null;
-  onWorkerMessage = null;
-  onWorkerError = null;
-  onWorkerMessageError = null;
+  decodeWorkersUnavailable = false;
 }
 
 async function decodeOnMainThread(
@@ -207,27 +167,177 @@ async function decodeOnMainThread(
   }
 }
 
+function ensureInitialDecodeWorkerSlot(): void {
+  if (workerSlots.length > 0) {
+    return;
+  }
+
+  workerSlots.push(createDecodeWorkerSlot());
+}
+
+function createDecodeWorkerSlot(): DecodeWorkerSlot {
+  const worker = new Worker(new URL('./exr-worker.ts', import.meta.url), { type: 'module' });
+  const slot: DecodeWorkerSlot = {
+    id: nextWorkerSlotId++,
+    worker,
+    active: null,
+    retireWhenIdle: false,
+    onMessage: (event) => {
+      handleWorkerMessage(slot, event.data);
+    },
+    onError: (event) => {
+      handleWorkerFailure(
+        slot,
+        createDecodeErrorPayload(
+          new Error(event.message || 'EXR decode worker failed.'),
+          slot.active?.context ?? createEmptyDecodeContext()
+        )
+      );
+    },
+    onMessageError: () => {
+      handleWorkerFailure(
+        slot,
+        createDecodeErrorPayload(
+          new Error('EXR decode worker returned an unreadable response.'),
+          slot.active?.context ?? createEmptyDecodeContext()
+        )
+      );
+    }
+  };
+
+  worker.addEventListener('message', slot.onMessage);
+  worker.addEventListener('error', slot.onError);
+  worker.addEventListener('messageerror', slot.onMessageError);
+  return slot;
+}
+
+function handleWorkerMessage(slot: DecodeWorkerSlot, response: DecodeWorkerResponse): void {
+  const request = slot.active;
+  if (!request || request.id !== response.id) {
+    return;
+  }
+
+  slot.active = null;
+  if (response.ok) {
+    request.resource = successResource(request.key, response.image);
+    cleanupDecodeRequest(request);
+    request.resolve(response.image);
+  } else {
+    rejectDecodeRequest(
+      request,
+      createDecodeErrorFromPayload(normalizeWorkerErrorPayload(response.error, request.context))
+    );
+  }
+
+  releaseDecodeWorkerSlot(slot);
+  pumpDecodeQueue();
+}
+
+function handleWorkerFailure(slot: DecodeWorkerSlot, payload: DecodeErrorPayload): void {
+  const request = slot.active;
+  if (request) {
+    slot.active = null;
+    rejectDecodeRequest(request, createDecodeErrorFromPayload(payload));
+  }
+
+  terminateDecodeWorkerSlot(slot);
+  pumpDecodeQueue();
+}
+
+function terminateDecodeWorkerSlot(slot: DecodeWorkerSlot): void {
+  const index = workerSlots.indexOf(slot);
+  if (index >= 0) {
+    workerSlots.splice(index, 1);
+  }
+
+  slot.worker.removeEventListener('message', slot.onMessage);
+  slot.worker.removeEventListener('error', slot.onError);
+  slot.worker.removeEventListener('messageerror', slot.onMessageError);
+  slot.worker.terminate();
+}
+
+function releaseDecodeWorkerSlot(slot: DecodeWorkerSlot): void {
+  if (slot.retireWhenIdle || workerSlots.length > maxDecodeWorkers) {
+    terminateDecodeWorkerSlot(slot);
+  }
+}
+
+function enforceDecodeWorkerLimit(): void {
+  for (const slot of [...workerSlots]) {
+    if (workerSlots.length <= maxDecodeWorkers) {
+      break;
+    }
+    if (!slot.active) {
+      terminateDecodeWorkerSlot(slot);
+    }
+  }
+
+  let excessActiveWorkers = Math.max(0, workerSlots.length - maxDecodeWorkers);
+  for (let index = workerSlots.length - 1; index >= 0 && excessActiveWorkers > 0; index -= 1) {
+    const slot = workerSlots[index];
+    if (!slot || !slot.active) {
+      continue;
+    }
+
+    slot.retireWhenIdle = true;
+    excessActiveWorkers -= 1;
+  }
+}
+
 function pumpDecodeQueue(): void {
-  if (activeDecode || queuedDecodes.length === 0) {
+  if (queuedDecodes.length === 0) {
     return;
   }
 
-  const request = queuedDecodes.shift();
-  if (!request) {
-    return;
+  while (queuedDecodes.length > 0 && getActiveDecodeCount() < maxDecodeWorkers) {
+    const request = queuedDecodes.shift();
+    if (!request) {
+      return;
+    }
+
+    if (request.signal?.aborted) {
+      rejectDecodeRequest(request, getAbortReason(request.signal));
+      continue;
+    }
+
+    const slot = takeDecodeWorkerSlot();
+    if (!slot) {
+      queuedDecodes.unshift(request);
+      return;
+    }
+
+    startDecodeRequest(slot, request);
+  }
+}
+
+function takeDecodeWorkerSlot(): DecodeWorkerSlot | null {
+  const idleSlot = workerSlots.find((slot) => !slot.active && !slot.retireWhenIdle);
+  if (idleSlot) {
+    return idleSlot;
   }
 
-  if (request.signal?.aborted) {
-    rejectDecodeRequest(request, getAbortReason(request.signal));
-    pumpDecodeQueue();
-    return;
+  if (workerSlots.length >= maxDecodeWorkers) {
+    return null;
   }
 
-  activeDecode = request;
   try {
-    const worker = getDecodeWorker();
+    const slot = createDecodeWorkerSlot();
+    workerSlots.push(slot);
+    return slot;
+  } catch {
+    return null;
+  }
+}
+
+function getActiveDecodeCount(): number {
+  return workerSlots.reduce((count, slot) => count + (slot.active ? 1 : 0), 0);
+}
+
+function startDecodeRequest(slot: DecodeWorkerSlot, request: DecodeRequest): void {
+  slot.active = request;
+  try {
     const transferableBytes = prepareTransferableBytes(request.bytes);
-    worker.postMessage(
+    slot.worker.postMessage(
       {
         id: request.id,
         bytes: transferableBytes.bytes,
@@ -237,7 +347,7 @@ function pumpDecodeQueue(): void {
       transferableBytes.transferables
     );
   } catch (error) {
-    activeDecode = null;
+    slot.active = null;
     rejectDecodeRequest(
       request,
       createDecodeErrorFromPayload(createDecodeErrorPayload(
@@ -245,6 +355,7 @@ function pumpDecodeQueue(): void {
         request.context
       ))
     );
+    releaseDecodeWorkerSlot(slot);
     pumpDecodeQueue();
   }
 }
@@ -263,10 +374,11 @@ function attachAbortListener(request: DecodeRequest): void {
 
 function abortDecodeRequest(request: DecodeRequest): void {
   const error = getAbortReason(request.signal);
-  if (activeDecode === request) {
-    activeDecode = null;
+  const activeSlot = workerSlots.find((slot) => slot.active === request);
+  if (activeSlot) {
+    activeSlot.active = null;
     rejectDecodeRequest(request, error);
-    terminateDecodeWorkerInstance();
+    terminateDecodeWorkerSlot(activeSlot);
     pumpDecodeQueue();
     return;
   }
@@ -277,16 +389,6 @@ function abortDecodeRequest(request: DecodeRequest): void {
   }
   queuedDecodes.splice(queuedIndex, 1);
   rejectDecodeRequest(request, error);
-}
-
-function rejectActiveDecodeWithPayload(payload: DecodeErrorPayload): void {
-  const request = activeDecode;
-  if (!request) {
-    return;
-  }
-
-  activeDecode = null;
-  rejectDecodeRequest(request, createDecodeErrorFromPayload(payload));
 }
 
 function rejectDecodeRequest(request: DecodeRequest, error: Error): void {

@@ -55,6 +55,7 @@ interface CreateViewerUiDependencies {
     request?: ExportImagePreviewRequest | ExportImageRequest,
     options?: { signal?: AbortSignal; previewMaxLongestEdge?: number }
   ) => Promise<ExportImagePixels>;
+  onImageLoadWorkersChange: (workerCount: number) => void;
   isDisposed: () => boolean;
 }
 
@@ -67,6 +68,7 @@ export function createViewerUi({
   getInteraction,
   resolveColormapExportPixels,
   resolveImageExportPixels,
+  onImageLoadWorkersChange,
   isDisposed
 }: CreateViewerUiDependencies): ViewerUi {
   const callbacks: UiCallbacks = {
@@ -204,6 +206,9 @@ export function createViewerUi({
     },
     onAutoExposurePercentileChange: (percentile) => {
       core.dispatch({ type: 'autoExposurePercentileSet', percentile });
+    },
+    onImageLoadWorkersChange: (workerCount) => {
+      onImageLoadWorkersChange(workerCount);
     },
     onRulersVisibleChange: (enabled) => {
       core.dispatch({ type: 'rulersVisibleSet', enabled });

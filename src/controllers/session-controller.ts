@@ -59,6 +59,23 @@ interface PendingOpenedImageReservationGroup {
   sessionIds: string[];
 }
 
+type OrderedFileLoadResult =
+  | {
+      status: 'loaded';
+      decoded: DecodedExrImage;
+    }
+  | {
+      status: 'failed';
+      error: unknown;
+    };
+
+interface OrderedFileLoadGroup {
+  reservedLoads: ReservedFileLoad[];
+  results: Array<OrderedFileLoadResult | null>;
+  nextCommitIndex: number;
+  activatedLoadedFile: boolean;
+}
+
 export interface FolderLoadOptions {
   overrideLimits?: boolean;
 }
@@ -104,24 +121,10 @@ export class SessionController implements Disposable {
       priority: 'foreground',
       category: LOAD_CATEGORY_OPEN_FILES
     });
-    return this.enqueueLoadTask(async (signal) => {
-      this.throwIfStopped(signal);
-      let activatedLoadedFile = false;
-      for (const { file, reservation } of reservedLoads) {
-        const loaded = await this.loadFile(file, signal, {
-          sessionId: reservation.id,
-          displayName: reservation.displayName,
-          activate: !activatedLoadedFile
-        });
-        if (loaded) {
-          activatedLoadedFile = true;
-        }
-      }
-    }, {
+
+    return this.enqueueOrderedFileLoadGroup(reservedLoads, {
       priority: 'foreground',
       category: LOAD_CATEGORY_OPEN_FILES
-    }).finally(() => {
-      this.clearPendingOpenedImageReservations(reservedLoads.map((load) => load.reservation.id));
     });
   }
 
@@ -153,25 +156,11 @@ export class SessionController implements Disposable {
       priority: 'background',
       category: LOAD_CATEGORY_FOLDER
     });
-    return this.enqueueLoadTask(async (signal) => {
-      this.throwIfStopped(signal);
-      let activatedLoadedFile = false;
-      for (const { file, reservation } of reservedLoads) {
-        const loaded = await this.loadFile(file, signal, {
-          sessionId: reservation.id,
-          displayName: reservation.displayName,
-          activate: !activatedLoadedFile
-        });
-        if (loaded) {
-          activatedLoadedFile = true;
-        }
-      }
-    }, {
+
+    return this.enqueueOrderedFileLoadGroup(reservedLoads, {
       priority: 'background',
       category: LOAD_CATEGORY_FOLDER,
       groupId
-    }).finally(() => {
-      this.clearPendingOpenedImageReservations(reservedLoads.map((load) => load.reservation.id));
     });
   }
 
@@ -396,6 +385,92 @@ export class SessionController implements Disposable {
     });
   }
 
+  private enqueueOrderedFileLoadGroup(
+    reservedLoads: ReservedFileLoad[],
+    options: LoadQueueOptions
+  ): Promise<void> {
+    if (reservedLoads.length === 0) {
+      return Promise.resolve();
+    }
+
+    const group: OrderedFileLoadGroup = {
+      reservedLoads,
+      results: reservedLoads.map(() => null),
+      nextCommitIndex: 0,
+      activatedLoadedFile: false
+    };
+
+    const promises = reservedLoads.map((load, index) => {
+      return this.enqueueLoadTask(async (signal) => {
+        this.throwIfStopped(signal);
+        try {
+          const decoded = await this.decodeFile(load.file, signal);
+          this.throwIfStopped(signal);
+          group.results[index] = {
+            status: 'loaded',
+            decoded
+          };
+        } catch (error) {
+          if (isAbortError(error)) {
+            throw error;
+          }
+
+          this.throwIfStopped(signal);
+          group.results[index] = {
+            status: 'failed',
+            error
+          };
+        }
+
+        this.commitReadyOrderedFileLoads(group);
+      }, {
+        ...options,
+        sessionId: load.reservation.id
+      }, index === 0);
+    });
+
+    return Promise.all(promises).then(() => undefined).finally(() => {
+      this.clearPendingOpenedImageReservations(reservedLoads.map((load) => load.reservation.id));
+    });
+  }
+
+  private commitReadyOrderedFileLoads(group: OrderedFileLoadGroup): void {
+    while (group.nextCommitIndex < group.results.length) {
+      const result = group.results[group.nextCommitIndex];
+      if (!result) {
+        return;
+      }
+
+      const load = group.reservedLoads[group.nextCommitIndex];
+      group.nextCommitIndex += 1;
+      if (!load) {
+        continue;
+      }
+
+      if (result.status === 'loaded') {
+        this.applyDecodedImage(result.decoded, load.file.name, load.file.size, {
+          kind: 'file',
+          file: load.file
+        }, {
+          activate: !group.activatedLoadedFile,
+          sessionId: load.reservation.id,
+          displayName: load.reservation.displayName
+        });
+        group.activatedLoadedFile = true;
+        this.clearPendingOpenedImageReservations([load.reservation.id]);
+        continue;
+      }
+
+      this.clearPendingOpenedImageReservations([load.reservation.id]);
+      if (!this.disposed) {
+        this.core.dispatch({
+          type: 'errorSet',
+          message: result.error instanceof Error ? `Load failed: ${result.error.message}` : 'Load failed.'
+        });
+      }
+    }
+  }
+
   private beginQueuedLoad(clearError: boolean): PendingLoadResource {
     const requestId = this.nextLoadRequestId;
     this.nextLoadRequestId += 1;
@@ -602,42 +677,20 @@ export class SessionController implements Disposable {
     }
   }
 
-  private async loadFile(
+  private async decodeFile(
     file: File,
-    signal: AbortSignal,
-    options: { activate?: boolean; sessionId?: string; displayName?: string } = {}
-  ): Promise<boolean> {
+    signal: AbortSignal
+  ): Promise<DecodedExrImage> {
     this.throwIfStopped(signal);
 
-    try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      this.throwIfStopped(signal);
-      const decoded = await this.decodeBytes(bytes, {
-        signal,
-        filename: getFileDecodeName(file)
-      });
-      this.throwIfStopped(signal);
-      this.applyDecodedImage(decoded, file.name, file.size, {
-        kind: 'file',
-        file
-      }, {
-        activate: options.activate,
-        sessionId: options.sessionId,
-        displayName: options.displayName
-      });
-      return true;
-    } catch (error) {
-      if (!isAbortError(error) && !this.disposed) {
-        if (options.sessionId) {
-          this.clearPendingOpenedImageReservations([options.sessionId]);
-        }
-        this.core.dispatch({
-          type: 'errorSet',
-          message: error instanceof Error ? `Load failed: ${error.message}` : 'Load failed.'
-        });
-      }
-      return false;
-    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    this.throwIfStopped(signal);
+    const decoded = await this.decodeBytes(bytes, {
+      signal,
+      filename: getFileDecodeName(file)
+    });
+    this.throwIfStopped(signal);
+    return decoded;
   }
 
   private applyDecodedImage(

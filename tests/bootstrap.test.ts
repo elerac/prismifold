@@ -85,7 +85,9 @@ const mocks = vi.hoisted(() => {
   const thumbnailDispose = vi.fn();
   const renderCacheDispose = vi.fn();
   const loadQueueDispose = vi.fn();
+  const loadQueueSetMaxWorkers = vi.fn();
   const workerDispose = vi.fn();
+  const workerSetMaxWorkers = vi.fn();
   const rendererReadExportPixels = vi.fn(() => ({
     width: 1,
     height: 1,
@@ -156,7 +158,9 @@ const mocks = vi.hoisted(() => {
     thumbnailDispose,
     renderCacheDispose,
     loadQueueDispose,
+    loadQueueSetMaxWorkers,
     workerDispose,
+    workerSetMaxWorkers,
     rendererReadExportPixels,
     renderCachePrepareActiveSession,
     displayGetActiveColormapLutForState,
@@ -406,12 +410,14 @@ vi.mock('../src/services/render-cache-service', () => ({
 vi.mock('../src/services/load-queue', () => ({
   LoadQueueService: class {
     readonly dispose = mocks.loadQueueDispose;
+    readonly setMaxWorkers = mocks.loadQueueSetMaxWorkers;
   }
 }));
 
 vi.mock('../src/exr-worker-client', () => ({
   loadExrOffMainThread: vi.fn(),
-  disposeDecodeWorker: mocks.workerDispose
+  disposeDecodeWorker: mocks.workerDispose,
+  setMaxDecodeWorkers: mocks.workerSetMaxWorkers
 }));
 
 vi.mock('../src/colormaps', () => ({

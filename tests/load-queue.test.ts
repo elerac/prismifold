@@ -53,6 +53,107 @@ describe('load queue service', () => {
     expect(events).toEqual(['first', 'second', 'third']);
   });
 
+  it('runs tasks up to the configured worker limit', async () => {
+    const queue = new LoadQueueService({ maxWorkers: 2 });
+    const events: string[] = [];
+    let releaseFirst!: () => void;
+    let releaseSecond!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const secondGate = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+
+    const first = queue.enqueue(async () => {
+      events.push('first:start');
+      await firstGate;
+      events.push('first:end');
+    });
+    const second = queue.enqueue(async () => {
+      events.push('second:start');
+      await secondGate;
+      events.push('second:end');
+    });
+    const third = queue.enqueue(async () => {
+      events.push('third');
+    });
+
+    await Promise.resolve();
+    expect(events).toEqual(['first:start', 'second:start']);
+
+    releaseSecond();
+    await Promise.resolve();
+    await second;
+    expect(events).toEqual(['first:start', 'second:start', 'second:end', 'third']);
+
+    releaseFirst();
+    await Promise.all([first, third]);
+    expect(events).toEqual(['first:start', 'second:start', 'second:end', 'third', 'first:end']);
+  });
+
+  it('starts queued work when the worker limit increases', async () => {
+    const queue = new LoadQueueService({ maxWorkers: 1 });
+    const events: string[] = [];
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+
+    const first = queue.enqueue(async () => {
+      events.push('first');
+      await firstGate;
+    });
+    const second = queue.enqueue(async () => {
+      events.push('second');
+    });
+
+    await Promise.resolve();
+    expect(events).toEqual(['first']);
+
+    queue.setMaxWorkers(2);
+    await second;
+    expect(events).toEqual(['first', 'second']);
+
+    releaseFirst();
+    await first;
+  });
+
+  it('does not abort active work when the worker limit decreases', async () => {
+    const queue = new LoadQueueService({ maxWorkers: 2 });
+    const events: string[] = [];
+    let releaseFirst!: () => void;
+    let releaseSecond!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const secondGate = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+
+    const first = queue.enqueue(async (signal) => {
+      events.push(`first:${signal.aborted}`);
+      await firstGate;
+    });
+    const second = queue.enqueue(async (signal) => {
+      events.push(`second:${signal.aborted}`);
+      await secondGate;
+    });
+    const third = queue.enqueue(async () => {
+      events.push('third');
+    });
+
+    await Promise.resolve();
+    queue.setMaxWorkers(1);
+    await Promise.resolve();
+    expect(events).toEqual(['first:false', 'second:false']);
+
+    releaseFirst();
+    releaseSecond();
+    await Promise.all([first, second, third]);
+    expect(events).toEqual(['first:false', 'second:false', 'third']);
+  });
+
   it('aborts the active task signal and rejects queued tasks after dispose', async () => {
     const queue = new LoadQueueService();
     let activeSignal: AbortSignal | null = null;
