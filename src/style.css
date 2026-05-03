@@ -1786,6 +1786,15 @@ body.is-resizing-panel-rows * {
   box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.28);
 }
 
+.screenshot-selection-controls button:disabled {
+  border-color: color-mix(in srgb, var(--control-border) 48%, transparent);
+  background: color-mix(in srgb, var(--panel) 82%, #000);
+  color: color-mix(in srgb, var(--text-dim) 54%, transparent);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
 .drop-overlay {
   position: absolute;
   inset: 0;

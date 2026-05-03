@@ -3838,6 +3838,12 @@ describe('view menu', () => {
     const overlay = document.getElementById('screenshot-selection-overlay') as HTMLDivElement;
     const selectionBox = document.getElementById('screenshot-selection-box') as HTMLDivElement;
     const deleteButton = document.getElementById('screenshot-selection-delete-button') as HTMLButtonElement;
+    const deleteDisabledRule = readStyleRule('.screenshot-selection-controls button:disabled');
+
+    expect(deleteDisabledRule).toContain('color: color-mix(in srgb, var(--text-dim) 54%, transparent)');
+    expect(deleteDisabledRule).toContain('box-shadow: none');
+    expect(deleteDisabledRule).toContain('cursor: not-allowed');
+    expect(deleteDisabledRule).toContain('opacity: 0.52');
 
     (document.getElementById('export-screenshot-button') as HTMLButtonElement).click();
     ui.setScreenshotSelectionRect({ x: 30, y: 15, width: 120, height: 60 });
