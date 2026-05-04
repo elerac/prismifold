@@ -205,7 +205,8 @@ function reduceAutoExposureResolved(
     ...nextState,
     autoExposureResource: successResource(intent.requestKey, intent.autoExposure)
   }, {
-    exposureEv: intent.autoExposure?.exposureEv ?? 0
+    exposureEv: intent.autoExposure?.exposureEv ?? 0,
+    channelThumbnailExposureEv: intent.autoExposure?.exposureEv ?? 0
   });
 }
 
@@ -231,6 +232,7 @@ function reduceAutoExposurePreviewResolved(
   }
 
   return patchSessionState(state, {
-    exposureEv: intent.autoExposure?.exposureEv ?? 0
+    exposureEv: intent.autoExposure?.exposureEv ?? 0,
+    channelThumbnailExposureEv: intent.autoExposure?.exposureEv ?? 0
   });
 }

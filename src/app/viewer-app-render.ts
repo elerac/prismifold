@@ -653,6 +653,7 @@ function sameViewerRenderState(a: ViewerRenderState, b: ViewerRenderState): bool
 function stateLikeSessionState(): ViewerAppState['sessionState'] {
   return {
     exposureEv: 0,
+    channelThumbnailExposureEv: 0,
     viewerMode: 'image',
     visualizationMode: 'rgb',
     activeColormapId: '0',

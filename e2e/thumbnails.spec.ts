@@ -123,3 +123,36 @@ test('keeps bottom-panel channel thumbnail frames stable across image selection 
   await expect(channelSelect.locator('option:checked')).toHaveText('G');
   await expect(greenRow).toHaveAttribute('aria-selected', 'true');
 });
+
+test('defers channel thumbnail exposure refresh until slider changes are committed', async ({ page }) => {
+  await installIdleCallbackController(page);
+  await gotoViewerApp(page);
+
+  const exposureSlider = page.locator('#exposure-slider');
+  const thumbnailImages = page.locator('#channel-thumbnail-strip .channel-thumbnail-image');
+
+  await openGalleryCbox(page);
+  await expect.poll(async () => await getPendingIdleCallbackCount(page)).not.toBe(0);
+  await flushAllIdleCallbacks(page);
+  await expect(thumbnailImages.first()).toHaveAttribute('src', /^data:image\/png;base64,/, { timeout: 10000 });
+  await expect.poll(async () => await getPendingIdleCallbackCount(page)).toBe(0);
+
+  await exposureSlider.evaluate((element) => {
+    const input = element as HTMLInputElement;
+    for (const value of ['1.0', '1.5', '2.0']) {
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+  await expect(exposureSlider).toHaveValue('2');
+  await page.waitForTimeout(100);
+  expect(await getPendingIdleCallbackCount(page)).toBe(0);
+
+  await exposureSlider.evaluate((element) => {
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  await expect.poll(async () => await getPendingIdleCallbackCount(page)).not.toBe(0);
+  await flushAllIdleCallbacks(page);
+  await expect.poll(async () => await getPendingIdleCallbackCount(page)).toBe(0);
+});

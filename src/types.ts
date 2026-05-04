@@ -143,6 +143,7 @@ export interface ViewerViewState {
 
 export interface ViewerSessionState extends ViewerViewState {
   exposureEv: number;
+  channelThumbnailExposureEv: number;
   viewerMode: ViewerMode;
   visualizationMode: VisualizationMode;
   activeColormapId: string;

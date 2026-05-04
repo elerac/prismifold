@@ -186,12 +186,17 @@ function scheduleActiveChannelThumbnailGeneration(
     return;
   }
 
+  const stateSnapshot: ViewerSessionState = {
+    ...state.sessionState,
+    exposureEv: state.sessionState.channelThumbnailExposureEv
+  };
+
   for (const item of buildChannelViewItems(layer.channelNames)) {
     const requestKey = serializeChannelThumbnailRequestKey({
       sessionId: activeSession.id,
       activeLayer: state.sessionState.activeLayer,
       selection: item.selection,
-      exposureEv: state.sessionState.exposureEv,
+      exposureEv: state.sessionState.channelThumbnailExposureEv,
       stokesDegreeModulation: state.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: state.sessionState.stokesAolpDegreeModulationMode
     });
@@ -216,7 +221,7 @@ function scheduleActiveChannelThumbnailGeneration(
         item.selectionKey
       ),
       token,
-      stateSnapshot: state.sessionState,
+      stateSnapshot,
       selection: item.selection
     }).catch(() => undefined);
   }
@@ -230,7 +235,7 @@ function shouldRefreshActiveChannelThumbnails(transition: ViewerStateTransition)
   return (
     transition.previousState.activeSessionId !== transition.state.activeSessionId ||
     transition.previousState.sessionState.activeLayer !== transition.state.sessionState.activeLayer ||
-    transition.previousState.sessionState.exposureEv !== transition.state.sessionState.exposureEv ||
+    transition.previousState.sessionState.channelThumbnailExposureEv !== transition.state.sessionState.channelThumbnailExposureEv ||
     transition.previousState.sessionState.stokesDegreeModulation.aolp !== transition.state.sessionState.stokesDegreeModulation.aolp ||
     transition.previousState.sessionState.stokesDegreeModulation.cop !== transition.state.sessionState.stokesDegreeModulation.cop ||
     transition.previousState.sessionState.stokesDegreeModulation.top !== transition.state.sessionState.stokesDegreeModulation.top ||

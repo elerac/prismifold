@@ -58,6 +58,8 @@ export function displayReducer(
         : state;
     case 'exposureSet':
       return patchSessionState(state, { exposureEv: intent.exposureEv });
+    case 'exposureCommitted':
+      return patchSessionState(state, { channelThumbnailExposureEv: state.sessionState.exposureEv });
     case 'viewerModeSet':
       if (!selectActiveSession(state) || state.sessionState.viewerMode === intent.viewerMode) {
         return state;

@@ -183,6 +183,9 @@ export function createViewerUi({
     onExposureChange: (value) => {
       core.dispatch({ type: 'exposureSet', exposureEv: value });
     },
+    onExposureCommit: () => {
+      core.dispatch({ type: 'exposureCommitted' });
+    },
     onViewerKeyboardNavigationInputChange: (input) => {
       getInteraction()?.setViewerKeyboardNavigationInput(input);
     },

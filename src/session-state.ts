@@ -43,6 +43,7 @@ export function persistActiveSessionState<T extends { id: string; state: ViewerS
 export function cloneViewerSessionState(state: ViewerSessionState): ViewerSessionState {
   return {
     exposureEv: state.exposureEv,
+    channelThumbnailExposureEv: state.channelThumbnailExposureEv,
     viewerMode: state.viewerMode,
     visualizationMode: state.visualizationMode,
     activeColormapId: state.activeColormapId,

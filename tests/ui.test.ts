@@ -773,7 +773,8 @@ describe('top bar and display controls', () => {
     installUiFixture();
 
     const onExposureChange = vi.fn();
-    const ui = new ViewerUi(createUiCallbacks({ onExposureChange }));
+    const onExposureCommit = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onExposureChange, onExposureCommit }));
     const exposureSlider = document.getElementById('exposure-slider') as HTMLInputElement;
     const exposureValue = document.getElementById('exposure-value') as HTMLInputElement;
 
@@ -785,10 +786,15 @@ describe('top bar and display controls', () => {
     exposureSlider.value = '2.3';
     exposureSlider.dispatchEvent(new Event('input', { bubbles: true }));
     expect(onExposureChange).toHaveBeenLastCalledWith(2.3);
+    expect(onExposureCommit).not.toHaveBeenCalled();
+
+    exposureSlider.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onExposureCommit).toHaveBeenCalledTimes(1);
 
     exposureValue.value = '-12';
     exposureValue.dispatchEvent(new Event('change', { bubbles: true }));
     expect(onExposureChange).toHaveBeenLastCalledWith(-10);
+    expect(onExposureCommit).toHaveBeenCalledTimes(2);
 
     ui.setExposure(-0.7);
 
@@ -8654,6 +8660,7 @@ function createUiCallbacksBase() {
     onReorderOpenedImage: () => {},
     onDisplayCacheBudgetChange: () => {},
     onExposureChange: () => {},
+    onExposureCommit: () => {},
     onViewerKeyboardNavigationInputChange: () => {},
     onViewerKeyboardZoomInputChange: () => {},
     onViewerViewStateChange: () => {},

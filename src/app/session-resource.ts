@@ -101,6 +101,7 @@ export function buildReloadedSession(
 export function createClearedViewerState(defaultColormapId: string): ViewerSessionState {
   return {
     exposureEv: 0,
+    channelThumbnailExposureEv: 0,
     viewerMode: 'image',
     visualizationMode: 'rgb',
     activeColormapId: defaultColormapId,
@@ -193,6 +194,7 @@ export function buildSwitchedSessionState(
       ...nextImageCamera,
       ...nextPanoramaCamera,
       exposureEv: currentState.exposureEv,
+      channelThumbnailExposureEv: currentState.channelThumbnailExposureEv,
       displaySelection: cloneDisplaySelection(currentState.displaySelection),
       stokesDegreeModulation: { ...currentState.stokesDegreeModulation },
       stokesAolpDegreeModulationMode: currentState.stokesAolpDegreeModulationMode,

@@ -20,6 +20,7 @@ function createThumbnailState(
 ): Parameters<typeof buildOpenedImageThumbnailPixels>[3] {
   return {
     exposureEv: 0,
+    channelThumbnailExposureEv: 0,
     viewerMode: 'image',
     visualizationMode: 'rgb',
     activeColormapId: '0',

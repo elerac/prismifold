@@ -179,6 +179,7 @@ export interface UiCallbacks {
   ) => void;
   onDisplayCacheBudgetChange: (mb: number) => void;
   onExposureChange: (value: number) => void;
+  onExposureCommit: () => void;
   onViewerKeyboardNavigationInputChange: (input: ViewerKeyboardNavigationInput) => void;
   onViewerKeyboardZoomInputChange: (input: ViewerKeyboardZoomInput) => void;
   onViewerViewStateChange: (patch: Partial<ViewerViewState>) => void;
@@ -328,6 +329,9 @@ export class ViewerUi implements Disposable {
     this.colormapPanel = new ColormapPanel(this.elements, {
       onExposureChange: (value) => {
         this.callbacks.onExposureChange(value);
+      },
+      onExposureCommit: () => {
+        this.callbacks.onExposureCommit();
       },
       onVisualizationModeChange: (mode) => {
         this.callbacks.onVisualizationModeChange(mode);

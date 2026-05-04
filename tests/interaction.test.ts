@@ -26,6 +26,7 @@ import { createChannelMonoSelection, createChannelRgbSelection } from './helpers
 
 const state: ViewerState = {
   exposureEv: 0,
+  channelThumbnailExposureEv: 0,
   viewerMode: 'image',
   visualizationMode: 'rgb',
   activeColormapId: DEFAULT_COLORMAP_ID,

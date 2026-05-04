@@ -373,7 +373,7 @@ describe('viewer app lanes', () => {
     expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.RenderImage)).toBe(true);
   });
 
-  it('keeps the previous channel thumbnail visible while a refreshed thumbnail is pending', () => {
+  it('keeps channel thumbnails on the committed exposure while live exposure changes', () => {
     const previous = createActiveState();
     const activeSession = previous.sessions[0]!;
     const descriptor = buildChannelViewItems(activeSession.decoded.layers[0]!.channelNames)[0]!;
@@ -382,14 +382,23 @@ describe('viewer app lanes', () => {
       sessionId: activeSession.id,
       activeLayer: previous.sessionState.activeLayer,
       selection: descriptor.selection,
-      exposureEv: previous.sessionState.exposureEv,
+      exposureEv: previous.sessionState.channelThumbnailExposureEv,
+      stokesDegreeModulation: previous.sessionState.stokesDegreeModulation,
+      stokesAolpDegreeModulationMode: previous.sessionState.stokesAolpDegreeModulationMode
+    });
+    const uncommittedRequestKey = serializeChannelThumbnailRequestKey({
+      sessionId: activeSession.id,
+      activeLayer: previous.sessionState.activeLayer,
+      selection: descriptor.selection,
+      exposureEv: 1,
       stokesDegreeModulation: previous.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: previous.sessionState.stokesAolpDegreeModulationMode
     });
     const pendingState = {
       ...previous,
       channelThumbnailsByRequestKey: {
-        [previousRequestKey]: successResource(previousRequestKey, 'thumb-0')
+        [previousRequestKey]: successResource(previousRequestKey, 'thumb-0'),
+        [uncommittedRequestKey]: successResource(uncommittedRequestKey, 'thumb-1')
       },
       channelThumbnailLatestRequestKeyByContextKey: {
         [contextKey]: previousRequestKey
@@ -397,6 +406,48 @@ describe('viewer app lanes', () => {
       sessionState: {
         ...previous.sessionState,
         exposureEv: 1
+      }
+    };
+
+    const snapshot = createViewerUiSnapshotSelector()(pendingState);
+    const item = snapshot.channelThumbnailItems.find((entry) => entry.selectionKey === descriptor.selectionKey);
+    expect(item?.thumbnailDataUrl).toBe('thumb-0');
+  });
+
+  it('keeps the previous channel thumbnail visible while a committed exposure thumbnail is pending', () => {
+    const previous = createActiveState();
+    const activeSession = previous.sessions[0]!;
+    const descriptor = buildChannelViewItems(activeSession.decoded.layers[0]!.channelNames)[0]!;
+    const contextKey = serializeChannelThumbnailContextKey(activeSession.id, previous.sessionState.activeLayer, descriptor.selectionKey);
+    const previousRequestKey = serializeChannelThumbnailRequestKey({
+      sessionId: activeSession.id,
+      activeLayer: previous.sessionState.activeLayer,
+      selection: descriptor.selection,
+      exposureEv: previous.sessionState.channelThumbnailExposureEv,
+      stokesDegreeModulation: previous.sessionState.stokesDegreeModulation,
+      stokesAolpDegreeModulationMode: previous.sessionState.stokesAolpDegreeModulationMode
+    });
+    const pendingRequestKey = serializeChannelThumbnailRequestKey({
+      sessionId: activeSession.id,
+      activeLayer: previous.sessionState.activeLayer,
+      selection: descriptor.selection,
+      exposureEv: 1,
+      stokesDegreeModulation: previous.sessionState.stokesDegreeModulation,
+      stokesAolpDegreeModulationMode: previous.sessionState.stokesAolpDegreeModulationMode
+    });
+    const pendingState = {
+      ...previous,
+      channelThumbnailsByRequestKey: {
+        [previousRequestKey]: successResource(previousRequestKey, 'thumb-0'),
+        [pendingRequestKey]: pendingResource<string | null>(pendingRequestKey, 1)
+      },
+      channelThumbnailLatestRequestKeyByContextKey: {
+        [contextKey]: previousRequestKey
+      },
+      sessionState: {
+        ...previous.sessionState,
+        exposureEv: 1,
+        channelThumbnailExposureEv: 1
       }
     };
 
@@ -413,7 +464,7 @@ describe('viewer app lanes', () => {
       sessionId: activeSession.id,
       activeLayer: previous.sessionState.activeLayer,
       selection: descriptor.selection,
-      exposureEv: previous.sessionState.exposureEv,
+      exposureEv: previous.sessionState.channelThumbnailExposureEv,
       stokesDegreeModulation: previous.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: previous.sessionState.stokesAolpDegreeModulationMode
     });

@@ -216,7 +216,7 @@ export function buildChannelThumbnailItems(state: ViewerAppState): ViewerChannel
       sessionId: session.id,
       activeLayer: state.sessionState.activeLayer,
       selection: item.selection,
-      exposureEv: state.sessionState.exposureEv,
+      exposureEv: state.sessionState.channelThumbnailExposureEv,
       stokesDegreeModulation: state.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: state.sessionState.stokesAolpDegreeModulationMode
     });

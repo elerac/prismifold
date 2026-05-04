@@ -20,6 +20,7 @@ import type {
 export function sameViewerSessionState(a: ViewerSessionState, b: ViewerSessionState): boolean {
   return (
     a.exposureEv === b.exposureEv &&
+    a.channelThumbnailExposureEv === b.channelThumbnailExposureEv &&
     a.viewerMode === b.viewerMode &&
     a.visualizationMode === b.visualizationMode &&
     a.activeColormapId === b.activeColormapId &&

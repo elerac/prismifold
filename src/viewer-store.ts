@@ -12,6 +12,7 @@ import {
 
 const SESSION_STATE_KEYS = [
   'exposureEv',
+  'channelThumbnailExposureEv',
   'viewerMode',
   'visualizationMode',
   'activeColormapId',
@@ -35,6 +36,7 @@ const SESSION_STATE_KEYS = [
 export function createInitialState(): ViewerSessionState {
   return {
     exposureEv: 0,
+    channelThumbnailExposureEv: 0,
     viewerMode: 'image',
     visualizationMode: 'rgb',
     activeColormapId: DEFAULT_COLORMAP_ID,

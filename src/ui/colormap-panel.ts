@@ -11,6 +11,7 @@ const DEFAULT_COLORMAP_GRADIENT = 'linear-gradient(90deg, #d95656 0%, #05070a 50
 
 interface ColormapPanelCallbacks {
   onExposureChange: (value: number) => void;
+  onExposureCommit: () => void;
   onVisualizationModeChange: (mode: VisualizationMode) => void;
   onColormapChange: (colormapId: string) => void;
   onColormapRangeChange: (range: DisplayLuminanceRange) => void;
@@ -319,6 +320,10 @@ export class ColormapPanel implements Disposable {
       this.callbacks.onExposureChange(Number(target.value));
     });
 
+    this.disposables.addEventListener(slider, 'change', () => {
+      this.callbacks.onExposureCommit();
+    });
+
     this.disposables.addEventListener(valueInput, 'change', (event) => {
       const target = event.currentTarget as HTMLInputElement;
       const value = Number(target.value);
@@ -330,6 +335,7 @@ export class ColormapPanel implements Disposable {
       const max = Number(slider.max);
       const clamped = Math.min(max, Math.max(min, value));
       this.callbacks.onExposureChange(clamped);
+      this.callbacks.onExposureCommit();
     });
   }
 

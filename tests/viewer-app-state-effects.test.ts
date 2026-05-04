@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   applyActiveColormapLutEffects,
+  applyChannelThumbnailEffects,
   applySessionResourceEffects
 } from '../src/app/viewer-app-state-effects';
 import { ViewerAppCore } from '../src/app/viewer-app-core';
 import type { RenderCacheService } from '../src/services/render-cache-service';
 import type { ThumbnailService } from '../src/services/thumbnail-service';
+import type { ChannelThumbnailService } from '../src/services/channel-thumbnail-service';
 import type { OpenedImageThumbnailOptions } from '../src/thumbnail';
 import { buildViewerStateForLayer, createInitialState } from '../src/viewer-store';
 import { createLayerFromChannels } from './helpers/state-fixtures';
@@ -67,6 +69,44 @@ function createLayeredSession(id: string): OpenedImageSession {
 }
 
 describe('viewer app state effects', () => {
+  it('refreshes channel thumbnails on committed exposure changes only', () => {
+    const core = new ViewerAppCore();
+    const enqueue = vi.fn<ChannelThumbnailService['enqueue']>(() => Promise.resolve());
+    const channelThumbnailService = {
+      enqueue,
+      discardSession: vi.fn(),
+      clear: vi.fn()
+    } as unknown as ChannelThumbnailService;
+
+    core.subscribeState((transition) => {
+      applyChannelThumbnailEffects(transition, core, channelThumbnailService);
+    });
+
+    core.dispatch({ type: 'sessionLoaded', session: createSession('session-1') });
+    const batchSize = enqueue.mock.calls.length;
+    expect(batchSize).toBeGreaterThan(0);
+    enqueue.mockClear();
+
+    core.dispatch({ type: 'exposureSet', exposureEv: 2 });
+
+    expect(core.getState().sessionState.exposureEv).toBe(2);
+    expect(core.getState().sessionState.channelThumbnailExposureEv).toBe(0);
+    expect(enqueue).not.toHaveBeenCalled();
+
+    core.dispatch({ type: 'exposureCommitted' });
+
+    expect(core.getState().sessionState.channelThumbnailExposureEv).toBe(2);
+    expect(enqueue).toHaveBeenCalledTimes(batchSize);
+    expect(enqueue.mock.calls.every(([job]) => {
+      return job.requestKey.includes('|exposure:2|') && job.stateSnapshot.exposureEv === 2;
+    })).toBe(true);
+
+    enqueue.mockClear();
+    core.dispatch({ type: 'exposureCommitted' });
+
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
   it('requeues opened image thumbnails when auto exposure preferences change', () => {
     const core = new ViewerAppCore();
     const enqueue = vi.fn<(

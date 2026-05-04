@@ -156,6 +156,7 @@ export type ViewerIntent =
   | { type: 'displaySelectionTransitionStarted'; requestId: number }
   | { type: 'displaySelectionTransitionFinished'; requestId: number }
   | { type: 'exposureSet'; exposureEv: number }
+  | { type: 'exposureCommitted' }
   | { type: 'viewerModeSet'; viewerMode: ViewerSessionState['viewerMode'] }
   | { type: 'activeLayerSet'; activeLayer: number }
   | {
