@@ -1005,6 +1005,21 @@
                 <h3 id="opened-files-heading">Open Files</h3>
                 <span id="opened-files-count" class="image-browser-count">0</span>
               </div>
+              <div class="opened-files-filter">
+                <label class="visually-hidden" for="opened-files-filter-input">Filter open files</label>
+                <span class="opened-files-filter-shell">
+                  <input
+                    id="opened-files-filter-input"
+                    class="opened-files-filter-input"
+                    type="search"
+                    placeholder="Filter"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-controls="opened-files-list"
+                    disabled
+                  />
+                </span>
+              </div>
               <div
                 id="opened-files-list"
                 class="image-browser-list image-browser-list--files is-disabled"

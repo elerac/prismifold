@@ -2039,6 +2039,59 @@ body.is-resizing-panel-rows * {
   transform: rotate(-45deg) translateX(-0.03rem);
 }
 
+.image-browser-section.is-collapsed .opened-files-filter {
+  display: none;
+}
+
+.opened-files-filter {
+  padding: 0.05rem 0.7rem 0.25rem;
+}
+
+.opened-files-filter-shell {
+  min-width: 0;
+  height: 1.9rem;
+  display: block;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--text-dim) 52%, var(--panel-border));
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, var(--panel) 84%, #000 16%);
+  color: var(--text-dim);
+  transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+
+.opened-files-filter-shell:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 82%, #ffffff 10%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
+  color: var(--text);
+}
+
+.opened-files-filter:has(.opened-files-filter-input:disabled) .opened-files-filter-shell {
+  opacity: 0.62;
+}
+
+.opened-files-filter-input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  display: block;
+  border: 0;
+  padding: 0 0.72rem;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.84rem;
+  outline: none;
+}
+
+.opened-files-filter-input::placeholder {
+  color: color-mix(in srgb, var(--text-dim) 86%, transparent);
+  opacity: 1;
+}
+
+.opened-files-filter-input:disabled {
+  cursor: default;
+}
+
 .image-browser-list {
   --image-browser-empty-row-height: 1.94rem;
   display: grid;

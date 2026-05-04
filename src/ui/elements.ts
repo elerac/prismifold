@@ -152,6 +152,7 @@ export interface Elements {
   loadingOverlay: HTMLDivElement;
   openedImagesSelect: HTMLSelectElement;
   openedFilesToggle: HTMLButtonElement;
+  openedFilesFilterInput: HTMLInputElement;
   openedFilesList: HTMLElement;
   openedFilesCount: HTMLElement;
   displayCacheControl: HTMLDivElement;
@@ -237,6 +238,7 @@ export interface Elements {
 export type OpenedImagesPanelElements = Pick<
   Elements,
   | 'openedImagesSelect'
+  | 'openedFilesFilterInput'
   | 'openedFilesList'
   | 'openedFilesCount'
   | 'viewerContainer'
@@ -668,6 +670,7 @@ export function resolveElements(): Elements {
     loadingOverlay: requireElement('loading-overlay', HTMLDivElement),
     openedImagesSelect: requireElement('opened-images-select', HTMLSelectElement),
     openedFilesToggle: requireElement('opened-files-toggle', HTMLButtonElement),
+    openedFilesFilterInput: requireElement('opened-files-filter-input', HTMLInputElement),
     openedFilesList: requireElement('opened-files-list', HTMLElement),
     openedFilesCount: requireElement('opened-files-count', HTMLElement),
     displayCacheControl: requireElement('display-cache-control', HTMLDivElement),

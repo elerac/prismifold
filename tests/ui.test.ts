@@ -6455,6 +6455,110 @@ describe('opened files actions', () => {
     expect(firstLabel.title).toContain('Path: shots/hoge/image.exr');
   });
 
+  it('filters visible open-file rows by label or source path without changing total open files', () => {
+    installUiFixture();
+
+    const ui = new ViewerUi(createUiCallbacks());
+    ui.setOpenedImageOptions([
+      {
+        id: 'session-1',
+        label: 'beauty.exr',
+        sourceDetail: 'shots/hero/beauty.exr'
+      },
+      {
+        id: 'session-2',
+        label: 'depth.exr',
+        sourceDetail: 'passes/depth.exr'
+      },
+      {
+        id: 'session-3',
+        label: 'mask.exr',
+        sourceDetail: 'shots/mattes/mask.exr'
+      }
+    ], 'session-2');
+
+    const filterInput = document.getElementById('opened-files-filter-input') as HTMLInputElement;
+    const openedFilesList = document.getElementById('opened-files-list') as HTMLDivElement;
+    const openedFilesCount = document.getElementById('opened-files-count') as HTMLElement;
+    const openedImagesSelect = document.getElementById('opened-images-select') as HTMLSelectElement;
+    const readRowLabels = (): string[] => Array.from(
+      openedFilesList.querySelectorAll<HTMLElement>('.opened-file-label')
+    ).map((label) => label.textContent ?? '');
+
+    expect(filterInput.disabled).toBe(false);
+    expect(readRowLabels()).toEqual(['beauty.exr', 'depth.exr', 'mask.exr']);
+
+    filterInput.value = 'hero';
+    filterInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(readRowLabels()).toEqual(['beauty.exr']);
+    expect(openedFilesCount.textContent).toBe('3');
+    expect(openedImagesSelect.options).toHaveLength(3);
+    expect(openedImagesSelect.value).toBe('session-2');
+
+    filterInput.value = 'MASK';
+    filterInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(readRowLabels()).toEqual(['mask.exr']);
+
+    filterInput.value = 'missing';
+    filterInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(openedFilesList.querySelectorAll('.opened-file-row')).toHaveLength(0);
+    expect(openedFilesList.textContent).toBe('No matching open files');
+
+    filterInput.value = '';
+    filterInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(readRowLabels()).toEqual(['beauty.exr', 'depth.exr', 'mask.exr']);
+  });
+
+  it('uses filtered open-file rows for keyboard selection and reorder', () => {
+    installUiFixture();
+    mockDesktopLayoutGeometry();
+
+    const onOpenedImageSelected = vi.fn();
+    const onReorderOpenedImage = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onOpenedImageSelected, onReorderOpenedImage }));
+    const items = [
+      { id: 'session-1', label: 'image-a.exr' },
+      { id: 'session-2', label: 'keep-a.exr' },
+      { id: 'session-3', label: 'image-c.exr' },
+      { id: 'session-4', label: 'keep-b.exr' }
+    ];
+    const filterInput = document.getElementById('opened-files-filter-input') as HTMLInputElement;
+    const openedImagesSelect = document.getElementById('opened-images-select') as HTMLSelectElement;
+
+    ui.setOpenedImageOptions(items, 'session-1');
+    filterInput.value = 'keep';
+    filterInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+
+    expect(onOpenedImageSelected).toHaveBeenNthCalledWith(1, 'session-2');
+    expect(onOpenedImageSelected).toHaveBeenNthCalledWith(2, 'session-4');
+    expect(openedImagesSelect.value).toBe('session-4');
+
+    ui.setOpenedImageOptions(items, 'session-1');
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+
+    expect(onOpenedImageSelected).toHaveBeenLastCalledWith('session-4');
+    expect(openedImagesSelect.value).toBe('session-4');
+
+    ui.setOpenedImageOptions(items, 'session-2');
+    document.body.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'ArrowDown',
+      altKey: true,
+      bubbles: true,
+      cancelable: true
+    }));
+
+    expect(onReorderOpenedImage).toHaveBeenCalledTimes(1);
+    expect(onReorderOpenedImage).toHaveBeenCalledWith('session-2', 'session-4', 'after');
+    expect(onReorderOpenedImage).not.toHaveBeenCalledWith('session-2', 'session-3', 'after');
+  });
+
   it('starts inline rename with Enter on a focused open-file row and commits with Enter in the input', () => {
     installUiFixture();
 

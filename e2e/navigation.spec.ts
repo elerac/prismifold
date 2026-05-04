@@ -89,6 +89,47 @@ test('selects an open file when dragged into the image viewer', async ({ page })
   await expect(viewer).not.toHaveClass(/is-opened-file-drop-target/);
 });
 
+test('filters the visible Open Files rows by text', async ({ page }) => {
+  await gotoViewerApp(page);
+
+  const openedImages = page.locator('#opened-images-select');
+  const openedFilesCount = page.locator('#opened-files-count');
+  const openedRows = page.locator('#opened-files-list .opened-file-row');
+  const filterInput = page.locator('#opened-files-filter-input');
+
+  await openGalleryCbox(page);
+  await page.setInputFiles('#file-input', {
+    name: 'scalar_z.exr',
+    mimeType: 'image/exr',
+    buffer: buildScalarChannelExr()
+  });
+  await expect(openedImages.locator('option:checked')).toContainText('scalar_z.exr', { timeout: 30000 });
+  await page.setInputFiles('#file-input', {
+    name: 'spectral.exr',
+    mimeType: 'image/exr',
+    buffer: buildSpectralExr()
+  });
+  await expect(openedImages.locator('option:checked')).toContainText('spectral.exr', { timeout: 30000 });
+  await expect(openedRows).toHaveCount(3);
+
+  await expect(filterInput).toBeEnabled();
+  await filterInput.fill('scalar');
+
+  await expect(openedRows).toHaveCount(1);
+  await expect(openedRows.first()).toContainText('scalar_z.exr');
+  await expect(openedImages.locator('option')).toHaveCount(3);
+  await expect(openedFilesCount).toHaveText('3');
+
+  await filterInput.fill('missing');
+
+  await expect(openedRows).toHaveCount(0);
+  await expect(page.locator('#opened-files-list')).toHaveText('No matching open files');
+
+  await filterInput.fill('');
+
+  await expect(openedRows).toHaveCount(3);
+});
+
 test('keeps collapsed bottom channel names visible and selectable', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoViewerApp(page);

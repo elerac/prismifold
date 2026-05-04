@@ -73,6 +73,7 @@ export class OpenedImagesPanel implements Disposable {
   private suppressOpenedImageSelectionUntilMs = 0;
   private openedImageDragState: OpenedImageDragState | null = null;
   private openedFileRenameState: OpenedFileRenameState | null = null;
+  private openedFilesFilterText = '';
   private restoreOpenedFilesFocusAfterLoading = false;
   private displayCacheBudgetMb = 256;
   private disposed = false;
@@ -82,6 +83,7 @@ export class OpenedImagesPanel implements Disposable {
     private readonly callbacks: OpenedImagesPanelCallbacks
   ) {
     this.elements.openedImagesSelect.disabled = true;
+    this.elements.openedFilesFilterInput.disabled = true;
     this.elements.displayCacheBudgetInput.disabled = false;
     this.elements.reloadAllOpenedImagesButton.disabled = true;
     this.elements.closeAllOpenedImagesButton.disabled = true;
@@ -96,6 +98,12 @@ export class OpenedImagesPanel implements Disposable {
     };
     this.disposables.addEventListener(this.elements.openedImagesSelect, 'change', onOpenedImagesSelect);
     this.disposables.addEventListener(this.elements.openedImagesSelect, 'input', onOpenedImagesSelect);
+    this.disposables.addEventListener(this.elements.openedFilesFilterInput, 'input', (event) => {
+      this.commitActiveOpenedFileRename();
+      this.finishOpenedImagesDrag();
+      this.openedFilesFilterText = (event.currentTarget as HTMLInputElement).value;
+      this.renderOpenedFileRows();
+    });
     this.disposables.addEventListener(this.elements.openedFilesList, 'click', (event) => {
       if (this.openedImageDragState || performance.now() < this.suppressOpenedImageSelectionUntilMs) {
         event.preventDefault();
@@ -256,6 +264,8 @@ export class OpenedImagesPanel implements Disposable {
     this.finishOpenedImagesDrag();
     this.elements.openedFilesList.replaceChildren();
     this.elements.openedImagesSelect.replaceChildren();
+    this.elements.openedFilesFilterInput.value = '';
+    this.elements.openedFilesFilterInput.disabled = true;
     this.disposables.dispose();
   }
 
@@ -275,15 +285,19 @@ export class OpenedImagesPanel implements Disposable {
       return false;
     }
 
-    const selectableItems = getSelectableOpenedImageItems(this.openedImageItems);
+    const selectableItems = getSelectableOpenedImageItems(this.getVisibleOpenedImageItems());
     if (selectableItems.length === 0) {
       return false;
     }
 
     const currentId = this.openedImagesActiveId ?? this.elements.openedImagesSelect.value;
     const currentIndex = selectableItems.findIndex((item) => item.id === currentId);
-    const anchorIndex = currentIndex >= 0 ? currentIndex : 0;
-    const nextIndex = Math.max(0, Math.min(selectableItems.length - 1, anchorIndex + delta));
+    let nextIndex: number;
+    if (currentIndex >= 0) {
+      nextIndex = Math.max(0, Math.min(selectableItems.length - 1, currentIndex + delta));
+    } else {
+      nextIndex = delta > 0 ? 0 : selectableItems.length - 1;
+    }
     const nextSessionId = selectableItems[nextIndex]?.id ?? null;
     if (!nextSessionId) {
       return false;
@@ -307,7 +321,7 @@ export class OpenedImagesPanel implements Disposable {
       return false;
     }
 
-    const selectableItems = getSelectableOpenedImageItems(this.openedImageItems);
+    const selectableItems = getSelectableOpenedImageItems(this.getVisibleOpenedImageItems());
     const currentId = this.openedImagesActiveId ?? this.elements.openedImagesSelect.value;
     const currentIndex = selectableItems.findIndex((item) => item.id === currentId);
     if (currentIndex < 0) {
@@ -419,7 +433,9 @@ export class OpenedImagesPanel implements Disposable {
   }
 
   private updateControlState(): void {
-    this.elements.openedImagesSelect.disabled = this.isViewerBlocked || this.openedImageCount === 0;
+    const selectionDisabled = this.isViewerBlocked || this.openedImageCount === 0;
+    this.elements.openedImagesSelect.disabled = selectionDisabled;
+    this.elements.openedFilesFilterInput.disabled = selectionDisabled;
     this.elements.displayCacheBudgetInput.disabled = this.isLoading;
     this.elements.reloadAllOpenedImagesButton.disabled = this.isLoading || this.openedImageCount === 0;
     this.elements.closeAllOpenedImagesButton.disabled = this.isLoading || this.openedImageCount === 0;
@@ -434,13 +450,27 @@ export class OpenedImagesPanel implements Disposable {
 
     if (this.openedImageItems.length === 0) {
       this.openedFileRenameState = null;
+      this.setOpenedFilesFilterText('');
       renderEmptyListMessage(this.elements.openedFilesList, 'No open files');
+      return;
+    }
+
+    const visibleItems = this.getVisibleOpenedImageItems();
+    if (
+      this.openedFileRenameState &&
+      !visibleItems.some((item) => item.id === this.openedFileRenameState?.sessionId)
+    ) {
+      this.openedFileRenameState = null;
+    }
+
+    if (visibleItems.length === 0) {
+      renderEmptyListMessage(this.elements.openedFilesList, 'No matching open files');
       return;
     }
 
     renderKeyedChildren(
       this.elements.openedFilesList,
-      this.openedImageItems,
+      visibleItems,
       (item) => item.id,
       (item, existing) => {
         const row =
@@ -574,6 +604,25 @@ export class OpenedImagesPanel implements Disposable {
     }
 
     return null;
+  }
+
+  private getVisibleOpenedImageItems(): OpenedImageOptionItem[] {
+    const query = normalizeOpenedFilesFilterQuery(this.openedFilesFilterText);
+    if (!query) {
+      return this.openedImageItems;
+    }
+
+    return this.openedImageItems.filter((item) => (
+      normalizeOpenedFilesFilterText(item.label).includes(query) ||
+      normalizeOpenedFilesFilterText(item.sourceDetail ?? '').includes(query)
+    ));
+  }
+
+  private setOpenedFilesFilterText(value: string): void {
+    this.openedFilesFilterText = value;
+    if (this.elements.openedFilesFilterInput.value !== value) {
+      this.elements.openedFilesFilterInput.value = value;
+    }
   }
 
   private handleOpenedFileDragStart(event: DragEvent): void {
@@ -938,6 +987,14 @@ function createOpenedFileDragImage(item: OpenedImageOptionItem): HTMLDivElement 
 
 function getSelectableOpenedImageItems(items: OpenedImageOptionItem[]): OpenedImageOptionItem[] {
   return items.filter((item) => item.selectable !== false);
+}
+
+function normalizeOpenedFilesFilterQuery(value: string): string {
+  return normalizeOpenedFilesFilterText(value.trim());
+}
+
+function normalizeOpenedFilesFilterText(value: string): string {
+  return value.toLocaleLowerCase();
 }
 
 function updateOpenedFileRow(
