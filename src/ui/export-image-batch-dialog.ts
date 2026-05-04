@@ -122,6 +122,7 @@ interface RememberedExportBatchSelection {
 
 export class ExportImageBatchDialogController implements Disposable {
   private readonly disposables = new DisposableBag();
+  private readonly previewViewport: HTMLElement;
   private target: ExportImageBatchTarget | null = null;
   private checkedCellKeys = new Set<string>();
   private rememberedSelection: RememberedExportBatchSelection | null = null;
@@ -151,6 +152,12 @@ export class ExportImageBatchDialogController implements Disposable {
     private readonly elements: ExportImageBatchDialogElements,
     private readonly callbacks: ExportImageBatchDialogCallbacks
   ) {
+    const previewViewport = this.elements.exportBatchDialogForm.querySelector<HTMLElement>('.app-dialog-body');
+    if (!previewViewport) {
+      throw new Error('Expected batch export dialog body.');
+    }
+    this.previewViewport = previewViewport;
+
     this.disposables.addDisposable(bindDialogBackdropDismiss(this.elements.exportBatchDialogBackdrop, () => {
       if (!this.busy) {
         this.cancel(true);
@@ -191,6 +198,10 @@ export class ExportImageBatchDialogController implements Disposable {
     });
 
     this.disposables.addEventListener(this.elements.exportBatchMatrix, 'scroll', () => {
+      this.schedulePreviewReprioritization();
+    });
+
+    this.disposables.addEventListener(this.previewViewport, 'scroll', () => {
       this.schedulePreviewReprioritization();
     });
 
@@ -1503,7 +1514,21 @@ export class ExportImageBatchDialogController implements Disposable {
       : null;
     const visiblePreviewKeys = new Set<string>();
     const matrixRect = this.elements.exportBatchMatrix.getBoundingClientRect();
-    if (matrixRect.width <= 0 || matrixRect.height <= 0) {
+    const viewportRect = this.previewViewport.getBoundingClientRect();
+    const visibleBounds = {
+      top: Math.max(matrixRect.top, viewportRect.top),
+      right: Math.min(matrixRect.right, viewportRect.right),
+      bottom: Math.min(matrixRect.bottom, viewportRect.bottom),
+      left: Math.max(matrixRect.left, viewportRect.left)
+    };
+    if (
+      matrixRect.width <= 0 ||
+      matrixRect.height <= 0 ||
+      viewportRect.width <= 0 ||
+      viewportRect.height <= 0 ||
+      visibleBounds.right <= visibleBounds.left ||
+      visibleBounds.bottom <= visibleBounds.top
+    ) {
       if (candidateKeys) {
         return candidateKeys;
       }
@@ -1525,10 +1550,10 @@ export class ExportImageBatchDialogController implements Disposable {
 
       const rect = element.getBoundingClientRect();
       if (
-        rect.bottom >= matrixRect.top &&
-        rect.top <= matrixRect.bottom &&
-        rect.right >= matrixRect.left &&
-        rect.left <= matrixRect.right
+        rect.bottom >= visibleBounds.top &&
+        rect.top <= visibleBounds.bottom &&
+        rect.right >= visibleBounds.left &&
+        rect.left <= visibleBounds.right
       ) {
         visiblePreviewKeys.add(previewKey);
       }

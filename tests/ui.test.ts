@@ -5001,28 +5001,34 @@ describe('view menu', () => {
     const rect = (
       top: number,
       bottom: number,
-      width = 96
+      left = 0,
+      right = 96
     ) => ({
-      x: 0,
+      x: left,
       y: top,
       top,
       bottom,
-      left: 0,
-      right: width,
-      width,
+      left,
+      right,
+      width: right - left,
       height: bottom - top,
       toJSON: () => ({})
     }) as DOMRect;
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('app-dialog-body')) {
+        return rect(0, 80, 0, 160);
+      }
       if (this.id === 'export-batch-matrix') {
-        return rect(0, 80, 160);
+        return rect(0, 420, 0, 160);
       }
       if (this.classList.contains('export-batch-cell-preview')) {
         const previews = Array.from(document.querySelectorAll<HTMLElement>('.export-batch-cell-preview'));
         const index = previews.indexOf(this);
-        return visiblePreviewIndexes.has(index) ? rect(0, 40) : rect(200 + index * 60, 240 + index * 60);
+        return visiblePreviewIndexes.has(index)
+          ? rect(0, 40)
+          : rect(200 + index * 60, 240 + index * 60);
       }
-      return rect(200, 200, 0);
+      return rect(200, 200, 0, 0);
     });
 
     (document.getElementById('export-image-batch-button') as HTMLButtonElement).click();
@@ -5045,7 +5051,9 @@ describe('view menu', () => {
 
     visiblePreviewIndexes.clear();
     visiblePreviewIndexes.add(5);
-    (document.getElementById('export-batch-matrix') as HTMLElement).dispatchEvent(new Event('scroll'));
+    const batchDialogBody = document.querySelector<HTMLElement>('#export-batch-dialog-form .app-dialog-body');
+    expect(batchDialogBody).not.toBeNull();
+    batchDialogBody!.dispatchEvent(new Event('scroll'));
     await flushPreviewWorkMicrotasks();
     idleCallbacks.shift()?.();
     await flushPreviewWorkMicrotasks();
@@ -5146,7 +5154,7 @@ describe('view menu', () => {
     ui.dispose();
   });
 
-  it('reprioritizes pending batch previews when a new cell scrolls into view', async () => {
+  it('reprioritizes pending batch previews when a new cell scrolls horizontally into view', async () => {
     installUiFixture();
     const idleCallbacks = installDeferredIdleCallbacks();
 
@@ -5162,28 +5170,32 @@ describe('view menu', () => {
     const rect = (
       top: number,
       bottom: number,
-      width = 96
+      left = 0,
+      right = 96
     ) => ({
-      x: 0,
+      x: left,
       y: top,
       top,
       bottom,
-      left: 0,
-      right: width,
-      width,
+      left,
+      right,
+      width: right - left,
       height: bottom - top,
       toJSON: () => ({})
     }) as DOMRect;
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('app-dialog-body')) {
+        return rect(0, 120, 0, 160);
+      }
       if (this.id === 'export-batch-matrix') {
-        return rect(0, 80, 160);
+        return rect(0, 120, 0, 160);
       }
       if (this.classList.contains('export-batch-cell-preview')) {
         const previews = Array.from(document.querySelectorAll<HTMLElement>('.export-batch-cell-preview'));
         const index = previews.indexOf(this);
-        return visiblePreviewIndexes.has(index) ? rect(0, 40) : rect(200 + index * 60, 240 + index * 60);
+        return visiblePreviewIndexes.has(index) ? rect(0, 40) : rect(0, 40, 220, 316);
       }
-      return rect(200, 200, 0);
+      return rect(200, 200, 0, 0);
     });
 
     (document.getElementById('export-image-batch-button') as HTMLButtonElement).click();

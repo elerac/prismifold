@@ -5,6 +5,7 @@ import { gotoViewerApp, openGalleryCbox } from './helpers/app';
 import {
   buildPortraitRgbExr,
   buildRgbAuxExr,
+  buildRgbStokesExr,
   buildScalarChannelExr,
   expectedColormapLabels
 } from './helpers/exr-fixtures';
@@ -1290,12 +1291,13 @@ test('keeps batch export actions separated from scrollable content at constraine
     'batch_rgb_4.exr',
     'batch_rgb_5.exr'
   ];
+  const batchFileBuffer = buildRgbStokesExr();
 
   for (const [index, name] of batchFileNames.entries()) {
     await page.setInputFiles('#file-input', {
       name,
       mimeType: 'image/exr',
-      buffer: buildRgbAuxExr()
+      buffer: batchFileBuffer
     });
     await expect(openedImages.locator('option')).toHaveCount(index + 1, { timeout: 30000 });
   }
@@ -1337,8 +1339,12 @@ test('keeps batch export actions separated from scrollable content at constraine
       bodyScrollHeight: body.scrollHeight,
       cancelBottom: cancelRect.bottom,
       cancelTop: cancelRect.top,
+      matrixClientHeight: matrix.clientHeight,
+      matrixClientWidth: matrix.clientWidth,
       matrixOverflowX: matrixStyle.overflowX,
       matrixOverflowY: matrixStyle.overflowY,
+      matrixScrollHeight: matrix.scrollHeight,
+      matrixScrollWidth: matrix.scrollWidth,
       submitBottom: submitRect.bottom,
       submitTop: submitRect.top,
       viewportHeight: window.innerHeight
@@ -1355,7 +1361,9 @@ test('keeps batch export actions separated from scrollable content at constraine
   expect(layout.submitBottom).toBeLessThanOrEqual(layout.actionsBottom + 1);
   expect(layout.actionsBottom).toBeLessThanOrEqual(layout.viewportHeight - 16);
   expect(layout.matrixOverflowX).toBe('auto');
-  expect(layout.matrixOverflowY).toBe('auto');
+  expect(layout.matrixOverflowY).toBe('hidden');
+  expect(layout.matrixScrollHeight).toBeLessThanOrEqual(layout.matrixClientHeight + 1);
+  expect(layout.matrixScrollWidth).toBeGreaterThan(layout.matrixClientWidth + 1);
 });
 
 test('fits portrait batch export thumbnails inside their preview frames', async ({ page }) => {

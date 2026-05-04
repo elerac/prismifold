@@ -857,9 +857,9 @@ input[type='range'] {
 }
 
 .export-batch-matrix {
-  max-height: min(24rem, 52vh);
   min-height: 12rem;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid var(--control-border);
   border-radius: 0.55rem;
   background: color-mix(in srgb, var(--panel) 88%, #000);
