@@ -103,11 +103,20 @@ interface BatchPreviewCandidate {
 }
 
 type ExportBatchRegionSelection = ExportScreenshotRegionItem | null;
+type ExportBatchSelectionApplyMode = 'default' | 'remembered' | 'current';
+
+interface RememberedExportBatchSelection {
+  mode: ExportBatchDialogMode;
+  regionSignature: string;
+  includeSplitRgbChannels: boolean;
+  checkedCellKeys: Set<string>;
+}
 
 export class ExportImageBatchDialogController implements Disposable {
   private readonly disposables = new DisposableBag();
   private target: ExportImageBatchTarget | null = null;
   private checkedCellKeys = new Set<string>();
+  private rememberedSelection: RememberedExportBatchSelection | null = null;
   private open = false;
   private exportResource: AsyncResource<void> = idleResource();
   private includeSplitRgbChannels = false;
@@ -259,15 +268,11 @@ export class ExportImageBatchDialogController implements Disposable {
       this.abortPreviewWork({ clearCache: true });
       this.applyTarget(this.target);
     } else {
+      this.abortPreviewWork({ clearCache: true });
       if (!targetHasSplitChannelViews(this.target)) {
         this.includeSplitRgbChannels = false;
       }
-      this.abortPreviewWork({ clearCache: true });
-      this.checkedCellKeys = buildDefaultExportBatchCheckedCells(
-        this.target,
-        this.includeSplitRgbChannels,
-        this.getSelectionRegions()
-      );
+      this.applyCheckedSelection(this.target, 'current');
       this.renderMatrix();
       this.updateStatus();
     }
@@ -292,13 +297,12 @@ export class ExportImageBatchDialogController implements Disposable {
     if (this.dialogMode === 'screenshot' && this.screenshotRegions.length === 0) {
       this.dialogMode = 'image';
     }
-    this.includeSplitRgbChannels = false;
     this.elements.exportBatchUseOpenFilesNamesCheckbox.checked = true;
     this.elements.exportBatchReproductionMetadataCheckbox.checked = false;
     this.setBusy(false);
     this.open = true;
     this.abortPreviewWork({ clearCache: true });
-    this.applyTarget(this.target);
+    this.applyTarget(this.target, 'remembered');
     this.setError(null);
     this.elements.exportBatchDialogBackdrop.classList.remove('hidden');
     this.elements.exportBatchArchiveFilenameInput.focus();
@@ -343,7 +347,10 @@ export class ExportImageBatchDialogController implements Disposable {
     this.callbacks.onCancel?.(mode);
   }
 
-  private applyTarget(target: ExportImageBatchTarget): void {
+  private applyTarget(
+    target: ExportImageBatchTarget,
+    selectionApplyMode: ExportBatchSelectionApplyMode = 'default'
+  ): void {
     this.applyDialogMode();
     this.elements.exportBatchArchiveFilenameInput.value = this.dialogMode === 'screenshot'
       ? DEFAULT_SCREENSHOT_BATCH_ARCHIVE_FILENAME
@@ -378,13 +385,95 @@ export class ExportImageBatchDialogController implements Disposable {
     if (!targetHasSplitChannelViews(target)) {
       this.includeSplitRgbChannels = false;
     }
+    this.applyCheckedSelection(target, selectionApplyMode);
+    this.renderMatrix();
+    this.updateStatus();
+  }
+
+  private applyCheckedSelection(
+    target: ExportImageBatchTarget,
+    selectionApplyMode: ExportBatchSelectionApplyMode
+  ): void {
+    if (selectionApplyMode === 'current') {
+      this.checkedCellKeys = filterExportBatchCheckedCells(
+        target,
+        this.checkedCellKeys,
+        this.includeSplitRgbChannels,
+        this.getSelectionRegions()
+      );
+      return;
+    }
+
+    if (selectionApplyMode === 'remembered') {
+      const remembered = this.resolveRememberedSelection(target);
+      if (remembered) {
+        this.includeSplitRgbChannels = remembered.includeSplitRgbChannels;
+        this.checkedCellKeys = remembered.checkedCellKeys;
+        return;
+      }
+
+      this.includeSplitRgbChannels = false;
+    }
+
     this.checkedCellKeys = buildDefaultExportBatchCheckedCells(
       target,
       this.includeSplitRgbChannels,
       this.getSelectionRegions()
     );
-    this.renderMatrix();
-    this.updateStatus();
+  }
+
+  private resolveRememberedSelection(
+    target: ExportImageBatchTarget
+  ): { includeSplitRgbChannels: boolean; checkedCellKeys: Set<string> } | null {
+    const remembered = this.rememberedSelection;
+    if (!remembered || remembered.mode !== this.dialogMode) {
+      return null;
+    }
+
+    if (remembered.regionSignature !== this.getSelectionRegionSignature()) {
+      return null;
+    }
+
+    const includeSplitRgbChannels = remembered.includeSplitRgbChannels && targetHasSplitChannelViews(target);
+    const checkedCellKeys = filterExportBatchCheckedCells(
+      target,
+      remembered.checkedCellKeys,
+      includeSplitRgbChannels,
+      this.getSelectionRegions()
+    );
+
+    return checkedCellKeys.size > 0
+      ? {
+        includeSplitRgbChannels,
+        checkedCellKeys
+      }
+      : null;
+  }
+
+  private captureRememberedSelection(target: ExportImageBatchTarget): RememberedExportBatchSelection {
+    return {
+      mode: this.dialogMode,
+      regionSignature: this.getSelectionRegionSignature(),
+      includeSplitRgbChannels: this.includeSplitRgbChannels,
+      checkedCellKeys: filterExportBatchCheckedCells(
+        target,
+        this.checkedCellKeys,
+        this.includeSplitRgbChannels,
+        this.getSelectionRegions()
+      )
+    };
+  }
+
+  private getSelectionRegionSignature(): string {
+    if (this.dialogMode !== 'screenshot') {
+      return 'image';
+    }
+
+    if (!this.isMultiRegionScreenshotMode()) {
+      return 'screenshot:single';
+    }
+
+    return `screenshot:multi:${this.screenshotRegions.map((region) => region.id).join('|')}`;
   }
 
   private resetInputs(): void {
@@ -1641,6 +1730,7 @@ export class ExportImageBatchDialogController implements Disposable {
       this.setError('Select at least one image.');
       return;
     }
+    const rememberedSelection = this.captureRememberedSelection(target);
 
     this.elements.exportBatchArchiveFilenameInput.value = archiveFilename;
     this.setError(null);
@@ -1663,6 +1753,7 @@ export class ExportImageBatchDialogController implements Disposable {
           ? { includeReproductionMetadata: true }
           : {})
       }, abortController.signal, reportProgress);
+      this.rememberedSelection = rememberedSelection;
       if (this.abortController === abortController) {
         this.abortController = null;
       }
@@ -1857,6 +1948,22 @@ export function buildVisibleExportBatchCellKeys(
     }
   }
 
+  return checked;
+}
+
+function filterExportBatchCheckedCells(
+  target: ExportImageBatchTarget,
+  checkedCellKeys: ReadonlySet<string>,
+  includeSplitRgbChannels = false,
+  screenshotRegions: readonly ExportScreenshotRegionItem[] = []
+): Set<string> {
+  const visibleCellKeys = buildVisibleExportBatchCellKeys(target, includeSplitRgbChannels, screenshotRegions);
+  const checked = new Set<string>();
+  for (const key of checkedCellKeys) {
+    if (visibleCellKeys.has(key)) {
+      checked.add(key);
+    }
+  }
   return checked;
 }
 

@@ -4534,6 +4534,146 @@ describe('view menu', () => {
     expect(batchDialog.classList.contains('hidden')).toBe(true);
   });
 
+  it('remembers successfully exported batch cells when reopening batch export', async () => {
+    installUiFixture();
+
+    const onExportImageBatch = vi.fn<(_: {
+      entries: Array<{ outputFilename: string }>;
+    }, _signal: AbortSignal) => Promise<void>>(async () => undefined);
+    const ui = new ViewerUi(createUiCallbacks({ onExportImageBatch }));
+    applyBatchTarget(ui, createRgbExportBatchTarget(2));
+
+    const batchButton = document.getElementById('export-image-batch-button') as HTMLButtonElement;
+    const deselectAllButton = document.getElementById('export-batch-deselect-all-button') as HTMLButtonElement;
+    const submitButton = document.getElementById('export-batch-dialog-submit-button') as HTMLButtonElement;
+
+    batchButton.click();
+    deselectAllButton.click();
+    clickExportBatchCell('session-2', 'Z');
+    expect(getCheckedExportBatchCellIds()).toEqual(['session-2:Z']);
+
+    submitButton.click();
+    await flushMicrotasks();
+
+    expect(onExportImageBatch).toHaveBeenCalledTimes(1);
+    expect(onExportImageBatch.mock.calls[0]?.[0].entries.map((entry) => entry.outputFilename)).toEqual([
+      'image-2.Z.png'
+    ]);
+
+    batchButton.click();
+    expect(getCheckedExportBatchCellIds()).toEqual(['session-2:Z']);
+  });
+
+  it('does not replace the remembered batch cells when reopening after canceling edits', async () => {
+    installUiFixture();
+
+    const onExportImageBatch = vi.fn<(_: {
+      entries: Array<{ outputFilename: string }>;
+    }, _signal: AbortSignal) => Promise<void>>(async () => undefined);
+    const ui = new ViewerUi(createUiCallbacks({ onExportImageBatch }));
+    applyBatchTarget(ui, createRgbExportBatchTarget(2));
+
+    const batchButton = document.getElementById('export-image-batch-button') as HTMLButtonElement;
+    const deselectAllButton = document.getElementById('export-batch-deselect-all-button') as HTMLButtonElement;
+    const submitButton = document.getElementById('export-batch-dialog-submit-button') as HTMLButtonElement;
+    const cancelButton = document.getElementById('export-batch-dialog-cancel-button') as HTMLButtonElement;
+
+    batchButton.click();
+    deselectAllButton.click();
+    clickExportBatchCell('session-2', 'Z');
+    submitButton.click();
+    await flushMicrotasks();
+
+    batchButton.click();
+    deselectAllButton.click();
+    clickExportBatchCell('session-1', 'RGB');
+    expect(getCheckedExportBatchCellIds()).toEqual(['session-1:RGB']);
+    cancelButton.click();
+
+    batchButton.click();
+    expect(onExportImageBatch).toHaveBeenCalledTimes(1);
+    expect(getCheckedExportBatchCellIds()).toEqual(['session-2:Z']);
+  });
+
+  it('restores split RGB batch mode with the remembered successful cells', async () => {
+    installUiFixture();
+
+    const onExportImageBatch = vi.fn<(_: {
+      entries: Array<{ outputFilename: string }>;
+    }, _signal: AbortSignal) => Promise<void>>(async () => undefined);
+    const ui = new ViewerUi(createUiCallbacks({ onExportImageBatch }));
+    applyBatchTarget(ui, createRgbExportBatchTarget(1, ['R', 'G', 'B', 'Z']));
+
+    const batchButton = document.getElementById('export-image-batch-button') as HTMLButtonElement;
+    const splitToggle = document.getElementById('export-batch-split-toggle-button') as HTMLButtonElement;
+    const deselectAllButton = document.getElementById('export-batch-deselect-all-button') as HTMLButtonElement;
+    const submitButton = document.getElementById('export-batch-dialog-submit-button') as HTMLButtonElement;
+
+    batchButton.click();
+    splitToggle.click();
+    deselectAllButton.click();
+    clickExportBatchCell('session-1', 'G');
+    submitButton.click();
+    await flushMicrotasks();
+
+    expect(onExportImageBatch.mock.calls[0]?.[0].entries.map((entry) => entry.outputFilename)).toEqual([
+      'image-1.G.png'
+    ]);
+
+    batchButton.click();
+    expect(splitToggle.getAttribute('aria-pressed')).toBe('true');
+    expect(getExportBatchColumnLabels()).toEqual(['R', 'G', 'B', 'Z']);
+    expect(getCheckedExportBatchCellIds()).toEqual(['session-1:G']);
+  });
+
+  it('falls back to the default batch selection when remembered cells are incompatible', async () => {
+    installUiFixture();
+
+    const onExportImageBatch = vi.fn<(_: {
+      entries: Array<{ outputFilename: string }>;
+    }, _signal: AbortSignal) => Promise<void>>(async () => undefined);
+    const ui = new ViewerUi(createUiCallbacks({ onExportImageBatch }));
+
+    applyBatchTarget(ui, createRgbExportBatchTarget(2));
+
+    const batchButton = document.getElementById('export-image-batch-button') as HTMLButtonElement;
+    const deselectAllButton = document.getElementById('export-batch-deselect-all-button') as HTMLButtonElement;
+    const submitButton = document.getElementById('export-batch-dialog-submit-button') as HTMLButtonElement;
+
+    batchButton.click();
+    deselectAllButton.click();
+    clickExportBatchCell('session-2', 'Z');
+    submitButton.click();
+    await flushMicrotasks();
+
+    applyBatchTarget(ui, createRgbExportBatchTarget(1));
+
+    batchButton.click();
+    expect(getCheckedExportBatchCellIds()).toEqual(['session-1:RGB']);
+  });
+
+  it('reconciles current batch cells without resetting edits when the target refreshes while open', () => {
+    installUiFixture();
+
+    const ui = new ViewerUi(createUiCallbacks());
+    const target = createRgbExportBatchTarget(2);
+    applyBatchTarget(ui, target);
+
+    const batchButton = document.getElementById('export-image-batch-button') as HTMLButtonElement;
+    const deselectAllButton = document.getElementById('export-batch-deselect-all-button') as HTMLButtonElement;
+    const archiveInput = document.getElementById('export-batch-archive-filename-input') as HTMLInputElement;
+
+    batchButton.click();
+    deselectAllButton.click();
+    clickExportBatchCell('session-2', 'Z');
+    archiveInput.value = 'custom-export.zip';
+
+    applyBatchTarget(ui, target);
+
+    expect(archiveInput.value).toBe('custom-export.zip');
+    expect(getCheckedExportBatchCellIds()).toEqual(['session-2:Z']);
+  });
+
   it('shows immediate determinate batch export progress and hides it when cancelled', async () => {
     installUiFixture();
 
@@ -8500,6 +8640,25 @@ function getCheckedExportBatchCellColumnKeys(): string[] {
   return Array.from(document.querySelectorAll<HTMLInputElement>(
     'input[data-batch-toggle="cell"]:checked'
   )).map((input) => input.dataset.columnKey ?? '');
+}
+
+function getCheckedExportBatchCellIds(): string[] {
+  return Array.from(document.querySelectorAll<HTMLInputElement>(
+    'input[data-batch-toggle="cell"]:checked'
+  )).map((input) => {
+    const regionId = input.dataset.regionId;
+    const regionToken = regionId ? `${regionId}:` : '';
+    return `${input.dataset.sessionId ?? ''}:${regionToken}${input.dataset.columnKey ?? ''}`;
+  });
+}
+
+function clickExportBatchCell(sessionId: string, columnKey: string, regionId: string | null = null): void {
+  const regionSelector = regionId ? `[data-region-id="${regionId}"]` : ':not([data-region-id])';
+  const input = document.querySelector<HTMLInputElement>(
+    `input[data-batch-toggle="cell"][data-session-id="${sessionId}"][data-column-key="${columnKey}"]${regionSelector}`
+  );
+  expect(input).not.toBeNull();
+  input!.click();
 }
 
 function getCheckedExportBatchCellRegionColumnKeys(): string[] {
