@@ -45,6 +45,8 @@ const BATCH_EXPORT_RESOURCE_KEY = 'export-batch';
 const PNG_COMPRESSION_VALIDATION_MESSAGE = 'PNG compression must be an integer from 0 to 9.';
 const BATCH_PREVIEW_IDLE_TIMEOUT_MS = 250;
 const BATCH_PREVIEW_IDLE_FALLBACK_DELAY_MS = 64;
+const BATCH_PREVIEW_IMAGE_BURST_LIMIT = 4;
+const BATCH_PREVIEW_SCREENSHOT_BURST_LIMIT = 1;
 const SCREENSHOT_BATCH_PREVIEW_DEBOUNCE_MS = 250;
 type ExportBatchDialogMode = 'image' | 'screenshot';
 export type ExportBatchFilenameSource = 'openFilesName' | 'sourcePath';
@@ -1316,53 +1318,80 @@ export class ExportImageBatchDialogController implements Disposable {
         return;
       }
 
-      const job = this.takeNextPreviewJob();
-      if (!job) {
+      const burstLimit = this.dialogMode === 'screenshot'
+        ? BATCH_PREVIEW_SCREENSHOT_BURST_LIMIT
+        : BATCH_PREVIEW_IMAGE_BURST_LIMIT;
+      for (let processedCount = 0; processedCount < burstLimit; processedCount += 1) {
+        if (
+          this.disposed ||
+          this.busy ||
+          !this.open ||
+          generation !== this.previewGeneration ||
+          abortController.signal.aborted
+        ) {
+          return;
+        }
+
+        if (this.previewJobsByKey.size === 0 && !this.queueNextBackgroundPreviewJob()) {
+          return;
+        }
+
+        const job = this.takeNextPreviewJob();
+        if (!job) {
+          return;
+        }
+
+        if (!isPendingMatch(
+          this.previewResourcesByKey.get(job.previewKey) ?? idleResource(),
+          job.previewKey,
+          job.requestId
+        )) {
+          continue;
+        }
+
+        await this.processPreviewJob(job, generation, abortController);
+      }
+    }
+  }
+
+  private async processPreviewJob(
+    job: BatchPreviewJob,
+    generation: number,
+    abortController: AbortController
+  ): Promise<void> {
+    const request = this.createPreviewRequest(job);
+    if (!request) {
+      this.previewResourcesByKey.delete(job.previewKey);
+      this.updatePreviewElements(job.previewKey);
+      return;
+    }
+
+    try {
+      const pixels = await this.callbacks.onResolveExportImageBatchPreview(request, abortController.signal);
+      if (
+        this.disposed ||
+        generation !== this.previewGeneration ||
+        abortController.signal.aborted ||
+        !isPendingMatch(this.previewResourcesByKey.get(job.previewKey) ?? idleResource(), job.previewKey, job.requestId)
+      ) {
         return;
       }
 
-      if (!isPendingMatch(
-        this.previewResourcesByKey.get(job.previewKey) ?? idleResource(),
-        job.previewKey,
-        job.requestId
-      )) {
-        continue;
+      this.previewResourcesByKey.set(job.previewKey, successResource(job.previewKey, createPngDataUrlFromPixels(pixels)));
+    } catch (error) {
+      if (
+        generation !== this.previewGeneration ||
+        abortController.signal.aborted ||
+        isAbortError(error) ||
+        !isPendingMatch(this.previewResourcesByKey.get(job.previewKey) ?? idleResource(), job.previewKey, job.requestId)
+      ) {
+        return;
       }
 
-      const request = this.createPreviewRequest(job);
-      if (!request) {
-        this.previewResourcesByKey.delete(job.previewKey);
+      this.previewResourcesByKey.set(job.previewKey, errorResource(job.previewKey, error, 'Preview failed.'));
+    } finally {
+      if (generation === this.previewGeneration) {
         this.updatePreviewElements(job.previewKey);
-        continue;
-      }
-
-      try {
-        const pixels = await this.callbacks.onResolveExportImageBatchPreview(request, abortController.signal);
-        if (
-          this.disposed ||
-          generation !== this.previewGeneration ||
-          abortController.signal.aborted ||
-          !isPendingMatch(this.previewResourcesByKey.get(job.previewKey) ?? idleResource(), job.previewKey, job.requestId)
-        ) {
-          continue;
-        }
-
-        this.previewResourcesByKey.set(job.previewKey, successResource(job.previewKey, createPngDataUrlFromPixels(pixels)));
-      } catch (error) {
-        if (
-          generation !== this.previewGeneration ||
-          abortController.signal.aborted ||
-          isAbortError(error) ||
-          !isPendingMatch(this.previewResourcesByKey.get(job.previewKey) ?? idleResource(), job.previewKey, job.requestId)
-        ) {
-          continue;
-        }
-
-        this.previewResourcesByKey.set(job.previewKey, errorResource(job.previewKey, error, 'Preview failed.'));
-      } finally {
-        if (generation === this.previewGeneration) {
-          this.updatePreviewElements(job.previewKey);
-        }
       }
     }
   }

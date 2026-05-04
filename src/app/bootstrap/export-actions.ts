@@ -9,6 +9,7 @@ import {
   resolveDisplaySelectionEvaluator
 } from '../../display/evaluator';
 import { createPngBlobFromPixels } from '../../export-image';
+import { encodePngOffMainThread, zipFilesOffMainThread } from '../../export/export-worker-client';
 import { buildColormapExportPixels, type ExportImagePixels } from '../../export/export-pixels';
 import { cloneScreenshotRegionCrop } from '../../export/screenshot-region';
 import {
@@ -109,6 +110,15 @@ type ViewerStateProvider = () => ViewerAppState;
 type ExportProgressReporter = (update: ExportProgressUpdate) => void;
 
 const PREVIEW_LUMINANCE_RANGE_MAX_SAMPLES = 4096;
+const BATCH_EXPORT_ENCODE_BACKLOG = 2;
+
+interface PendingBatchEncode {
+  entryIndex: number;
+  entry: ExportImageBatchRequest['entries'][number];
+  session: OpenedImageSession;
+  renderState: ViewerState;
+  pngBytes: Promise<Uint8Array>;
+}
 
 interface ExportColormapActionDependencies {
   core: ViewerAppCore;
@@ -474,6 +484,19 @@ export async function handleExportImageBatch(
   const renderer = getRenderer();
   const stateSnapshot = core.getState();
   const lutCache = new Map<string, ColormapLut>();
+  const exportAbortController = new AbortController();
+  const abortExportWork = () => {
+    exportAbortController.abort(signal.reason instanceof Error
+      ? signal.reason
+      : createAbortError('Batch export cancelled.'));
+  };
+  if (signal.aborted) {
+    abortExportWork();
+  } else {
+    signal.addEventListener('abort', abortExportWork, { once: true });
+  }
+  const exportSignal = exportAbortController.signal;
+  const pendingEncodes: PendingBatchEncode[] = [];
 
   try {
     if (request.format !== 'png-zip') {
@@ -484,6 +507,7 @@ export async function handleExportImageBatch(
     }
 
     const files: Record<string, Uint8Array> = {};
+    let completedEntries = 0;
     onProgress?.({
       completed: 0,
       total: request.entries.length,
@@ -491,7 +515,7 @@ export async function handleExportImageBatch(
     });
 
     for (const [entryIndex, entry] of request.entries.entries()) {
-      throwIfAborted(signal, 'Batch export cancelled.');
+      throwIfAborted(exportSignal, 'Batch export cancelled.');
       if (isDisposed()) {
         throw createAbortError('Viewer application has been disposed.');
       }
@@ -502,7 +526,7 @@ export async function handleExportImageBatch(
       }
 
       onProgress?.({
-        completed: entryIndex,
+        completed: completedEntries,
         total: request.entries.length,
         stage: 'rendering',
         currentFilename: entry.outputFilename
@@ -515,53 +539,49 @@ export async function handleExportImageBatch(
         renderCache,
         renderer,
         lutCache,
-        signal,
+        signal: exportSignal,
         abortMessage: 'Batch export cancelled.'
       });
       onProgress?.({
-        completed: entryIndex,
+        completed: completedEntries,
         total: request.entries.length,
         stage: 'encoding',
         currentFilename: entry.outputFilename
       });
-      const blob = await createPngBlobFromPixels(result.pixels, {
-        compressionLevel: request.pngCompressionLevel
+      pendingEncodes.push({
+        entryIndex,
+        entry,
+        session,
+        renderState: result.renderState,
+        pngBytes: encodePngOffMainThread(result.pixels, {
+          compressionLevel: request.pngCompressionLevel,
+          signal: exportSignal
+        })
       });
-      throwIfAborted(signal, 'Batch export cancelled.');
-      assertSessionCurrent(core.getState(), session, signal);
-      files[entry.outputFilename] = new Uint8Array(await blob.arrayBuffer());
-      onProgress?.({
-        completed: entryIndex + 1,
-        total: request.entries.length,
-        stage: 'encoding'
-      });
-      if (request.includeReproductionMetadata && entry.mode === 'screenshot') {
-        const jsonFilename = buildReproductionMetadataFilename(entry.outputFilename);
-        const metadata = buildScreenshotReproductionMetadata({
-          pngFilename: entry.outputFilename,
-          jsonFilename,
-          pngCompressionLevel: request.pngCompressionLevel,
-          region: entry,
-          session,
-          renderState: result.renderState,
-          batch: {
-            archiveFilename: request.archiveFilename,
-            sessionId: entry.sessionId,
-            channelLabel: entry.channelLabel,
-            outputFilename: entry.outputFilename,
-            ...(entry.screenshotRegionIndex !== undefined
-              ? {
-                regionIndex: entry.screenshotRegionIndex,
-                regionLabel: entry.screenshotRegionLabel,
-                regionCount: entry.screenshotRegionCount
-              }
-              : {})
-          }
+
+      while (pendingEncodes.length >= BATCH_EXPORT_ENCODE_BACKLOG) {
+        completedEntries = await commitNextBatchEncode({
+          pendingEncodes,
+          files,
+          request,
+          core,
+          signal: exportSignal,
+          completedEntries,
+          onProgress
         });
-        files[jsonFilename] = new Uint8Array(await createJsonBlob(metadata).arrayBuffer());
       }
-      throwIfAborted(signal, 'Batch export cancelled.');
-      assertSessionCurrent(core.getState(), session, signal);
+    }
+
+    while (pendingEncodes.length > 0) {
+      completedEntries = await commitNextBatchEncode({
+        pendingEncodes,
+        files,
+        request,
+        core,
+        signal: exportSignal,
+        completedEntries,
+        onProgress
+      });
     }
 
     onProgress?.({
@@ -569,12 +589,18 @@ export async function handleExportImageBatch(
       total: request.entries.length,
       stage: 'packaging'
     });
-    const zipBlob = createZipBlob(files);
+    const zipBytes = await zipFilesOffMainThread(files, { signal: exportSignal });
+    const zipBlob = createBlobFromBytes(zipBytes, 'application/zip');
     if (isDisposed()) {
       throw createAbortError('Viewer application has been disposed.');
     }
     triggerBrowserDownload(zipBlob, request.archiveFilename);
   } catch (error) {
+    if (!exportSignal.aborted) {
+      exportAbortController.abort(createAbortError('Batch export cancelled.'));
+    }
+    await Promise.allSettled(pendingEncodes.map((entry) => entry.pngBytes));
+
     if (isDisposed()) {
       throw error instanceof Error ? error : createAbortError('Viewer application has been disposed.');
     }
@@ -587,6 +613,7 @@ export async function handleExportImageBatch(
     core.dispatch({ type: 'errorSet', message });
     throw new Error(message);
   } finally {
+    signal.removeEventListener('abort', abortExportWork);
     if (!isDisposed()) {
       restoreActiveRendererBinding(core, renderCache, renderer);
     }
@@ -655,6 +682,70 @@ export async function resolveExportImageBatchPreviewPixels(
       restoreActiveRendererBinding(core, renderCache, getRenderer());
     }
   }
+}
+
+async function commitNextBatchEncode({
+  pendingEncodes,
+  files,
+  request,
+  core,
+  signal,
+  completedEntries,
+  onProgress
+}: {
+  pendingEncodes: PendingBatchEncode[];
+  files: Record<string, Uint8Array>;
+  request: ExportImageBatchRequest;
+  core: ViewerAppCore;
+  signal: AbortSignal;
+  completedEntries: number;
+  onProgress?: ExportProgressReporter;
+}): Promise<number> {
+  const pending = pendingEncodes.shift();
+  if (!pending) {
+    return completedEntries;
+  }
+
+  const pngBytes = await pending.pngBytes;
+  throwIfAborted(signal, 'Batch export cancelled.');
+  assertSessionCurrent(core.getState(), pending.session, signal);
+  files[pending.entry.outputFilename] = pngBytes;
+
+  if (request.includeReproductionMetadata && pending.entry.mode === 'screenshot') {
+    const jsonFilename = buildReproductionMetadataFilename(pending.entry.outputFilename);
+    const metadata = buildScreenshotReproductionMetadata({
+      pngFilename: pending.entry.outputFilename,
+      jsonFilename,
+      pngCompressionLevel: request.pngCompressionLevel,
+      region: pending.entry,
+      session: pending.session,
+      renderState: pending.renderState,
+      batch: {
+        archiveFilename: request.archiveFilename,
+        sessionId: pending.entry.sessionId,
+        channelLabel: pending.entry.channelLabel,
+        outputFilename: pending.entry.outputFilename,
+        ...(pending.entry.screenshotRegionIndex !== undefined
+          ? {
+            regionIndex: pending.entry.screenshotRegionIndex,
+            regionLabel: pending.entry.screenshotRegionLabel,
+            regionCount: pending.entry.screenshotRegionCount
+          }
+          : {})
+      }
+    });
+    files[jsonFilename] = createJsonBytes(metadata);
+  }
+
+  const nextCompletedEntries = completedEntries + 1;
+  onProgress?.({
+    completed: nextCompletedEntries,
+    total: request.entries.length,
+    stage: 'encoding'
+  });
+  throwIfAborted(signal, 'Batch export cancelled.');
+  assertSessionCurrent(core.getState(), pending.session, signal);
+  return nextCompletedEntries;
 }
 
 export async function handleExportColormap(
@@ -1125,10 +1216,18 @@ function createJsonBlob(metadata: ScreenshotReproductionMetadataV2): Blob {
   });
 }
 
+function createJsonBytes(metadata: ScreenshotReproductionMetadataV2): Uint8Array {
+  return Uint8Array.from(new TextEncoder().encode(serializeScreenshotReproductionMetadata(metadata)));
+}
+
 function createZipBlob(files: Record<string, Uint8Array>): Blob {
   const zipBytes = zipSync(files);
-  const zipBuffer = zipBytes.buffer.slice(zipBytes.byteOffset, zipBytes.byteOffset + zipBytes.byteLength) as ArrayBuffer;
-  return new Blob([zipBuffer], { type: 'application/zip' });
+  return createBlobFromBytes(zipBytes, 'application/zip');
+}
+
+function createBlobFromBytes(bytes: Uint8Array, type: string): Blob {
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  return new Blob([buffer], { type });
 }
 
 function emitSingleExportProgress(

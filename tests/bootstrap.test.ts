@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { unzipSync } from 'fflate';
+import { unzipSync, zipSync } from 'fflate';
 
 const mocks = vi.hoisted(() => {
   const createCoreState = () => ({
@@ -113,6 +113,9 @@ const mocks = vi.hoisted(() => {
     return Number.isInteger(index) ? registry.assets?.[index] ?? null : null;
   });
   const createPngBlobFromPixels = vi.fn();
+  const encodePngOffMainThread = vi.fn();
+  const zipFilesOffMainThread = vi.fn();
+  const disposeExportWorker = vi.fn();
   const buildColormapExportPixels = vi.fn();
   const interactionCoordinatorGetState = vi.fn(() => ({
     view: {
@@ -171,6 +174,9 @@ const mocks = vi.hoisted(() => {
     findColormapIdByLabel,
     getColormapAsset,
     createPngBlobFromPixels,
+    encodePngOffMainThread,
+    zipFilesOffMainThread,
+    disposeExportWorker,
     buildColormapExportPixels,
     interactionCoordinatorGetState,
     interactionCoordinatorEnqueueViewPatch,
@@ -436,9 +442,18 @@ vi.mock('../src/export-image', () => ({
   createPngBlobFromPixels: mocks.createPngBlobFromPixels
 }));
 
+vi.mock('../src/export/export-worker-client', () => ({
+  encodePngOffMainThread: mocks.encodePngOffMainThread,
+  zipFilesOffMainThread: mocks.zipFilesOffMainThread,
+  disposeExportWorker: mocks.disposeExportWorker
+}));
+
 vi.mock('../src/export/export-pixels', () => ({
   buildColormapExportPixels: mocks.buildColormapExportPixels
 }));
+
+mocks.encodePngOffMainThread.mockResolvedValue(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+mocks.zipFilesOffMainThread.mockImplementation(async (files: Record<string, Uint8Array>) => zipSync(files));
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -478,6 +493,8 @@ afterEach(() => {
     const index = Number(id);
     return Number.isInteger(index) ? registry.assets?.[index] ?? null : null;
   });
+  mocks.encodePngOffMainThread.mockResolvedValue(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  mocks.zipFilesOffMainThread.mockImplementation(async (files: Record<string, Uint8Array>) => zipSync(files));
 });
 
 describe('bootstrap app lifecycle', () => {
@@ -518,6 +535,7 @@ describe('bootstrap app lifecycle', () => {
     expect(mocks.rendererDispose).toHaveBeenCalledTimes(1);
     expect(mocks.uiDispose).toHaveBeenCalledTimes(1);
     expect(mocks.workerDispose).toHaveBeenCalledTimes(1);
+    expect(mocks.disposeExportWorker).toHaveBeenCalledTimes(1);
     expect(removeEventListenerSpy).toHaveBeenCalledWith('beforeunload', beforeUnload);
 
     app.dispose();
@@ -1854,7 +1872,7 @@ describe('bootstrap app lifecycle', () => {
     mutableCoreState.sessionState.displaySelection = rgbSelection;
 
     const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    mocks.createPngBlobFromPixels.mockResolvedValue(new Blob([pngBytes], { type: 'image/png' }));
+    mocks.encodePngOffMainThread.mockResolvedValue(pngBytes);
 
     const { bootstrapApp } = await import('../src/app/bootstrap');
     const app = await bootstrapApp();
@@ -1912,9 +1930,9 @@ describe('bootstrap app lifecycle', () => {
       { completed: 0, total: 2, stage: 'preparing' },
       { completed: 0, total: 2, stage: 'rendering', currentFilename: 'beauty.RGB.png' },
       { completed: 0, total: 2, stage: 'encoding', currentFilename: 'beauty.RGB.png' },
+      { completed: 0, total: 2, stage: 'rendering', currentFilename: 'depth.Z.png' },
+      { completed: 0, total: 2, stage: 'encoding', currentFilename: 'depth.Z.png' },
       { completed: 1, total: 2, stage: 'encoding' },
-      { completed: 1, total: 2, stage: 'rendering', currentFilename: 'depth.Z.png' },
-      { completed: 1, total: 2, stage: 'encoding', currentFilename: 'depth.Z.png' },
       { completed: 2, total: 2, stage: 'encoding' },
       { completed: 2, total: 2, stage: 'packaging' }
     ]);
@@ -1928,13 +1946,16 @@ describe('bootstrap app lifecycle', () => {
       expect.objectContaining({ activeLayer: 0, displaySelection: depthSelection })
     );
     expect(mocks.rendererReadExportPixels).toHaveBeenCalledTimes(2);
-    expect(mocks.createPngBlobFromPixels).toHaveBeenCalledTimes(2);
-    expect(mocks.createPngBlobFromPixels).toHaveBeenNthCalledWith(1, expect.any(Object), {
-      compressionLevel: 7
+    expect(mocks.encodePngOffMainThread).toHaveBeenCalledTimes(2);
+    expect(mocks.encodePngOffMainThread).toHaveBeenNthCalledWith(1, expect.any(Object), {
+      compressionLevel: 7,
+      signal: expect.any(AbortSignal)
     });
-    expect(mocks.createPngBlobFromPixels).toHaveBeenNthCalledWith(2, expect.any(Object), {
-      compressionLevel: 7
+    expect(mocks.encodePngOffMainThread).toHaveBeenNthCalledWith(2, expect.any(Object), {
+      compressionLevel: 7,
+      signal: expect.any(AbortSignal)
     });
+    expect(mocks.zipFilesOffMainThread).toHaveBeenCalledTimes(1);
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(anchorClick).toHaveBeenCalledTimes(1);
     const anchor = appendSpy.mock.calls[0]?.[0] as HTMLAnchorElement | undefined;
@@ -2008,10 +2029,10 @@ describe('bootstrap app lifecycle', () => {
     mutableCoreState.activeSessionId = 'session-1';
     mutableCoreState.sessions = [session];
     mutableCoreState.sessionState.displaySelection = rgbSelection;
-    mocks.createPngBlobFromPixels.mockImplementation(async () => {
+    mocks.encodePngOffMainThread.mockImplementation(async () => {
       mutableCoreState.activeSessionId = null;
       mutableCoreState.sessions = [];
-      return new Blob([new Uint8Array([0x89, 0x50])], { type: 'image/png' });
+      return new Uint8Array([0x89, 0x50]);
     });
 
     const { bootstrapApp } = await import('../src/app/bootstrap');
@@ -2042,7 +2063,7 @@ describe('bootstrap app lifecycle', () => {
       }]
     }, new AbortController().signal)).rejects.toMatchObject({ name: 'AbortError' });
 
-    expect(mocks.createPngBlobFromPixels).toHaveBeenCalledTimes(1);
+    expect(mocks.encodePngOffMainThread).toHaveBeenCalledTimes(1);
     expect(createObjectURL).not.toHaveBeenCalled();
     expect(anchorClick).not.toHaveBeenCalled();
     expect(mocks.coreDispatch.mock.calls.filter(([intent]) => {
@@ -2146,7 +2167,7 @@ describe('bootstrap app lifecycle', () => {
     });
 
     const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
-    mocks.createPngBlobFromPixels.mockResolvedValue(new Blob([pngBytes], { type: 'image/png' }));
+    mocks.encodePngOffMainThread.mockResolvedValue(pngBytes);
 
     const { bootstrapApp } = await import('../src/app/bootstrap');
     const app = await bootstrapApp();
@@ -2331,7 +2352,7 @@ describe('bootstrap app lifecycle', () => {
     });
 
     const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
-    mocks.createPngBlobFromPixels.mockResolvedValue(new Blob([pngBytes], { type: 'image/png' }));
+    mocks.encodePngOffMainThread.mockResolvedValue(pngBytes);
 
     const { bootstrapApp } = await import('../src/app/bootstrap');
     const app = await bootstrapApp();
@@ -2564,7 +2585,7 @@ describe('bootstrap app lifecycle', () => {
       }
     };
 
-    mocks.createPngBlobFromPixels.mockResolvedValue(new Blob([new Uint8Array([0x89, 0x50])], { type: 'image/png' }));
+    mocks.encodePngOffMainThread.mockResolvedValue(new Uint8Array([0x89, 0x50]));
 
     const { bootstrapApp } = await import('../src/app/bootstrap');
     const app = await bootstrapApp();

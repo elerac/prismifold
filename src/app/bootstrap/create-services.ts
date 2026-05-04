@@ -1,4 +1,5 @@
 import { disposeDecodeWorker, loadExrOffMainThread } from '../../exr-worker-client';
+import { disposeExportWorker } from '../../export/export-worker-client';
 import { ViewerInteractionCoordinator } from '../../interaction-coordinator';
 import { WebGlExrRenderer } from '../../renderer';
 import { resolveRulerFitInsets } from '../../ruler-layout';
@@ -162,4 +163,5 @@ export function disposeBootstrapServices(services: Partial<BootstrapServices>): 
   services.renderCache?.dispose();
   services.renderer?.dispose();
   disposeDecodeWorker();
+  disposeExportWorker();
 }
