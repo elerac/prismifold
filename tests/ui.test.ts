@@ -4566,7 +4566,12 @@ describe('view menu', () => {
     const progressBar = document.getElementById('export-batch-progress-bar') as HTMLProgressElement;
     const progressLabel = document.getElementById('export-batch-progress-label') as HTMLElement;
     const status = document.getElementById('export-batch-dialog-status') as HTMLElement;
+    const dialog = document.getElementById('export-batch-dialog-form') as HTMLFormElement;
+    const dialogBody = dialog.querySelector('.app-dialog-body') as HTMLElement;
 
+    expect(progress.parentElement).toBe(dialog);
+    expect(dialogBody.contains(progress)).toBe(false);
+    expect(progress.nextElementSibling?.classList.contains('app-dialog-actions')).toBe(true);
     expect(progress.classList.contains('hidden')).toBe(false);
     expect(progressBar.max).toBe(3);
     expect(progressBar.value).toBe(0);

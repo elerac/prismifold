@@ -577,6 +577,7 @@ input[type='range'] {
 
 .app-dialog--batch {
   width: min(100%, 58rem);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
 }
 
 .app-dialog--settings {
