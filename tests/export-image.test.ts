@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { unzlibSync } from 'fflate';
-import { linearToSrgbByte } from '../src/color';
+import { DEFAULT_DISPLAY_GAMMA, linearToDisplayGammaByte } from '../src/color';
 import {
   buildColormapExportPixels,
   buildExportImagePixels
@@ -22,13 +22,14 @@ afterEach(() => {
 });
 
 describe('export image pixels', () => {
-  it('applies exposure and sRGB encoding for rgb exports', () => {
+  it('applies exposure and display gamma encoding for rgb exports', () => {
     const pixels = buildExportImagePixels({
       displayTexture: new Float32Array([0.25, 0.5, 1, 1]),
       width: 1,
       height: 1,
       state: {
         exposureEv: 1,
+        displayGamma: DEFAULT_DISPLAY_GAMMA,
         visualizationMode: 'rgb',
         colormapRange: null,
         displaySelection: {
@@ -45,9 +46,9 @@ describe('export image pixels', () => {
     });
 
     expect(Array.from(pixels.data)).toEqual([
-      linearToSrgbByte(0.5),
-      linearToSrgbByte(1),
-      linearToSrgbByte(2),
+      linearToDisplayGammaByte(0.5),
+      linearToDisplayGammaByte(1),
+      linearToDisplayGammaByte(2),
       255
     ]);
   });
@@ -59,6 +60,7 @@ describe('export image pixels', () => {
       height: 1,
       state: {
         exposureEv: 0,
+        displayGamma: DEFAULT_DISPLAY_GAMMA,
         visualizationMode: 'colormap',
         colormapRange: { min: 0, max: 1 },
         displaySelection: {
@@ -87,6 +89,7 @@ describe('export image pixels', () => {
       height: 1,
       state: {
         exposureEv: 0,
+        displayGamma: DEFAULT_DISPLAY_GAMMA,
         visualizationMode: 'rgb',
         colormapRange: null,
         displaySelection: {
@@ -112,6 +115,7 @@ describe('export image pixels', () => {
       height: 1,
       state: {
         exposureEv: 0,
+        displayGamma: DEFAULT_DISPLAY_GAMMA,
         visualizationMode: 'colormap',
         colormapRange: { min: 0, max: 1 },
         displaySelection: {

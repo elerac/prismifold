@@ -13,5 +13,8 @@ describe('shader source regressions', () => {
     expect(source).not.toMatch(/uSourceTextures\[(?!\d+\])/);
     expect(source).not.toMatch(/\bDisplaySample\s+sample\b/);
     expect(source).not.toMatch(/\bsample\./);
+    expect(source).toContain('uniform float uDisplayGamma;');
+    expect(source).toContain('linearToDisplayGamma');
+    expect(source).toContain('sign(linear) * pow(abs(linear)');
   });
 });

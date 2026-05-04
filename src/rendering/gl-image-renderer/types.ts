@@ -9,6 +9,7 @@ export interface CommonUniforms {
   screenOrigin: WebGLUniformLocation;
   imageSize: WebGLUniformLocation;
   exposure: WebGLUniformLocation;
+  displayGamma: WebGLUniformLocation;
   useColormap: WebGLUniformLocation;
   colormapMin: WebGLUniformLocation;
   colormapMax: WebGLUniformLocation;

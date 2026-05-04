@@ -144,6 +144,8 @@ export interface Elements {
   exposureControl: HTMLDivElement;
   exposureSlider: HTMLInputElement;
   exposureValue: HTMLInputElement;
+  gammaSlider: HTMLInputElement;
+  gammaValue: HTMLInputElement;
   errorBanner: HTMLDivElement;
   viewerContainer: HTMLElement;
   dropOverlay: HTMLDivElement;
@@ -278,6 +280,8 @@ export type ColormapPanelElements = Pick<
   | 'exposureControl'
   | 'exposureSlider'
   | 'exposureValue'
+  | 'gammaSlider'
+  | 'gammaValue'
 >;
 
 export type LayoutSplitElements = Pick<
@@ -656,6 +660,8 @@ export function resolveElements(): Elements {
     exposureControl: requireElement('exposure-control', HTMLDivElement),
     exposureSlider: requireElement('exposure-slider', HTMLInputElement),
     exposureValue: requireElement('exposure-value', HTMLInputElement),
+    gammaSlider: requireElement('gamma-slider', HTMLInputElement),
+    gammaValue: requireElement('gamma-value', HTMLInputElement),
     errorBanner: requireElement('error-banner', HTMLDivElement),
     viewerContainer: requireElement('viewer-container', HTMLElement),
     dropOverlay: requireElement('drop-overlay', HTMLDivElement),

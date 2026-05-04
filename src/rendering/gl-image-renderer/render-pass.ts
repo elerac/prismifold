@@ -97,6 +97,7 @@ function setCommonUniforms(
   const height = state.imageSize?.height ?? 0;
   gl.uniform2f(uniforms.imageSize, width, height);
   gl.uniform1f(uniforms.exposure, viewerState.exposureEv);
+  gl.uniform1f(uniforms.displayGamma, viewerState.displayGamma);
   gl.uniform1i(uniforms.useColormap, viewerState.visualizationMode === 'colormap' ? 1 : 0);
   gl.uniform1f(uniforms.colormapMin, viewerState.colormapRange?.min ?? 0);
   gl.uniform1f(uniforms.colormapMax, viewerState.colormapRange?.max ?? 0);

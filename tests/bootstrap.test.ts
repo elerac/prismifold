@@ -40,6 +40,9 @@ const mocks = vi.hoisted(() => {
     rulersVisible: false,
     sessionState: {
       exposureEv: 0,
+      channelThumbnailExposureEv: 0,
+      displayGamma: 2.2,
+      channelThumbnailDisplayGamma: 2.2,
       viewerMode: 'image',
       visualizationMode: 'rgb',
       activeColormapId: '0',
@@ -252,6 +255,7 @@ vi.mock('../src/ui/viewer-ui', () => ({
     readonly setExportTarget = vi.fn();
     readonly setExportBatchTarget = vi.fn();
     readonly setExposure = vi.fn();
+    readonly setDisplayGamma = vi.fn();
     readonly setViewerMode = vi.fn();
     readonly setVisualizationMode = vi.fn();
     readonly setStokesDegreeModulationControl = vi.fn();

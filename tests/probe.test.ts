@@ -34,7 +34,7 @@ describe('probe helpers', () => {
     expect(resolveProbeMode(null)).toBe('Hover');
   });
 
-  it('builds an sRGB probe color preview from the selected RGB channels', () => {
+  it('builds a display-gamma probe color preview from the selected RGB channels', () => {
     const preview = buildProbeColorPreview(
       {
         x: 4,
@@ -50,7 +50,7 @@ describe('probe helpers', () => {
     );
 
     expect(preview).toEqual({
-      cssColor: 'rgb(255, 188, 137)',
+      cssColor: 'rgb(255, 186, 136)',
       displayValues: [
         { label: 'R', value: '1.00' },
         { label: 'G', value: '0.500' },
@@ -76,7 +76,7 @@ describe('probe helpers', () => {
     );
 
     expect(preview).toEqual({
-      cssColor: 'rgba(255, 188, 137, 0.25)',
+      cssColor: 'rgba(255, 186, 136, 0.25)',
       displayValues: [
         { label: 'R', value: '1.00' },
         { label: 'G', value: '0.500' },
@@ -94,9 +94,19 @@ describe('probe helpers', () => {
     );
 
     expect(preview).toEqual({
-      cssColor: 'rgb(137, 137, 137)',
+      cssColor: 'rgb(136, 136, 136)',
       displayValues: [{ label: 'Mono', value: '0.250' }]
     });
+  });
+
+  it('clamps negative display-gamma probe preview bytes while preserving signed encoding upstream', () => {
+    const preview = buildProbeColorPreview(
+      { x: 0, y: 0, values: { R: -0.25, G: 0.25, B: 1 } },
+      createChannelRgbSelection('R', 'G', 'B'),
+      0
+    );
+
+    expect(preview?.cssColor).toBe('rgb(0, 136, 255)');
   });
 
   it('applies exposure to mono probe previews', () => {

@@ -4,6 +4,7 @@ import {
   type StokesAolpDegreeModulationMode,
   type StokesDegreeModulationState
 } from './display-model';
+import { DEFAULT_DISPLAY_GAMMA } from './color';
 
 export function serializeChannelThumbnailContextKey(
   sessionId: string,
@@ -19,18 +20,19 @@ export function serializeChannelThumbnailRequestKey(args: {
   activeLayer: number;
   selection: DisplaySelection | string;
   exposureEv: number;
+  displayGamma: number;
   stokesDegreeModulation: StokesDegreeModulationState;
   stokesAolpDegreeModulationMode: StokesAolpDegreeModulationMode;
 }): string {
-  return `${serializeChannelThumbnailContextKey(args.sessionId, args.activeLayer, args.selection)}|exposure:${serializeExposureEv(args.exposureEv)}|modulation:${serializeStokesDegreeModulationKey(args.stokesDegreeModulation)}|aolpModulation:${args.stokesAolpDegreeModulationMode}`;
+  return `${serializeChannelThumbnailContextKey(args.sessionId, args.activeLayer, args.selection)}|exposure:${serializeFiniteNumber(args.exposureEv, 0)}|gamma:${serializeFiniteNumber(args.displayGamma, DEFAULT_DISPLAY_GAMMA)}|modulation:${serializeStokesDegreeModulationKey(args.stokesDegreeModulation)}|aolpModulation:${args.stokesAolpDegreeModulationMode}`;
 }
 
 export function buildChannelThumbnailSessionPrefix(sessionId: string): string {
   return `session:${sessionId}|`;
 }
 
-function serializeExposureEv(exposureEv: number): string {
-  return Number.isFinite(exposureEv) ? String(exposureEv) : '0';
+function serializeFiniteNumber(value: number, fallback: number): string {
+  return Number.isFinite(value) ? String(value) : String(fallback);
 }
 
 function serializeStokesDegreeModulationKey(modulation: StokesDegreeModulationState): string {

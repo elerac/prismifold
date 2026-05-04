@@ -1,4 +1,4 @@
-import { computeRec709Luminance, linearToSrgbByte } from '../color';
+import { computeRec709Luminance, linearToDisplayGammaByte } from '../color';
 import {
   mapValueToColormapRgbBytes,
   sampleColormapRgbBytes,
@@ -13,6 +13,7 @@ type ExportVisualizationState = Pick<
   ViewerSessionState,
   | 'colormapRange'
   | 'displaySelection'
+  | 'displayGamma'
   | 'exposureEv'
   | 'stokesAolpDegreeModulationMode'
   | 'stokesDegreeModulation'
@@ -80,9 +81,9 @@ export function buildExportImagePixels({
       }
     } else {
       rgb = [
-        linearToSrgbByte(rawR * exposureScale),
-        linearToSrgbByte(rawG * exposureScale),
-        linearToSrgbByte(rawB * exposureScale)
+        linearToDisplayGammaByte(rawR * exposureScale, state.displayGamma),
+        linearToDisplayGammaByte(rawG * exposureScale, state.displayGamma),
+        linearToDisplayGammaByte(rawB * exposureScale, state.displayGamma)
       ];
     }
 

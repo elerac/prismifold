@@ -878,6 +878,7 @@ async function resolveBatchEntryExportState({
     activeLayer: entry.activeLayer,
     displaySelection: selection,
     exposureEv: currentState.exposureEv,
+    displayGamma: currentState.displayGamma,
     viewerMode: 'image',
     visualizationMode,
     activeColormapId,

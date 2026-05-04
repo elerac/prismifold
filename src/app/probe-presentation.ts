@@ -66,13 +66,19 @@ export function buildProbeReadoutModel(args: BuildProbePresentationArgs): ProbeR
   return {
     mode,
     sample,
-    colorPreview: buildProbeColorPreview(sample, args.sessionState.displaySelection, args.sessionState.exposureEv, {
-      mode: args.sessionState.visualizationMode,
-      colormapRange: args.sessionState.colormapRange ?? args.activeDisplayLuminanceRange,
-      colormapLut: args.activeColormapLut,
-      stokesDegreeModulation: args.sessionState.stokesDegreeModulation,
-      stokesAolpDegreeModulationMode: args.sessionState.stokesAolpDegreeModulationMode
-    }),
+    colorPreview: buildProbeColorPreview(
+      sample,
+      args.sessionState.displaySelection,
+      args.sessionState.exposureEv,
+      args.sessionState.displayGamma,
+      {
+        mode: args.sessionState.visualizationMode,
+        colormapRange: args.sessionState.colormapRange ?? args.activeDisplayLuminanceRange,
+        colormapLut: args.activeColormapLut,
+        stokesDegreeModulation: args.sessionState.stokesDegreeModulation,
+        stokesAolpDegreeModulationMode: args.sessionState.stokesAolpDegreeModulationMode
+      }
+    ),
     imageSize
   };
 }

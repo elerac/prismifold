@@ -1,4 +1,5 @@
 import { AUTO_EXPOSURE_SOURCE } from '../analysis/auto-exposure';
+import { DEFAULT_DISPLAY_GAMMA } from '../color';
 import {
   buildDisplayAutoExposureRevisionKey,
   buildDisplayImageStatsRevisionKey,
@@ -194,6 +195,7 @@ function createProbeReadoutSelector(): (
   let previousHoveredPixel: ViewerAppState['interactionState']['hoveredPixel'] = null;
   let previousDisplaySelection: ViewerAppState['sessionState']['displaySelection'] = null;
   let previousExposureEv = 0;
+  let previousDisplayGamma = DEFAULT_DISPLAY_GAMMA;
   let previousVisualizationMode: ViewerAppState['sessionState']['visualizationMode'] = 'rgb';
   let previousColormapRange: ViewerAppState['sessionState']['colormapRange'] = null;
   let previousActiveDisplayLuminanceRange: DisplayLuminanceRange | null = null;
@@ -226,6 +228,7 @@ function createProbeReadoutSelector(): (
       samePixel(state.interactionState.hoveredPixel, previousHoveredPixel) &&
       sameDisplaySelection(state.sessionState.displaySelection, previousDisplaySelection) &&
       state.sessionState.exposureEv === previousExposureEv &&
+      state.sessionState.displayGamma === previousDisplayGamma &&
       state.sessionState.visualizationMode === previousVisualizationMode &&
       (
         !usesColormap || (
@@ -251,6 +254,7 @@ function createProbeReadoutSelector(): (
     previousHoveredPixel = state.interactionState.hoveredPixel;
     previousDisplaySelection = state.sessionState.displaySelection;
     previousExposureEv = state.sessionState.exposureEv;
+    previousDisplayGamma = state.sessionState.displayGamma;
     previousVisualizationMode = state.sessionState.visualizationMode;
     previousColormapRange = state.sessionState.colormapRange;
     previousActiveDisplayLuminanceRange = activeDisplayLuminanceRange;
@@ -551,6 +555,7 @@ function sameRenderImageInputs(a: ViewerRenderSnapshot, b: ViewerRenderSnapshot)
     a.activeSession?.decoded === b.activeSession?.decoded &&
     previous.viewerMode === next.viewerMode &&
     previous.exposureEv === next.exposureEv &&
+    previous.displayGamma === next.displayGamma &&
     previous.activeLayer === next.activeLayer &&
     sameDisplaySelection(previous.displaySelection, next.displaySelection) &&
     previous.visualizationMode === next.visualizationMode &&
@@ -629,6 +634,7 @@ function sameRenderRulerOverlayInputs(a: ViewerRenderSnapshot, b: ViewerRenderSn
 function sameViewerRenderState(a: ViewerRenderState, b: ViewerRenderState): boolean {
   return (
     a.exposureEv === b.exposureEv &&
+    a.displayGamma === b.displayGamma &&
     a.viewerMode === b.viewerMode &&
     a.visualizationMode === b.visualizationMode &&
     a.activeColormapId === b.activeColormapId &&
@@ -654,6 +660,8 @@ function stateLikeSessionState(): ViewerAppState['sessionState'] {
   return {
     exposureEv: 0,
     channelThumbnailExposureEv: 0,
+    displayGamma: DEFAULT_DISPLAY_GAMMA,
+    channelThumbnailDisplayGamma: DEFAULT_DISPLAY_GAMMA,
     viewerMode: 'image',
     visualizationMode: 'rgb',
     activeColormapId: '0',

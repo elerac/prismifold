@@ -1,4 +1,4 @@
-import { computeRec709Luminance, linearToSrgbByte } from './color';
+import { DEFAULT_DISPLAY_GAMMA, computeRec709Luminance, linearToDisplayGammaByte } from './color';
 import { ColormapLut, mapValueToColormapRgbBytes, modulateRgbBytesHsv } from './colormaps';
 import {
   getDisplaySelectionDegreeModulationValueLabel,
@@ -75,43 +75,50 @@ export function buildProbeColorPreview(
   sample: PixelSample | null,
   selection: DisplaySelection | null,
   exposureEv: number,
+  displayGammaOrVisualization: number | ProbeVisualizationOptions = DEFAULT_DISPLAY_GAMMA,
   visualization: ProbeVisualizationOptions = { mode: 'rgb', colormapRange: null }
 ): ProbeColorPreview | null {
   if (!sample) {
     return null;
   }
 
-  const [rawR, rawG, rawB] = readProbeDisplayValues(sample, selection, visualization.mode);
+  const displayGamma = typeof displayGammaOrVisualization === 'number'
+    ? displayGammaOrVisualization
+    : DEFAULT_DISPLAY_GAMMA;
+  const resolvedVisualization = typeof displayGammaOrVisualization === 'number'
+    ? visualization
+    : displayGammaOrVisualization;
+  const [rawR, rawG, rawB] = readProbeDisplayValues(sample, selection, resolvedVisualization.mode);
   const rawA = readProbeDisplayAlpha(sample, selection);
   const exposureScale = 2 ** exposureEv;
   let bytes: [number, number, number];
   const monoValue = computeRec709Luminance(rawR, rawG, rawB);
   let displayValues: ProbeDisplayValue[];
-  if (visualization.mode === 'colormap') {
+  if (resolvedVisualization.mode === 'colormap') {
     bytes = mapValueToColormapRgbBytes(
       monoValue,
-      visualization.colormapRange,
-      visualization.colormapLut ?? null
+      resolvedVisualization.colormapRange,
+      resolvedVisualization.colormapLut ?? null
     );
     displayValues = [{ label: 'Mono', value: formatOverlayValue(monoValue) }];
 
     const stokesDegreeModulation =
-      visualization.stokesDegreeModulation ?? createDefaultStokesDegreeModulation();
+      resolvedVisualization.stokesDegreeModulation ?? createDefaultStokesDegreeModulation();
     if (isStokesDegreeModulationEnabled(selection, stokesDegreeModulation)) {
       bytes = modulateRgbBytesHsv(
         bytes,
         readProbeStokesDegreeModulationValue(sample, selection),
         resolveStokesDegreeModulationMode(
           selection,
-          visualization.stokesAolpDegreeModulationMode ?? 'value'
+          resolvedVisualization.stokesAolpDegreeModulationMode ?? 'value'
         )
       );
     }
   } else {
     bytes = [
-      linearToSrgbByte(rawR * exposureScale),
-      linearToSrgbByte(rawG * exposureScale),
-      linearToSrgbByte(rawB * exposureScale)
+      linearToDisplayGammaByte(rawR * exposureScale, displayGamma),
+      linearToDisplayGammaByte(rawG * exposureScale, displayGamma),
+      linearToDisplayGammaByte(rawB * exposureScale, displayGamma)
     ];
     displayValues = isMonoSelection(selection)
       ? [{ label: 'Mono', value: formatOverlayValue(rawR) }]

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { __debugGetMaterializedChannelCount } from '../src/channel-storage';
-import { computeRec709Luminance, linearToSrgbByte } from '../src/color';
+import { DEFAULT_DISPLAY_GAMMA, computeRec709Luminance, linearToDisplayGammaByte } from '../src/color';
 import {
   mapValueToColormapRgbBytes,
   type ColormapLut
@@ -21,6 +21,8 @@ function createThumbnailState(
   return {
     exposureEv: 0,
     channelThumbnailExposureEv: 0,
+    displayGamma: DEFAULT_DISPLAY_GAMMA,
+    channelThumbnailDisplayGamma: DEFAULT_DISPLAY_GAMMA,
     viewerMode: 'image',
     visualizationMode: 'rgb',
     activeColormapId: '0',
@@ -75,7 +77,7 @@ describe('thumbnail rendering', () => {
     expect(readPixel(thumbnail.data, thumbnail.width, 35, 10)).toEqual([255, 255, 255, 255]);
   });
 
-  it('applies rgb max scaling and exposure before sRGB encoding', () => {
+  it('applies rgb max scaling and exposure before display gamma encoding', () => {
     const layer = createLayerFromChannels({
       R: [0.25],
       G: [0.5],
@@ -93,9 +95,9 @@ describe('thumbnail rendering', () => {
     );
 
     expect(readPixel(thumbnail.data, thumbnail.width, 20, 20)).toEqual([
-      linearToSrgbByte(0.5),
-      linearToSrgbByte(1),
-      linearToSrgbByte(2),
+      linearToDisplayGammaByte(0.5),
+      linearToDisplayGammaByte(1),
+      linearToDisplayGammaByte(2),
       255
     ]);
   });

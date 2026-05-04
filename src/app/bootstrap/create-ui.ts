@@ -186,6 +186,12 @@ export function createViewerUi({
     onExposureCommit: () => {
       core.dispatch({ type: 'exposureCommitted' });
     },
+    onDisplayGammaChange: (value) => {
+      core.dispatch({ type: 'displayGammaSet', displayGamma: value });
+    },
+    onDisplayGammaCommit: () => {
+      core.dispatch({ type: 'displayGammaCommitted' });
+    },
     onViewerKeyboardNavigationInputChange: (input) => {
       getInteraction()?.setViewerKeyboardNavigationInput(input);
     },

@@ -9,6 +9,7 @@ import {
   sameDisplaySelection
 } from '../../display-model';
 import { getSuccessValue } from '../../async-resource';
+import { normalizeDisplayGamma } from '../../color';
 import { computeFitView } from '../../interaction/image-geometry';
 import { cloneImageRoi } from '../../roi';
 import { samePixel } from '../../view-state';
@@ -60,6 +61,10 @@ export function displayReducer(
       return patchSessionState(state, { exposureEv: intent.exposureEv });
     case 'exposureCommitted':
       return patchSessionState(state, { channelThumbnailExposureEv: state.sessionState.exposureEv });
+    case 'displayGammaSet':
+      return patchSessionState(state, { displayGamma: normalizeDisplayGamma(intent.displayGamma) });
+    case 'displayGammaCommitted':
+      return patchSessionState(state, { channelThumbnailDisplayGamma: state.sessionState.displayGamma });
     case 'viewerModeSet':
       if (!selectActiveSession(state) || state.sessionState.viewerMode === intent.viewerMode) {
         return state;

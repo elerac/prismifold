@@ -1,4 +1,5 @@
 import { buildZeroCenteredColormapRange } from '../colormap-range';
+import { normalizeDisplayGamma } from '../color';
 import { ColormapLut, sampleColormapRgbBytes } from '../colormaps';
 import { DisposableBag, type Disposable } from '../lifecycle';
 import type { DisplayLuminanceRange, StokesAolpDegreeModulationMode, VisualizationMode } from '../types';
@@ -12,6 +13,8 @@ const DEFAULT_COLORMAP_GRADIENT = 'linear-gradient(90deg, #d95656 0%, #05070a 50
 interface ColormapPanelCallbacks {
   onExposureChange: (value: number) => void;
   onExposureCommit: () => void;
+  onDisplayGammaChange: (value: number) => void;
+  onDisplayGammaCommit: () => void;
   onVisualizationModeChange: (mode: VisualizationMode) => void;
   onColormapChange: (colormapId: string) => void;
   onColormapRangeChange: (range: DisplayLuminanceRange) => void;
@@ -97,6 +100,7 @@ export class ColormapPanel implements Disposable {
     });
 
     this.bindExposureControl(this.elements.exposureSlider, this.elements.exposureValue);
+    this.bindGammaControl(this.elements.gammaSlider, this.elements.gammaValue);
   }
 
   dispose(): void {
@@ -117,6 +121,7 @@ export class ColormapPanel implements Disposable {
     this.setVisualizationModeButtonsDisabled(loading || this.openedImageCount === 0);
     this.setColormapRangeControlsDisabled(loading || this.openedImageCount === 0 || !this.currentColormapRange);
     this.elements.exposureValue.disabled = loading;
+    this.elements.gammaValue.disabled = loading;
     this.updateStokesDegreeModulationDisabled();
   }
 
@@ -142,6 +147,16 @@ export class ColormapPanel implements Disposable {
       control.slider.value = exposureEv.toFixed(1);
       control.value.value = exposureEv.toFixed(1);
     }
+  }
+
+  setDisplayGamma(displayGamma: number): void {
+    if (this.disposed) {
+      return;
+    }
+
+    const value = formatDisplayGammaInputValue(displayGamma);
+    this.elements.gammaSlider.value = value;
+    this.elements.gammaValue.value = value;
   }
 
   setVisualizationMode(mode: VisualizationMode): void {
@@ -339,6 +354,31 @@ export class ColormapPanel implements Disposable {
     });
   }
 
+  private bindGammaControl(slider: HTMLInputElement, valueInput: HTMLInputElement): void {
+    this.disposables.addEventListener(slider, 'input', (event) => {
+      const target = event.currentTarget as HTMLInputElement;
+      this.callbacks.onDisplayGammaChange(normalizeDisplayGamma(Number(target.value)));
+    });
+
+    this.disposables.addEventListener(slider, 'change', () => {
+      this.callbacks.onDisplayGammaCommit();
+    });
+
+    this.disposables.addEventListener(valueInput, 'change', (event) => {
+      const target = event.currentTarget as HTMLInputElement;
+      const value = Number(target.value);
+      if (!Number.isFinite(value)) {
+        return;
+      }
+
+      const min = Number(slider.min);
+      const max = Number(slider.max);
+      const clamped = normalizeDisplayGamma(Math.min(max, Math.max(min, value)));
+      this.callbacks.onDisplayGammaChange(clamped);
+      this.callbacks.onDisplayGammaCommit();
+    });
+  }
+
   private getExposureControls(): Array<{ slider: HTMLInputElement; value: HTMLInputElement }> {
     return [
       { slider: this.elements.exposureSlider, value: this.elements.exposureValue }
@@ -504,6 +544,10 @@ function formatColormapInputValue(value: number): string {
   }
 
   return Number(value.toPrecision(7)).toString();
+}
+
+function formatDisplayGammaInputValue(value: number): string {
+  return Number(normalizeDisplayGamma(value).toFixed(2)).toString();
 }
 
 function formatColormapRangeStep(min: number, max: number): string {

@@ -802,6 +802,44 @@ describe('top bar and display controls', () => {
     expect(exposureValue.value).toBe('-0.7');
   });
 
+  it('updates inspector gamma controls through the shared display gamma state', () => {
+    installUiFixture();
+
+    const onDisplayGammaChange = vi.fn();
+    const onDisplayGammaCommit = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onDisplayGammaChange, onDisplayGammaCommit }));
+    const gammaSlider = document.getElementById('gamma-slider') as HTMLInputElement;
+    const gammaValue = document.getElementById('gamma-value') as HTMLInputElement;
+
+    ui.setDisplayGamma(2.2);
+
+    expect(gammaSlider.value).toBe('2.2');
+    expect(gammaValue.value).toBe('2.2');
+
+    gammaSlider.value = '1.8';
+    gammaSlider.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(onDisplayGammaChange).toHaveBeenLastCalledWith(1.8);
+    expect(onDisplayGammaCommit).not.toHaveBeenCalled();
+
+    gammaSlider.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onDisplayGammaCommit).toHaveBeenCalledTimes(1);
+
+    gammaValue.value = '9';
+    gammaValue.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onDisplayGammaChange).toHaveBeenLastCalledWith(5);
+    expect(onDisplayGammaCommit).toHaveBeenCalledTimes(2);
+
+    gammaValue.value = '-1';
+    gammaValue.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onDisplayGammaChange).toHaveBeenLastCalledWith(0.01);
+    expect(onDisplayGammaCommit).toHaveBeenCalledTimes(3);
+
+    ui.setDisplayGamma(0.5);
+
+    expect(gammaSlider.value).toBe('0.5');
+    expect(gammaValue.value).toBe('0.5');
+  });
+
   it('hides inspector exposure whenever visualization uses colormap', () => {
     installUiFixture();
 
@@ -8661,6 +8699,8 @@ function createUiCallbacksBase() {
     onDisplayCacheBudgetChange: () => {},
     onExposureChange: () => {},
     onExposureCommit: () => {},
+    onDisplayGammaChange: () => {},
+    onDisplayGammaCommit: () => {},
     onViewerKeyboardNavigationInputChange: () => {},
     onViewerKeyboardZoomInputChange: () => {},
     onViewerViewStateChange: () => {},

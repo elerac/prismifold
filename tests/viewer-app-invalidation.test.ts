@@ -160,6 +160,26 @@ describe('viewer app lanes', () => {
     expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.RenderImage)).toBe(false);
   });
 
+  it('exposes display gamma through UI and image render lanes', () => {
+    const state = createActiveState();
+    const nextState = {
+      ...state,
+      sessionState: {
+        ...state.sessionState,
+        displayGamma: 1.8
+      }
+    };
+    const selectUiSnapshot = createViewerUiSnapshotSelector();
+    const snapshot = selectUiSnapshot(nextState);
+    const uiFlags = createUiFlags(state, nextState);
+    const renderFlags = createRenderFlags(state, nextState);
+
+    expect(snapshot.displayGamma).toBe(1.8);
+    expect(hasUiFlag(uiFlags, ViewerUiInvalidationFlags.DisplayGamma)).toBe(true);
+    expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.RenderImage)).toBe(true);
+    expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.RenderValueOverlay)).toBe(false);
+  });
+
   it('uses the configured auto exposure percentile in render requests', () => {
     const state = {
       ...createActiveState(),
@@ -383,6 +403,7 @@ describe('viewer app lanes', () => {
       activeLayer: previous.sessionState.activeLayer,
       selection: descriptor.selection,
       exposureEv: previous.sessionState.channelThumbnailExposureEv,
+      displayGamma: previous.sessionState.channelThumbnailDisplayGamma,
       stokesDegreeModulation: previous.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: previous.sessionState.stokesAolpDegreeModulationMode
     });
@@ -391,6 +412,7 @@ describe('viewer app lanes', () => {
       activeLayer: previous.sessionState.activeLayer,
       selection: descriptor.selection,
       exposureEv: 1,
+      displayGamma: previous.sessionState.channelThumbnailDisplayGamma,
       stokesDegreeModulation: previous.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: previous.sessionState.stokesAolpDegreeModulationMode
     });
@@ -424,6 +446,7 @@ describe('viewer app lanes', () => {
       activeLayer: previous.sessionState.activeLayer,
       selection: descriptor.selection,
       exposureEv: previous.sessionState.channelThumbnailExposureEv,
+      displayGamma: previous.sessionState.channelThumbnailDisplayGamma,
       stokesDegreeModulation: previous.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: previous.sessionState.stokesAolpDegreeModulationMode
     });
@@ -432,6 +455,7 @@ describe('viewer app lanes', () => {
       activeLayer: previous.sessionState.activeLayer,
       selection: descriptor.selection,
       exposureEv: 1,
+      displayGamma: previous.sessionState.channelThumbnailDisplayGamma,
       stokesDegreeModulation: previous.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: previous.sessionState.stokesAolpDegreeModulationMode
     });
@@ -465,6 +489,7 @@ describe('viewer app lanes', () => {
       activeLayer: previous.sessionState.activeLayer,
       selection: descriptor.selection,
       exposureEv: previous.sessionState.channelThumbnailExposureEv,
+      displayGamma: previous.sessionState.channelThumbnailDisplayGamma,
       stokesDegreeModulation: previous.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: previous.sessionState.stokesAolpDegreeModulationMode
     });

@@ -44,6 +44,8 @@ export function cloneViewerSessionState(state: ViewerSessionState): ViewerSessio
   return {
     exposureEv: state.exposureEv,
     channelThumbnailExposureEv: state.channelThumbnailExposureEv,
+    displayGamma: state.displayGamma,
+    channelThumbnailDisplayGamma: state.channelThumbnailDisplayGamma,
     viewerMode: state.viewerMode,
     visualizationMode: state.visualizationMode,
     activeColormapId: state.activeColormapId,

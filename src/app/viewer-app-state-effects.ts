@@ -188,7 +188,8 @@ function scheduleActiveChannelThumbnailGeneration(
 
   const stateSnapshot: ViewerSessionState = {
     ...state.sessionState,
-    exposureEv: state.sessionState.channelThumbnailExposureEv
+    exposureEv: state.sessionState.channelThumbnailExposureEv,
+    displayGamma: state.sessionState.channelThumbnailDisplayGamma
   };
 
   for (const item of buildChannelViewItems(layer.channelNames)) {
@@ -197,6 +198,7 @@ function scheduleActiveChannelThumbnailGeneration(
       activeLayer: state.sessionState.activeLayer,
       selection: item.selection,
       exposureEv: state.sessionState.channelThumbnailExposureEv,
+      displayGamma: state.sessionState.channelThumbnailDisplayGamma,
       stokesDegreeModulation: state.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: state.sessionState.stokesAolpDegreeModulationMode
     });
@@ -236,6 +238,7 @@ function shouldRefreshActiveChannelThumbnails(transition: ViewerStateTransition)
     transition.previousState.activeSessionId !== transition.state.activeSessionId ||
     transition.previousState.sessionState.activeLayer !== transition.state.sessionState.activeLayer ||
     transition.previousState.sessionState.channelThumbnailExposureEv !== transition.state.sessionState.channelThumbnailExposureEv ||
+    transition.previousState.sessionState.channelThumbnailDisplayGamma !== transition.state.sessionState.channelThumbnailDisplayGamma ||
     transition.previousState.sessionState.stokesDegreeModulation.aolp !== transition.state.sessionState.stokesDegreeModulation.aolp ||
     transition.previousState.sessionState.stokesDegreeModulation.cop !== transition.state.sessionState.stokesDegreeModulation.cop ||
     transition.previousState.sessionState.stokesDegreeModulation.top !== transition.state.sessionState.stokesDegreeModulation.top ||

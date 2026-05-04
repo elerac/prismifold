@@ -1,4 +1,5 @@
 import { computeFitView } from '../interaction/image-geometry';
+import { DEFAULT_DISPLAY_GAMMA } from '../color';
 import { DEFAULT_PANORAMA_HFOV_DEG } from '../interaction/panorama-geometry';
 import { cloneDisplayLuminanceRange } from '../colormap-range';
 import {
@@ -102,6 +103,8 @@ export function createClearedViewerState(defaultColormapId: string): ViewerSessi
   return {
     exposureEv: 0,
     channelThumbnailExposureEv: 0,
+    displayGamma: DEFAULT_DISPLAY_GAMMA,
+    channelThumbnailDisplayGamma: DEFAULT_DISPLAY_GAMMA,
     viewerMode: 'image',
     visualizationMode: 'rgb',
     activeColormapId: defaultColormapId,
@@ -195,6 +198,8 @@ export function buildSwitchedSessionState(
       ...nextPanoramaCamera,
       exposureEv: currentState.exposureEv,
       channelThumbnailExposureEv: currentState.channelThumbnailExposureEv,
+      displayGamma: currentState.displayGamma,
+      channelThumbnailDisplayGamma: currentState.channelThumbnailDisplayGamma,
       displaySelection: cloneDisplaySelection(currentState.displaySelection),
       stokesDegreeModulation: { ...currentState.stokesDegreeModulation },
       stokesAolpDegreeModulationMode: currentState.stokesAolpDegreeModulationMode,

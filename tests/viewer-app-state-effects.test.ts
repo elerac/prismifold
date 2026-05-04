@@ -69,7 +69,7 @@ function createLayeredSession(id: string): OpenedImageSession {
 }
 
 describe('viewer app state effects', () => {
-  it('refreshes channel thumbnails on committed exposure changes only', () => {
+  it('refreshes channel thumbnails on committed display adjustment changes only', () => {
     const core = new ViewerAppCore();
     const enqueue = vi.fn<ChannelThumbnailService['enqueue']>(() => Promise.resolve());
     const channelThumbnailService = {
@@ -105,6 +105,20 @@ describe('viewer app state effects', () => {
     core.dispatch({ type: 'exposureCommitted' });
 
     expect(enqueue).not.toHaveBeenCalled();
+
+    core.dispatch({ type: 'displayGammaSet', displayGamma: 1.8 });
+
+    expect(core.getState().sessionState.displayGamma).toBe(1.8);
+    expect(core.getState().sessionState.channelThumbnailDisplayGamma).toBe(2.2);
+    expect(enqueue).not.toHaveBeenCalled();
+
+    core.dispatch({ type: 'displayGammaCommitted' });
+
+    expect(core.getState().sessionState.channelThumbnailDisplayGamma).toBe(1.8);
+    expect(enqueue).toHaveBeenCalledTimes(batchSize);
+    expect(enqueue.mock.calls.every(([job]) => {
+      return job.requestKey.includes('|gamma:1.8|') && job.stateSnapshot.displayGamma === 1.8;
+    })).toBe(true);
   });
 
   it('requeues opened image thumbnails when auto exposure preferences change', () => {

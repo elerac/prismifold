@@ -180,6 +180,8 @@ export interface UiCallbacks {
   onDisplayCacheBudgetChange: (mb: number) => void;
   onExposureChange: (value: number) => void;
   onExposureCommit: () => void;
+  onDisplayGammaChange: (value: number) => void;
+  onDisplayGammaCommit: () => void;
   onViewerKeyboardNavigationInputChange: (input: ViewerKeyboardNavigationInput) => void;
   onViewerKeyboardZoomInputChange: (input: ViewerKeyboardZoomInput) => void;
   onViewerViewStateChange: (patch: Partial<ViewerViewState>) => void;
@@ -332,6 +334,12 @@ export class ViewerUi implements Disposable {
       },
       onExposureCommit: () => {
         this.callbacks.onExposureCommit();
+      },
+      onDisplayGammaChange: (value) => {
+        this.callbacks.onDisplayGammaChange(value);
+      },
+      onDisplayGammaCommit: () => {
+        this.callbacks.onDisplayGammaCommit();
       },
       onVisualizationModeChange: (mode) => {
         this.callbacks.onVisualizationModeChange(mode);
@@ -825,6 +833,14 @@ export class ViewerUi implements Disposable {
     }
 
     this.colormapPanel.setExposure(exposureEv);
+  }
+
+  setDisplayGamma(displayGamma: number): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.colormapPanel.setDisplayGamma(displayGamma);
   }
 
   setViewerMode(mode: ViewerMode): void {

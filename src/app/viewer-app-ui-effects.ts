@@ -42,6 +42,10 @@ export function applyUiEffects(ui: ViewerUi, transition: ViewerUiTransition): vo
     ui.setExposure(snapshot.exposureEv);
   }
 
+  if (invalidation & ViewerUiInvalidationFlags.DisplayGamma) {
+    ui.setDisplayGamma(snapshot.displayGamma);
+  }
+
   if (invalidation & ViewerUiInvalidationFlags.ViewerMode) {
     ui.setViewerMode(snapshot.viewerMode);
   }

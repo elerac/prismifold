@@ -48,7 +48,8 @@ export const enum ViewerUiInvalidationFlags {
   Metadata = 1 << 17,
   RgbGroupOptions = 1 << 18,
   ClearPanels = 1 << 19,
-  StokesColormapDefaults = 1 << 20
+  StokesColormapDefaults = 1 << 20,
+  DisplayGamma = 1 << 21
 }
 
 export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => ViewerUiSnapshot {
@@ -92,6 +93,7 @@ export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => Vie
       exportTarget: selectExportTarget(activeSession),
       exportBatchTarget: selectExportBatchTarget(state),
       exposureEv: state.sessionState.exposureEv,
+      displayGamma: state.sessionState.displayGamma,
       viewerMode: state.sessionState.viewerMode,
       visualizationMode: state.sessionState.visualizationMode,
       stokesDegreeModulationControl: selectStokesControl(state),
@@ -172,6 +174,10 @@ export function computeViewerUiInvalidation(
 
   if (previous.exposureEv !== next.exposureEv) {
     flags |= ViewerUiInvalidationFlags.Exposure;
+  }
+
+  if (previous.displayGamma !== next.displayGamma) {
+    flags |= ViewerUiInvalidationFlags.DisplayGamma;
   }
 
   if (
@@ -421,6 +427,7 @@ function sameViewerUiSnapshot(a: ViewerUiSnapshot, b: ViewerUiSnapshot): boolean
     sameExportTarget(a.exportTarget, b.exportTarget) &&
     sameExportBatchTarget(a.exportBatchTarget, b.exportBatchTarget) &&
     a.exposureEv === b.exposureEv &&
+    a.displayGamma === b.displayGamma &&
     a.viewerMode === b.viewerMode &&
     a.visualizationMode === b.visualizationMode &&
     sameStokesControl(a.stokesDegreeModulationControl, b.stokesDegreeModulationControl) &&

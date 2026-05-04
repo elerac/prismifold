@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_DISPLAY_GAMMA } from '../src/color';
 import { DEFAULT_COLORMAP_ID } from '../src/colormaps';
 import {
   clampZoom,
@@ -27,6 +28,8 @@ import { createChannelMonoSelection, createChannelRgbSelection } from './helpers
 const state: ViewerState = {
   exposureEv: 0,
   channelThumbnailExposureEv: 0,
+  displayGamma: DEFAULT_DISPLAY_GAMMA,
+  channelThumbnailDisplayGamma: DEFAULT_DISPLAY_GAMMA,
   viewerMode: 'image',
   visualizationMode: 'rgb',
   activeColormapId: DEFAULT_COLORMAP_ID,

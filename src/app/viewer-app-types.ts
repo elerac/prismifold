@@ -157,6 +157,8 @@ export type ViewerIntent =
   | { type: 'displaySelectionTransitionFinished'; requestId: number }
   | { type: 'exposureSet'; exposureEv: number }
   | { type: 'exposureCommitted' }
+  | { type: 'displayGammaSet'; displayGamma: number }
+  | { type: 'displayGammaCommitted' }
   | { type: 'viewerModeSet'; viewerMode: ViewerSessionState['viewerMode'] }
   | { type: 'activeLayerSet'; activeLayer: number }
   | {
@@ -270,6 +272,7 @@ export interface ViewerUiSnapshot {
   exportTarget: { filename: string } | null;
   exportBatchTarget: ExportImageBatchTarget | null;
   exposureEv: number;
+  displayGamma: number;
   viewerMode: ViewerSessionState['viewerMode'];
   visualizationMode: ViewerSessionState['visualizationMode'];
   stokesDegreeModulationControl: StokesDegreeModulationControlModel | null;

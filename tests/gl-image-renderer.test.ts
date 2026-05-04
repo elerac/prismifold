@@ -307,6 +307,7 @@ describe('gl image renderer', () => {
     });
     const state = {
       ...createInitialState(),
+      displayGamma: 1.8,
       displaySelection: createChannelRgbSelection('R', 'G', 'B', 'A'),
       hoveredPixel: null,
       draftRoi: null,
@@ -326,6 +327,7 @@ describe('gl image renderer', () => {
 
     expect(lastUniform1iValue(gl, 'uCompositeCheckerboard')).toBe(1);
     expect(lastUniform1iValue(gl, 'uAlphaOutputMode')).toBe(0);
+    expect(lastUniform1fValue(gl, 'uDisplayGamma')).toBe(1.8);
 
     gl.uniform1i.mockClear();
     gl.readPixels.mockImplementation((_x, _y, _width, _height, _format, _type, data: Uint8ClampedArray) => {

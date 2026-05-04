@@ -11,6 +11,7 @@ uniform vec2 uImageSize;
 uniform vec2 uPan;
 uniform float uZoom;
 uniform float uExposure;
+uniform float uDisplayGamma;
 uniform bool uUseColormap;
 uniform float uColormapMin;
 uniform float uColormapMax;
@@ -51,11 +52,7 @@ const float PI = 3.1415926535897932384626433832795;
 const float REC709_LUMINANCE_WEIGHT_R = 0.2126;
 const float REC709_LUMINANCE_WEIGHT_G = 0.7152;
 const float REC709_LUMINANCE_WEIGHT_B = 0.0722;
-const float SRGB_TRANSFER_CUTOFF = 0.0031308;
-const float SRGB_TRANSFER_LINEAR_SCALE = 12.92;
-const float SRGB_TRANSFER_ENCODED_SCALE = 1.055;
-const float SRGB_TRANSFER_ENCODED_OFFSET = 0.055;
-const float SRGB_TRANSFER_GAMMA = 2.4;
+const float DISPLAY_GAMMA_MIN = 0.01;
 
 struct DisplaySample {
   vec3 linear;
@@ -81,15 +78,9 @@ float computeRec709Luminance(float r, float g, float b) {
     REC709_LUMINANCE_WEIGHT_B * b;
 }
 
-vec3 linearToSrgb(vec3 linear) {
-  vec3 lo = linear * SRGB_TRANSFER_LINEAR_SCALE;
-  vec3 hi = SRGB_TRANSFER_ENCODED_SCALE * pow(linear, vec3(1.0 / SRGB_TRANSFER_GAMMA)) - SRGB_TRANSFER_ENCODED_OFFSET;
-  bvec3 cutoff = lessThanEqual(linear, vec3(SRGB_TRANSFER_CUTOFF));
-  return vec3(
-    cutoff.r ? lo.r : hi.r,
-    cutoff.g ? lo.g : hi.g,
-    cutoff.b ? lo.b : hi.b
-  );
+vec3 linearToDisplayGamma(vec3 linear) {
+  float displayGamma = max(uDisplayGamma, DISPLAY_GAMMA_MIN);
+  return sign(linear) * pow(abs(linear), vec3(1.0 / displayGamma));
 }
 
 vec3 checker(vec2 screen) {
@@ -474,7 +465,7 @@ void main() {
     return;
   }
 
-  linear = max(linear * exp2(uExposure), vec3(0.0));
-  vec3 srgb = linearToSrgb(linear);
-  outColor = encodeOutputColor(screen, srgb, imageAlpha);
+  linear *= exp2(uExposure);
+  vec3 color = linearToDisplayGamma(linear);
+  outColor = encodeOutputColor(screen, color, imageAlpha);
 }

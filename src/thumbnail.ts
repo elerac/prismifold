@@ -4,7 +4,7 @@ import {
   normalizeAutoExposurePercentile,
   type AutoExposureResult
 } from './analysis/auto-exposure';
-import { computeRec709Luminance, linearToSrgbByte } from './color';
+import { computeRec709Luminance, linearToDisplayGammaByte } from './color';
 import {
   mapValueToColormapRgbBytes,
   modulateRgbBytesHsv,
@@ -243,13 +243,13 @@ export function buildDisplaySelectionThumbnailPixels(
           b *= scale;
         }
 
-        const srgbR = linearToSrgbByte(r);
-        const srgbG = linearToSrgbByte(g);
-        const srgbB = linearToSrgbByte(b);
+        const displayR = linearToDisplayGammaByte(r, state.displayGamma);
+        const displayG = linearToDisplayGammaByte(g, state.displayGamma);
+        const displayB = linearToDisplayGammaByte(b, state.displayGamma);
 
-        thumbnailData[outIndex + 0] = srgbR;
-        thumbnailData[outIndex + 1] = srgbG;
-        thumbnailData[outIndex + 2] = srgbB;
+        thumbnailData[outIndex + 0] = displayR;
+        thumbnailData[outIndex + 1] = displayG;
+        thumbnailData[outIndex + 2] = displayB;
         thumbnailData[outIndex + 3] = Math.round(alpha * 255);
       }
     }
