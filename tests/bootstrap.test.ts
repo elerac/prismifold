@@ -458,6 +458,7 @@ mocks.zipFilesOffMainThread.mockImplementation(async (files: Record<string, Uint
 afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+  Reflect.deleteProperty(navigator, 'clipboard');
   vi.resetModules();
   mocks.resetCoreState();
   mocks.setUiCallbacks(null);
@@ -1220,6 +1221,206 @@ describe('bootstrap app lifecycle', () => {
       { completed: 1, total: 1, stage: 'packaging', currentFilename: 'image.png', indeterminate: true }
     ]);
     expect(createObjectURL).toHaveBeenCalledTimes(1);
+
+    app.dispose();
+  });
+
+  it('copies the current image render to the clipboard at source resolution', async () => {
+    class ResizeObserverMock {
+      constructor(callback: ResizeObserverCallback) {
+        mocks.setResizeObserverCallback(callback);
+      }
+
+      observe(): void {}
+      disconnect(): void {}
+    }
+
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+    const pngBlob = new Blob([new Uint8Array([0x89, 0x50])], { type: 'image/png' });
+    const clipboardWrite = vi.fn(async (items: ClipboardItem[]) => {
+      expect(items).toHaveLength(1);
+      const item = items[0] as unknown as {
+        items: Record<string, Blob | PromiseLike<Blob>>;
+      };
+      expect(Object.keys(item.items)).toEqual(['image/png']);
+      await expect(Promise.resolve(item.items['image/png'])).resolves.toBe(pngBlob);
+    });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { write: clipboardWrite }
+    });
+    class ClipboardItemMock {
+      static readonly supports = vi.fn((type: string) => type === 'image/png');
+      readonly items: Record<string, Blob | PromiseLike<Blob>>;
+
+      constructor(items: Record<string, Blob | PromiseLike<Blob>>) {
+        this.items = items;
+      }
+    }
+    vi.stubGlobal('ClipboardItem', ClipboardItemMock);
+
+    const session = {
+      id: 'session-1',
+      filename: 'image.exr',
+      displayName: 'image.exr',
+      fileSizeBytes: 3,
+      source: { kind: 'url', url: '/image.exr' },
+      decoded: {
+        width: 1024,
+        height: 512,
+        layers: []
+      },
+      state: mocks.coreState.sessionState
+    };
+    const pixels = {
+      width: 1024,
+      height: 512,
+      data: new Uint8ClampedArray(1024 * 512 * 4)
+    };
+    const mutableCoreState = mocks.coreState as unknown as {
+      activeSessionId: string | null;
+      sessions: unknown[];
+    };
+    mutableCoreState.activeSessionId = 'session-1';
+    mutableCoreState.sessions = [session];
+    mocks.rendererReadExportPixels.mockReturnValue(pixels);
+    mocks.createPngBlobFromPixels.mockResolvedValue(pngBlob);
+
+    const { bootstrapApp } = await import('../src/app/bootstrap');
+    const app = await bootstrapApp();
+    const callbacks = mocks.getUiCallbacks() as {
+      onCopyImageToClipboard: () => Promise<void>;
+    };
+
+    await expect(callbacks.onCopyImageToClipboard()).resolves.toBeUndefined();
+
+    expect(ClipboardItemMock.supports).toHaveBeenCalledWith('image/png');
+    expect(mocks.renderCachePrepareActiveSession).toHaveBeenCalledWith(session, mocks.coreState.sessionState);
+    expect(mocks.rendererReadExportPixels).toHaveBeenCalledWith(expect.objectContaining({
+      sourceWidth: 1024,
+      sourceHeight: 512
+    }));
+    const exportRequest = (mocks.rendererReadExportPixels.mock.calls as unknown as Array<[
+      Record<string, unknown>
+    ]>)[0]![0];
+    expect(exportRequest).not.toHaveProperty('outputWidth');
+    expect(exportRequest).not.toHaveProperty('outputHeight');
+    expect(mocks.createPngBlobFromPixels).toHaveBeenCalledWith(pixels);
+    expect(clipboardWrite).toHaveBeenCalledTimes(1);
+
+    app.dispose();
+  });
+
+  it('surfaces unsupported clipboard image writes as a global error', async () => {
+    class ResizeObserverMock {
+      constructor(callback: ResizeObserverCallback) {
+        mocks.setResizeObserverCallback(callback);
+      }
+
+      observe(): void {}
+      disconnect(): void {}
+    }
+
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+    const clipboardWrite = vi.fn();
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { write: clipboardWrite }
+    });
+    class ClipboardItemMock {
+      static readonly supports = vi.fn(() => false);
+    }
+    vi.stubGlobal('ClipboardItem', ClipboardItemMock);
+
+    const { bootstrapApp } = await import('../src/app/bootstrap');
+    const app = await bootstrapApp();
+    const callbacks = mocks.getUiCallbacks() as {
+      onCopyImageToClipboard: () => Promise<void>;
+    };
+
+    await expect(callbacks.onCopyImageToClipboard()).rejects.toThrow(
+      'Copying PNG images to the clipboard is not supported by this browser.'
+    );
+
+    expect(clipboardWrite).not.toHaveBeenCalled();
+    expect(mocks.rendererReadExportPixels).not.toHaveBeenCalled();
+    expect(mocks.createPngBlobFromPixels).not.toHaveBeenCalled();
+    expect(mocks.coreDispatch).toHaveBeenCalledWith({
+      type: 'errorSet',
+      message: 'Copying PNG images to the clipboard is not supported by this browser.'
+    });
+
+    app.dispose();
+  });
+
+  it('surfaces clipboard write rejections as a global error', async () => {
+    class ResizeObserverMock {
+      constructor(callback: ResizeObserverCallback) {
+        mocks.setResizeObserverCallback(callback);
+      }
+
+      observe(): void {}
+      disconnect(): void {}
+    }
+
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+    const pngBlob = new Blob([new Uint8Array([0x89, 0x50])], { type: 'image/png' });
+    const clipboardWrite = vi.fn(async (items: ClipboardItem[]) => {
+      const item = items[0] as unknown as {
+        items: Record<string, Blob | PromiseLike<Blob>>;
+      };
+      await item.items['image/png'];
+      throw new Error('Clipboard denied.');
+    });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { write: clipboardWrite }
+    });
+    class ClipboardItemMock {
+      static readonly supports = vi.fn((type: string) => type === 'image/png');
+      readonly items: Record<string, Blob | PromiseLike<Blob>>;
+
+      constructor(items: Record<string, Blob | PromiseLike<Blob>>) {
+        this.items = items;
+      }
+    }
+    vi.stubGlobal('ClipboardItem', ClipboardItemMock);
+
+    const session = {
+      id: 'session-1',
+      filename: 'image.exr',
+      displayName: 'image.exr',
+      fileSizeBytes: 3,
+      source: { kind: 'url', url: '/image.exr' },
+      decoded: {
+        width: 2,
+        height: 1,
+        layers: []
+      },
+      state: mocks.coreState.sessionState
+    };
+    const mutableCoreState = mocks.coreState as unknown as {
+      activeSessionId: string | null;
+      sessions: unknown[];
+    };
+    mutableCoreState.activeSessionId = 'session-1';
+    mutableCoreState.sessions = [session];
+    mocks.createPngBlobFromPixels.mockResolvedValue(pngBlob);
+
+    const { bootstrapApp } = await import('../src/app/bootstrap');
+    const app = await bootstrapApp();
+    const callbacks = mocks.getUiCallbacks() as {
+      onCopyImageToClipboard: () => Promise<void>;
+    };
+
+    await expect(callbacks.onCopyImageToClipboard()).rejects.toThrow('Clipboard denied.');
+
+    expect(mocks.createPngBlobFromPixels).toHaveBeenCalledTimes(1);
+    expect(clipboardWrite).toHaveBeenCalledTimes(1);
+    expect(mocks.coreDispatch).toHaveBeenCalledWith({
+      type: 'errorSet',
+      message: 'Clipboard denied.'
+    });
 
     app.dispose();
   });

@@ -394,6 +394,11 @@ output {
   cursor: not-allowed;
 }
 
+.viewer-context-menu {
+  z-index: calc(var(--z-loading-overlay) + 1);
+  min-width: 8.5rem;
+}
+
 .app-menu-setting-group {
   display: grid;
   gap: 0.4rem;

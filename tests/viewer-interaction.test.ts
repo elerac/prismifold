@@ -568,6 +568,20 @@ describe('viewer interaction roi gestures', () => {
     expect(controlsEvent.defaultPrevented).toBe(false);
   });
 
+  it('does not start viewer drags from viewer context menu controls', () => {
+    const harness = createHarness();
+    const menu = document.createElement('div');
+    menu.className = 'viewer-context-menu';
+    const button = document.createElement('button');
+    menu.append(button);
+    harness.element.append(menu);
+
+    dispatchPointer(button, 'pointerdown', { pointerId: 1, clientX: 40, clientY: 35 });
+    dispatchPointer(button, 'pointermove', { pointerId: 1, clientX: 80, clientY: 65 });
+
+    expect(harness.onViewChange).not.toHaveBeenCalled();
+  });
+
   it('keeps ctrl move drags as move drags', () => {
     const harness = createHarness({}, {
       imageSize: null,

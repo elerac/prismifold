@@ -175,6 +175,7 @@ export interface UiCallbacks {
   onOpenFileClick: () => void;
   onOpenFolderClick: () => void;
   onExportImage: (request: ExportImageRequest, onProgress?: (update: ExportProgressUpdate) => void) => Promise<void>;
+  onCopyImageToClipboard: () => Promise<void>;
   onExportScreenshotRegions: (
     request: ExportScreenshotRegionsRequest,
     onProgress?: (update: ExportProgressUpdate) => void
@@ -647,6 +648,7 @@ export class ViewerUi implements Disposable {
     this.exportColormapDialog.close(false);
     this.clearScreenshotSelectionMemory();
     this.hideScreenshotSelection();
+    this.closeViewerContextMenu();
     this.folderLoadDialog.close(false, false);
     this.settingsDialog.close(false);
     this.topMenuController.closeAll(false);
@@ -686,6 +688,7 @@ export class ViewerUi implements Disposable {
       this.clearViewerKeyboardNavigationInput();
       this.hideScreenshotSelection();
     }
+    this.closeViewerContextMenu();
     this.elements.openFileButton.disabled = loading;
     this.elements.openFolderButton.disabled = loading;
     this.elements.galleryCboxRgbButton.disabled = loading;
@@ -805,6 +808,7 @@ export class ViewerUi implements Disposable {
 
     this.isDisplayBusy = displayBusy;
     this.isDisplayOverlayLoading = overlayLoading;
+    this.closeViewerContextMenu();
     if (displayBusy) {
       this.hideScreenshotSelection();
     }
@@ -1013,6 +1017,7 @@ export class ViewerUi implements Disposable {
       this.clearScreenshotSelectionMemory();
       this.hideScreenshotSelection();
     }
+    this.closeViewerContextMenu();
     this.activeSessionId = activeId;
     this.openedImageCount = items.length;
     this.openedImagesPanel.setOpenedImageOptions(items, activeId);
@@ -1423,6 +1428,7 @@ export class ViewerUi implements Disposable {
       return;
     }
 
+    this.closeViewerContextMenu();
     const viewport = this.readViewerViewport();
     const coordinateSpace = this.getCurrentScreenshotSelectionCoordinateSpace();
     const previousRegions = this.lastScreenshotSelectionRegions?.filter((region) => (
@@ -2131,6 +2137,13 @@ export class ViewerUi implements Disposable {
     this.disposables.addEventListener(document, 'keydown', this.onScreenshotSelectionKeyboardGuard, {
       capture: true
     });
+    this.disposables.addEventListener(document, 'click', this.onViewerContextMenuDocumentClick);
+    this.disposables.addEventListener(document, 'keydown', this.onViewerContextMenuKeyDown);
+
+    this.disposables.addEventListener(this.elements.viewerContainer, 'contextmenu', this.onViewerContextMenu);
+    this.disposables.addEventListener(this.elements.viewerContextCopyImageButton, 'click', () => {
+      this.copyImageToClipboardFromContextMenu();
+    });
 
     this.disposables.addEventListener(this.elements.openFileButton, 'click', () => {
       this.topMenuController.closeAll();
@@ -2387,6 +2400,84 @@ export class ViewerUi implements Disposable {
 
     this.blockScreenshotSelectionEvent(event);
   };
+
+  private readonly onViewerContextMenu = (event: MouseEvent): void => {
+    if (!this.canOpenViewerContextMenu()) {
+      this.closeViewerContextMenu();
+      return;
+    }
+
+    event.preventDefault();
+    this.openViewerContextMenu(event);
+  };
+
+  private readonly onViewerContextMenuDocumentClick = (event: MouseEvent): void => {
+    if (!this.isViewerContextMenuOpen()) {
+      return;
+    }
+
+    const target = event.target;
+    if (target instanceof Node && this.elements.viewerContextMenu.contains(target)) {
+      return;
+    }
+
+    this.closeViewerContextMenu();
+  };
+
+  private readonly onViewerContextMenuKeyDown = (event: KeyboardEvent): void => {
+    if (!this.isViewerContextMenuOpen() || event.key !== 'Escape') {
+      return;
+    }
+
+    event.preventDefault();
+    this.closeViewerContextMenu();
+  };
+
+  private canOpenViewerContextMenu(): boolean {
+    return (
+      !this.disposed &&
+      !this.screenshotSelection &&
+      this.openedImageCount > 0 &&
+      this.activeSessionId !== null &&
+      !this.isViewerLoadBlocked &&
+      !this.isDisplayBusy
+    );
+  }
+
+  private openViewerContextMenu(event: MouseEvent): void {
+    this.clearViewerKeyboardNavigationInput();
+    this.topMenuController.closeAll(false);
+
+    const viewerRect = this.elements.viewerContainer.getBoundingClientRect();
+    const menu = this.elements.viewerContextMenu;
+    menu.classList.remove('hidden');
+
+    const menuRect = menu.getBoundingClientRect();
+    const menuWidth = menuRect.width || menu.offsetWidth;
+    const menuHeight = menuRect.height || menu.offsetHeight;
+    const left = clamp(event.clientX - viewerRect.left, 0, Math.max(0, viewerRect.width - menuWidth));
+    const top = clamp(event.clientY - viewerRect.top, 0, Math.max(0, viewerRect.height - menuHeight));
+    setPositionStyle(menu, left, top);
+    this.elements.viewerContextCopyImageButton.focus();
+  }
+
+  private closeViewerContextMenu(): void {
+    this.elements.viewerContextMenu.classList.add('hidden');
+  }
+
+  private isViewerContextMenuOpen(): boolean {
+    return !this.elements.viewerContextMenu.classList.contains('hidden');
+  }
+
+  private copyImageToClipboardFromContextMenu(): void {
+    if (this.elements.viewerContextCopyImageButton.disabled) {
+      return;
+    }
+
+    this.closeViewerContextMenu();
+    this.clearViewerKeyboardNavigationInput();
+    void this.callbacks.onCopyImageToClipboard().catch(() => {});
+  }
 
   private readonly onScreenshotSelectionKeyboardGuard = (event: KeyboardEvent): void => {
     if (!this.screenshotSelection || event.key === 'Escape') {

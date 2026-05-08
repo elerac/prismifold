@@ -2866,6 +2866,108 @@ describe('view menu', () => {
     expect((document.getElementById('export-dialog-backdrop') as HTMLDivElement).classList.contains('hidden')).toBe(false);
   });
 
+  it('opens the viewer context menu on right-click and copies the image', async () => {
+    installUiFixture();
+
+    const onCopyImageToClipboard = vi.fn(async () => undefined);
+    const ui = new ViewerUi(createUiCallbacks({ onCopyImageToClipboard }));
+    ui.setOpenedImageOptions([{ id: 'session-1', label: 'image.exr' }], 'session-1');
+
+    const viewerContainer = document.getElementById('viewer-container') as HTMLElement;
+    const contextMenu = document.getElementById('viewer-context-menu') as HTMLDivElement;
+    const copyButton = document.getElementById('viewer-context-copy-image-button') as HTMLButtonElement;
+    mockDomRect(viewerContainer, {
+      top: 10,
+      bottom: 210,
+      height: 200,
+      left: 20,
+      width: 300
+    });
+    mockDomRect(contextMenu, {
+      top: 0,
+      bottom: 36,
+      height: 36,
+      width: 120
+    });
+
+    const event = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 50,
+      clientY: 60
+    });
+
+    expect(viewerContainer.dispatchEvent(event)).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+    expect(contextMenu.classList.contains('hidden')).toBe(false);
+    expect(contextMenu.style.left).toBe('30px');
+    expect(contextMenu.style.top).toBe('50px');
+    expect(document.activeElement).toBe(copyButton);
+
+    copyButton.click();
+    await flushMicrotasks();
+
+    expect(onCopyImageToClipboard).toHaveBeenCalledTimes(1);
+    expect(contextMenu.classList.contains('hidden')).toBe(true);
+  });
+
+  it('leaves the browser context menu alone when no image is active', () => {
+    installUiFixture();
+
+    const onCopyImageToClipboard = vi.fn(async () => undefined);
+    new ViewerUi(createUiCallbacks({ onCopyImageToClipboard }));
+
+    const viewerContainer = document.getElementById('viewer-container') as HTMLElement;
+    const contextMenu = document.getElementById('viewer-context-menu') as HTMLDivElement;
+    const event = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 50,
+      clientY: 60
+    });
+
+    expect(viewerContainer.dispatchEvent(event)).toBe(true);
+    expect(event.defaultPrevented).toBe(false);
+    expect(contextMenu.classList.contains('hidden')).toBe(true);
+    expect(onCopyImageToClipboard).not.toHaveBeenCalled();
+  });
+
+  it('closes the viewer context menu on outside click and Escape', () => {
+    installUiFixture();
+
+    const ui = new ViewerUi(createUiCallbacks());
+    ui.setOpenedImageOptions([{ id: 'session-1', label: 'image.exr' }], 'session-1');
+
+    const viewerContainer = document.getElementById('viewer-container') as HTMLElement;
+    const contextMenu = document.getElementById('viewer-context-menu') as HTMLDivElement;
+    const openContextMenu = () => {
+      viewerContainer.dispatchEvent(new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 50,
+        clientY: 60
+      }));
+    };
+
+    openContextMenu();
+    expect(contextMenu.classList.contains('hidden')).toBe(false);
+
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(contextMenu.classList.contains('hidden')).toBe(true);
+
+    openContextMenu();
+    expect(contextMenu.classList.contains('hidden')).toBe(false);
+    const escape = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true
+    });
+    document.dispatchEvent(escape);
+
+    expect(escape.defaultPrevented).toBe(true);
+    expect(contextMenu.classList.contains('hidden')).toBe(true);
+  });
+
   it('opens the export dialog with the save shortcut while focus is in an editable control', () => {
     installUiFixture();
 
@@ -9333,6 +9435,7 @@ function createUiCallbacksBase() {
     onOpenFileClick: () => {},
     onOpenFolderClick: () => {},
     onExportImage: async (_request: unknown) => {},
+    onCopyImageToClipboard: async () => {},
     onExportScreenshotRegions: async (_request: unknown) => {},
     onResolveExportImagePreview: async (_request: unknown, _signal: AbortSignal) => createPreviewPixels(),
     onExportImageBatch: async (_request: {

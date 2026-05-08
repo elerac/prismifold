@@ -3,6 +3,7 @@ import { ViewerUi, type UiCallbacks } from '../../ui/viewer-ui';
 import { imageToScreen } from '../../interaction/image-geometry';
 import { getPanoramaProjectionDiameter } from '../../interaction/panorama-geometry';
 import {
+  handleCopyImageToClipboard,
   handleExportColormap,
   handleExportImage,
   handleExportImageBatch,
@@ -89,6 +90,13 @@ export function createViewerUi({
         resolveImageExportPixels,
         isDisposed
       }, onProgress);
+    },
+    onCopyImageToClipboard: async () => {
+      await handleCopyImageToClipboard({
+        core,
+        resolveImageExportPixels,
+        isDisposed
+      });
     },
     onExportScreenshotRegions: async (
       request: ExportScreenshotRegionsRequest,

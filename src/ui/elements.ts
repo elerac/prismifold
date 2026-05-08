@@ -148,6 +148,8 @@ export interface Elements {
   gammaValue: HTMLInputElement;
   errorBanner: HTMLDivElement;
   viewerContainer: HTMLElement;
+  viewerContextMenu: HTMLDivElement;
+  viewerContextCopyImageButton: HTMLButtonElement;
   dropOverlay: HTMLDivElement;
   loadingOverlay: HTMLDivElement;
   openedImagesSelect: HTMLSelectElement;
@@ -666,6 +668,8 @@ export function resolveElements(): Elements {
     gammaValue: requireElement('gamma-value', HTMLInputElement),
     errorBanner: requireElement('error-banner', HTMLDivElement),
     viewerContainer: requireElement('viewer-container', HTMLElement),
+    viewerContextMenu: requireElement('viewer-context-menu', HTMLDivElement),
+    viewerContextCopyImageButton: requireElement('viewer-context-copy-image-button', HTMLButtonElement),
     dropOverlay: requireElement('drop-overlay', HTMLDivElement),
     loadingOverlay: requireElement('loading-overlay', HTMLDivElement),
     openedImagesSelect: requireElement('opened-images-select', HTMLSelectElement),

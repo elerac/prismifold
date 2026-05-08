@@ -85,6 +85,12 @@ interface ExportImageActionDependencies {
   isDisposed: () => boolean;
 }
 
+interface CopyImageToClipboardActionDependencies {
+  core: ViewerAppCore;
+  resolveImageExportPixels: ReturnType<typeof createImageExportPixelsResolver>;
+  isDisposed: () => boolean;
+}
+
 interface ExportScreenshotRegionsActionDependencies {
   core: ViewerAppCore;
   resolveImageExportPixels: ReturnType<typeof createImageExportPixelsResolver>;
@@ -334,6 +340,59 @@ export async function handleExportImage(
     }
 
     const message = error instanceof Error ? error.message : 'Export failed.';
+    core.dispatch({ type: 'errorSet', message });
+    throw new Error(message);
+  }
+}
+
+export async function handleCopyImageToClipboard({
+  core,
+  resolveImageExportPixels,
+  isDisposed
+}: CopyImageToClipboardActionDependencies): Promise<void> {
+  if (isDisposed()) {
+    throw createAbortError('Viewer application has been disposed.');
+  }
+
+  let pngBlob: Promise<Blob> | null = null;
+  try {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+      throw new Error('Copying images to the clipboard is not supported by this browser.');
+    }
+    if (typeof ClipboardItem.supports === 'function' && !ClipboardItem.supports('image/png')) {
+      throw new Error('Copying PNG images to the clipboard is not supported by this browser.');
+    }
+
+    const stateSnapshot = core.getState();
+    const sourceSession = selectActiveSession(stateSnapshot);
+    pngBlob = (async () => {
+      const pixels = await resolveImageExportPixels({ mode: 'image' });
+      if (sourceSession) {
+        assertActiveSessionCurrent(core.getState(), sourceSession);
+      }
+      return await createPngBlobFromPixels(pixels);
+    })();
+
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'image/png': pngBlob
+      })
+    ]);
+    if (sourceSession) {
+      assertActiveSessionCurrent(core.getState(), sourceSession);
+    }
+  } catch (error) {
+    void pngBlob?.catch(() => {});
+
+    if (isDisposed()) {
+      throw error instanceof Error ? error : createAbortError('Viewer application has been disposed.');
+    }
+
+    if (isAbortError(error)) {
+      throw error;
+    }
+
+    const message = error instanceof Error ? error.message : 'Copy image failed.';
     core.dispatch({ type: 'errorSet', message });
     throw new Error(message);
   }

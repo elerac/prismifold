@@ -242,6 +242,10 @@ export class ViewerInteraction {
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {
+    if (isViewerContextMenuTarget(event.target)) {
+      return;
+    }
+
     const screenshotSelection = this.getScreenshotSelection();
     if (screenshotSelection.active) {
       if (!isScreenshotSelectionDragButton(event)) {
@@ -917,6 +921,10 @@ function sameViewerKeyboardZoomInput(
 
 function isScreenshotSelectionDragButton(event: PointerEvent): boolean {
   return event.button === 0 || (event.button === 2 && event.ctrlKey);
+}
+
+function isViewerContextMenuTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest('.viewer-context-menu') !== null;
 }
 
 function isValidViewport(viewport: ViewportInfo): boolean {
