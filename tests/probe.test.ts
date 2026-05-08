@@ -86,6 +86,33 @@ describe('probe helpers', () => {
     });
   });
 
+  it('shows non-finite selected probe values while keeping swatch CSS valid', () => {
+    const preview = buildProbeColorPreview(
+      {
+        x: 4,
+        y: 7,
+        values: {
+          R: Number.NaN,
+          G: Number.POSITIVE_INFINITY,
+          B: Number.NEGATIVE_INFINITY,
+          A: Number.POSITIVE_INFINITY
+        }
+      },
+      createChannelRgbSelection('R', 'G', 'B', 'A'),
+      0
+    );
+
+    expect(preview).toEqual({
+      cssColor: 'rgba(0, 0, 0, 0)',
+      displayValues: [
+        { label: 'R', value: 'nan' },
+        { label: 'G', value: '+inf' },
+        { label: 'B', value: '-inf' },
+        { label: 'A', value: '+inf' }
+      ]
+    });
+  });
+
   it('shows one mono display value for mono channel previews', () => {
     const preview = buildProbeColorPreview(
       { x: 0, y: 0, values: { Y: 0.25 } },

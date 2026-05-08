@@ -2,7 +2,12 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OverlayRenderer } from '../src/rendering/overlay-renderer';
-import { createChannelRgbSelection, createLayerFromChannels, createViewerState } from './helpers/state-fixtures';
+import {
+  createChannelRgbSelection,
+  createLayerFromChannels,
+  createStokesSelection,
+  createViewerState
+} from './helpers/state-fixtures';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -79,6 +84,61 @@ describe('overlay renderer', () => {
     expect(context.fillText).toHaveBeenCalled();
     expect(context.alphaHistory).toEqual([1, 1]);
     expect(context.globalAlpha).toBe(1);
+  });
+
+  it('renders non-finite channel values without normalizing them', () => {
+    const { renderer, context } = createOverlayHarness();
+    const selection = createChannelRgbSelection('R', 'G', 'B', 'A');
+    const layer = createLayerFromChannels({
+      R: [Number.NaN],
+      G: [Number.POSITIVE_INFINITY],
+      B: [Number.NEGATIVE_INFINITY],
+      A: [Number.NEGATIVE_INFINITY]
+    });
+
+    renderer.resize(128, 128);
+    renderer.setDisplaySelectionContext(1, 1, layer, selection, 'rgb');
+    renderer.render(createViewerState({
+      viewerMode: 'image',
+      zoom: 32,
+      panX: 0.5,
+      panY: 0.5,
+      displaySelection: selection
+    }));
+
+    expect(context.fillText.mock.calls.map(([text]) => text)).toEqual([
+      'nan',
+      '+inf',
+      '-inf',
+      '-inf'
+    ]);
+  });
+
+  it('renders invalid Stokes derived values as nan', () => {
+    const { renderer, context } = createOverlayHarness();
+    const selection = createStokesSelection('dolp');
+    const layer = createLayerFromChannels({
+      S0: [1],
+      S1: [Number.NaN],
+      S2: [0],
+      S3: [0]
+    });
+
+    renderer.resize(128, 128);
+    renderer.setDisplaySelectionContext(1, 1, layer, selection, 'rgb');
+    renderer.render(createViewerState({
+      viewerMode: 'image',
+      zoom: 32,
+      panX: 0.5,
+      panY: 0.5,
+      displaySelection: selection
+    }));
+
+    expect(context.fillText.mock.calls.map(([text]) => text)).toEqual([
+      'nan',
+      'nan',
+      'nan'
+    ]);
   });
 
   it('clears previously rendered value labels when the image is cleared', () => {

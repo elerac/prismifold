@@ -1,6 +1,10 @@
 export function formatOverlayValue(value: number): string {
   if (!Number.isFinite(value)) {
-    return String(value);
+    if (Number.isNaN(value)) {
+      return 'nan';
+    }
+
+    return value < 0 ? '-inf' : '+inf';
   }
 
   const abs = Math.abs(value);

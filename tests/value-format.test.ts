@@ -14,8 +14,9 @@ describe('shared overlay-style value formatting', () => {
     expect(formatOverlayValue(1234)).toBe('1.2e+3');
   });
 
-  it('passes through non-finite values unchanged', () => {
-    expect(formatOverlayValue(Infinity)).toBe('Infinity');
-    expect(formatOverlayValue(Number.NaN)).toBe('NaN');
+  it('formats non-finite values with compact overlay tokens', () => {
+    expect(formatOverlayValue(Infinity)).toBe('+inf');
+    expect(formatOverlayValue(-Infinity)).toBe('-inf');
+    expect(formatOverlayValue(Number.NaN)).toBe('nan');
   });
 });

@@ -5,6 +5,8 @@ import {
 } from '../channel-storage';
 import { computeStokesDegreeModulationDisplayValue, computeStokesDisplayValue } from '../stokes';
 import {
+  computeRawStokesDisplayValue,
+  computeRawStokesDisplayValueForChannels,
   computeRgbStokesMonoValues,
   computeStokesDisplayValueForChannels,
   readScalarStokesSample,
@@ -163,6 +165,58 @@ export function readDisplaySelectionPixelValuesAtIndex(
   }
 }
 
+export function readDisplaySelectionOverlayPixelValuesAtIndex(
+  evaluator: DisplaySelectionEvaluator,
+  pixelIndex: number,
+  output?: DisplayPixelValues
+): DisplayPixelValues {
+  const out = output ?? createDisplayPixelValues();
+
+  switch (evaluator.kind) {
+    case 'empty':
+      return setDisplayPixelValues(out, 0, 0, 0, 1);
+    case 'channelRgb':
+      return setDisplayPixelValues(
+        out,
+        readChannelValue(evaluator.r, pixelIndex),
+        readChannelValue(evaluator.g, pixelIndex),
+        readChannelValue(evaluator.b, pixelIndex),
+        evaluator.a ? readChannelValue(evaluator.a, pixelIndex) : 1
+      );
+    case 'channelMono': {
+      const value = readChannelValue(evaluator.channel, pixelIndex);
+      return setDisplayPixelValues(
+        out,
+        value,
+        value,
+        value,
+        evaluator.a ? readChannelValue(evaluator.a, pixelIndex) : 1
+      );
+    }
+    case 'stokesDirect':
+      return writeRawStokesDisplayPixel(
+        out,
+        evaluator.parameter,
+        readScalarStokesSample(evaluator.stokes, pixelIndex)
+      );
+    case 'stokesRgb':
+      return writeRawRgbStokesDisplayPixel(
+        out,
+        evaluator.parameter,
+        evaluator.r,
+        evaluator.g,
+        evaluator.b,
+        pixelIndex
+      );
+    case 'stokesRgbLuminance':
+      return writeRawStokesDisplayPixel(
+        out,
+        evaluator.parameter,
+        computeRgbStokesMonoValues(evaluator.r, evaluator.g, evaluator.b, pixelIndex)
+      );
+  }
+}
+
 export function readDisplaySelectionSnapshotPixelValuesAtIndex(
   evaluator: DisplaySelectionEvaluator,
   pixelIndex: number,
@@ -310,6 +364,32 @@ function writeRgbStokesDisplayPixel(
     computeStokesDisplayValueForChannels(parameter, r, pixelIndex),
     computeStokesDisplayValueForChannels(parameter, g, pixelIndex),
     computeStokesDisplayValueForChannels(parameter, b, pixelIndex),
+    1
+  );
+}
+
+function writeRawStokesDisplayPixel(
+  output: DisplayPixelValues,
+  parameter: NonNullable<DisplaySourceBinding['stokesParameter']>,
+  sample: StokesSample
+): DisplayPixelValues {
+  const value = computeRawStokesDisplayValue(parameter, sample.s0, sample.s1, sample.s2, sample.s3);
+  return setDisplayPixelValues(output, value, value, value, 1);
+}
+
+function writeRawRgbStokesDisplayPixel(
+  output: DisplayPixelValues,
+  parameter: NonNullable<DisplaySourceBinding['stokesParameter']>,
+  r: ResolvedScalarStokesChannels,
+  g: ResolvedScalarStokesChannels,
+  b: ResolvedScalarStokesChannels,
+  pixelIndex: number
+): DisplayPixelValues {
+  return setDisplayPixelValues(
+    output,
+    computeRawStokesDisplayValueForChannels(parameter, r, pixelIndex),
+    computeRawStokesDisplayValueForChannels(parameter, g, pixelIndex),
+    computeRawStokesDisplayValueForChannels(parameter, b, pixelIndex),
     1
   );
 }

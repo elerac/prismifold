@@ -119,4 +119,24 @@ describe('renderer overlay value helpers', () => {
       }
     ]);
   });
+
+  it('formats non-finite RGB and alpha values without normalizing them', () => {
+    const lines = buildOverlayValueLines(
+      {
+        visualizationMode: 'rgb',
+        displaySelection: createChannelRgbSelection('R', 'G', 'B', 'A')
+      },
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+      Number.NEGATIVE_INFINITY
+    );
+
+    expect(lines.map((line) => line.value)).toEqual([
+      'nan',
+      '+inf',
+      '-inf',
+      '-inf'
+    ]);
+  });
 });

@@ -186,7 +186,7 @@ function readProbeDisplayAlpha(sample: PixelSample, selection: DisplaySelection 
     return null;
   }
 
-  return clampAlpha(readProbeChannel(sample, alphaChannel));
+  return readProbeChannel(sample, alphaChannel);
 }
 
 function readFirstProbeChannel(sample: PixelSample, channelNames: Array<string | null>): number {
@@ -202,7 +202,7 @@ function readFirstProbeChannel(sample: PixelSample, channelNames: Array<string |
 
 function readProbeChannel(sample: PixelSample, channelName: string): number {
   const value = sample.values[channelName];
-  return Number.isFinite(value) ? value : 0;
+  return value ?? 0;
 }
 
 function readProbeStokesDegreeModulationValue(sample: PixelSample, selection: DisplaySelection | null): number {

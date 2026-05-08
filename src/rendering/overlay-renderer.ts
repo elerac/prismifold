@@ -1,5 +1,5 @@
 import {
-  readDisplaySelectionPixelValuesAtIndex,
+  readDisplaySelectionOverlayPixelValuesAtIndex,
   resolveDisplaySelectionEvaluator,
   type DisplaySelectionEvaluator
 } from '../display/evaluator';
@@ -128,7 +128,7 @@ export class OverlayRenderer implements Disposable {
       for (let y = startY; y <= endY; y += 1) {
         for (let x = startX; x <= endX; x += 1) {
           const pixelIndex = y * imageWidth + x;
-          readDisplaySelectionPixelValuesAtIndex(evaluator, pixelIndex, values);
+          readDisplaySelectionOverlayPixelValuesAtIndex(evaluator, pixelIndex, values);
           const valueLines = buildOverlayValueLines(
             state,
             values.r,
