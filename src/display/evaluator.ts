@@ -20,6 +20,16 @@ import {
   createEmptyDisplaySourceBinding,
   type DisplaySourceBinding
 } from './bindings';
+import {
+  buildReflectanceSpectralRgbCoefficients,
+  readSpectralRgbSampleAtIndex,
+  resolveSpectralRgbChannels,
+  type ResolvedSpectralRgbChannel
+} from '../spectral-color';
+import {
+  detectSpectralChannelsForSeries,
+  parseSpectralRgbSourceName
+} from '../spectral';
 
 export interface DisplayPixelValues {
   r: number;
@@ -46,6 +56,11 @@ export type DisplaySelectionEvaluator =
       binding: DisplaySourceBinding;
       channel: ChannelReadView | null;
       a: ChannelReadView | null;
+    }
+  | {
+      kind: 'spectralRgb';
+      binding: DisplaySourceBinding;
+      channels: ResolvedSpectralRgbChannel[];
     }
   | {
       kind: 'stokesDirect';
@@ -104,6 +119,8 @@ export function createDisplaySelectionEvaluator(
         channel: getOptionalChannelReadView(layer, binding.slots[0]),
         a: getOptionalChannelReadView(layer, binding.slots[3])
       };
+    case 'spectralRgb':
+      return createSpectralRgbEvaluator(layer, binding);
     case 'stokesDirect':
       return createStokesDirectEvaluator(layer, binding);
     case 'stokesRgb':
@@ -141,6 +158,8 @@ export function readDisplaySelectionPixelValuesAtIndex(
         evaluator.a ? sanitizeAlphaValue(readChannelValue(evaluator.a, pixelIndex)) : 1
       );
     }
+    case 'spectralRgb':
+      return writeSpectralRgbDisplayPixel(out, evaluator.channels, pixelIndex);
     case 'stokesDirect':
       return writeStokesDisplayPixel(
         out,
@@ -193,6 +212,8 @@ export function readDisplaySelectionOverlayPixelValuesAtIndex(
         evaluator.a ? readChannelValue(evaluator.a, pixelIndex) : 1
       );
     }
+    case 'spectralRgb':
+      return writeSpectralRgbDisplayPixel(out, evaluator.channels, pixelIndex);
     case 'stokesDirect':
       return writeRawStokesDisplayPixel(
         out,
@@ -245,6 +266,8 @@ export function readDisplaySelectionSnapshotPixelValuesAtIndex(
         evaluator.a ? sanitizeAlphaValue(readChannelValue(evaluator.a, pixelIndex)) : 1
       );
     }
+    case 'spectralRgb':
+      return writeSpectralRgbDisplayPixel(out, evaluator.channels, pixelIndex);
     case 'stokesDirect':
       return writeStokesSnapshotDisplayPixel(
         out,
@@ -305,6 +328,20 @@ function createStokesDirectEvaluator(
   };
 }
 
+function createSpectralRgbEvaluator(
+  layer: DecodedLayer,
+  binding: DisplaySourceBinding
+): DisplaySelectionEvaluator {
+  const seriesKey = parseSpectralRgbSourceName(binding.slots[0]) ?? '';
+  const spectralChannels = detectSpectralChannelsForSeries(layer.channelNames, seriesKey);
+  const coefficients = buildReflectanceSpectralRgbCoefficients(spectralChannels);
+  return {
+    kind: 'spectralRgb',
+    binding,
+    channels: resolveSpectralRgbChannels(layer, coefficients)
+  };
+}
+
 function createRgbStokesEvaluator(
   layer: DecodedLayer,
   binding: DisplaySourceBinding,
@@ -340,6 +377,15 @@ function setDisplayPixelValues(
   output.b = b;
   output.a = a;
   return output;
+}
+
+function writeSpectralRgbDisplayPixel(
+  output: DisplayPixelValues,
+  channels: readonly ResolvedSpectralRgbChannel[],
+  pixelIndex: number
+): DisplayPixelValues {
+  const rgb = readSpectralRgbSampleAtIndex(channels, pixelIndex);
+  return setDisplayPixelValues(output, rgb.r, rgb.g, rgb.b, 1);
 }
 
 function writeStokesDisplayPixel(

@@ -37,6 +37,11 @@ export type ChannelMonoSelection = {
   alpha: string | null;
 };
 
+export type SpectralRgbSelection = {
+  kind: 'spectralRgb';
+  seriesKey: string;
+};
+
 export type StokesScalarSelection = {
   kind: 'stokesScalar';
   parameter: StokesScalarParameter;
@@ -51,7 +56,7 @@ export type StokesAngleSelection = {
 
 export type ChannelSelection = ChannelRgbSelection | ChannelMonoSelection;
 export type StokesSelection = StokesScalarSelection | StokesAngleSelection;
-export type DisplaySelection = ChannelSelection | StokesSelection;
+export type DisplaySelection = ChannelSelection | StokesSelection | SpectralRgbSelection;
 
 const STOKES_PARAMETER_LABELS: Record<StokesParameter, string> = {
   aolp: 'AoLP',
@@ -84,6 +89,10 @@ export function cloneDisplaySelection(selection: DisplaySelection | null): Displ
     return { ...selection };
   }
 
+  if (selection.kind === 'spectralRgb') {
+    return { ...selection };
+  }
+
   return {
     ...selection,
     source: cloneStokesSource(selection.source)
@@ -111,6 +120,10 @@ export function sameDisplaySelection(
       const next = b as ChannelMonoSelection;
       return a.channel === next.channel && a.alpha === next.alpha;
     }
+    case 'spectralRgb': {
+      const next = b as SpectralRgbSelection;
+      return a.seriesKey === next.seriesKey;
+    }
     case 'stokesScalar':
     case 'stokesAngle': {
       const next = b as StokesSelection;
@@ -129,6 +142,8 @@ export function serializeDisplaySelectionKey(selection: DisplaySelection | null)
       return `channelRgb:${selection.r}:${selection.g}:${selection.b}:${selection.alpha ?? ''}`;
     case 'channelMono':
       return `channelMono:${selection.channel}:${selection.alpha ?? ''}`;
+    case 'spectralRgb':
+      return `spectralRgb:${selection.seriesKey}`;
     case 'stokesScalar':
     case 'stokesAngle':
       return `${selection.kind}:${selection.parameter}:${serializeStokesSource(selection.source)}`;
@@ -141,6 +156,10 @@ export function isChannelSelection(selection: DisplaySelection | null): selectio
 
 export function isStokesSelection(selection: DisplaySelection | null): selection is StokesSelection {
   return Boolean(selection && (selection.kind === 'stokesScalar' || selection.kind === 'stokesAngle'));
+}
+
+export function isSpectralRgbSelection(selection: DisplaySelection | null): selection is SpectralRgbSelection {
+  return Boolean(selection && selection.kind === 'spectralRgb');
 }
 
 export function isStokesAngleSelection(selection: DisplaySelection | null): selection is StokesAngleSelection {
@@ -238,6 +257,8 @@ export function getDisplaySelectionOptionLabel(selection: DisplaySelection): str
       return formatChannelRgbSelectionLabel(selection);
     case 'channelMono':
       return selection.alpha ? `${selection.channel},${selection.alpha}` : selection.channel;
+    case 'spectralRgb':
+      return formatSpectralRgbSelectionLabel(selection);
     case 'stokesScalar':
     case 'stokesAngle':
       return formatStokesSelectionLabel(selection);
@@ -296,6 +317,10 @@ function formatChannelRgbSelectionLabel(selection: ChannelRgbSelection): string 
     channels.push(selection.alpha);
   }
   return channels.join(',');
+}
+
+function formatSpectralRgbSelectionLabel(selection: SpectralRgbSelection): string {
+  return selection.seriesKey ? `${selection.seriesKey} Spectral RGB` : 'Spectral RGB';
 }
 
 function formatStokesSelectionLabel(selection: StokesSelection): string {

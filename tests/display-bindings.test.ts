@@ -3,6 +3,7 @@ import { buildDisplaySourceBinding } from '../src/display/bindings';
 import {
   createChannelMonoSelection,
   createChannelRgbSelection,
+  createSpectralRgbSelection,
   createLayerFromChannels,
   createStokesSelection
 } from './helpers/state-fixtures';
@@ -35,6 +36,11 @@ describe('display bindings', () => {
       'S2.Y': [3],
       'S3.Y': [4]
     });
+    const spectralLayer = createLayerFromChannels({
+      '400nm': [1],
+      '500nm': [1],
+      '600nm': [1]
+    });
 
     const rgbBinding = buildDisplaySourceBinding(channelLayer, createChannelRgbSelection('R', 'G', 'B', 'A'));
     const monoBinding = buildDisplaySourceBinding(channelLayer, createChannelMonoSelection('G', 'A'));
@@ -48,6 +54,7 @@ describe('display bindings', () => {
       createStokesSelection('dop', 'stokesRgb'),
       'colormap'
     );
+    const spectralBinding = buildDisplaySourceBinding(spectralLayer, createSpectralRgbSelection());
 
     expect(rgbBinding.mode).toBe('channelRgb');
     expect(rgbBinding.slots.slice(0, 4)).toEqual(['R', 'G', 'B', 'A']);
@@ -73,5 +80,8 @@ describe('display bindings', () => {
     expect(suffixedStokesBinding.stokesParameter).toBe('dop');
     expect(stokesColormapBinding.mode).toBe('stokesRgbLuminance');
     expect(stokesColormapBinding.slots).toEqual(stokesBinding.slots);
+    expect(spectralBinding.mode).toBe('spectralRgb');
+    expect(spectralBinding.slots[0]).toBe('__spectralRgb:');
+    expect(spectralBinding.usesImageAlpha).toBe(false);
   });
 });

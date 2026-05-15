@@ -12,6 +12,7 @@ import {
   createChannelRgbSelection,
   createLayer,
   createLayerFromChannels,
+  createSpectralRgbSelection,
   createStokesSelection
 } from './helpers/state-fixtures';
 
@@ -145,6 +146,29 @@ describe('display CPU materialization', () => {
     const layer = createLayer();
     const texture = buildSelectedDisplayTexture(layer, 2, 2, null);
     expect(Array.from(texture)).toEqual(new Array(16).fill(0).map((value, index) => index % 4 === 3 ? 1 : 0));
+  });
+
+  it('builds spectral RGB display textures and appends probe display values', () => {
+    const layer = createLayerFromChannels({
+      '410nm': [0.1],
+      '500nm': [0.8],
+      '650nm': [0.2]
+    }, 'spectral');
+    const selection = createSpectralRgbSelection();
+
+    const texture = buildSelectedDisplayTexture(layer, 1, 1, selection);
+    const sample = samplePixelValuesForDisplay(layer, 1, 1, { ix: 0, iy: 0 }, selection);
+
+    expect(texture[0]).toBeGreaterThanOrEqual(0);
+    expect(texture[0]).toBeLessThanOrEqual(1);
+    expect(texture[1]).toBeGreaterThanOrEqual(0);
+    expect(texture[1]).toBeLessThanOrEqual(1);
+    expect(texture[2]).toBeGreaterThanOrEqual(0);
+    expect(texture[2]).toBeLessThanOrEqual(1);
+    expect(texture[3]).toBe(1);
+    expect(sample?.values['Spectral RGB.R']).toBeCloseTo(texture[0] ?? 0, 6);
+    expect(sample?.values['Spectral RGB.G']).toBeCloseTo(texture[1] ?? 0, 6);
+    expect(sample?.values['Spectral RGB.B']).toBeCloseTo(texture[2] ?? 0, 6);
   });
 
   it('does not trigger planar materialization during normal display reads', () => {

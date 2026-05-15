@@ -7,6 +7,7 @@ import {
   createImage,
   createLayer,
   createLayerFromChannels,
+  createSpectralRgbSelection,
   createStokesSelection,
   createViewerState
 } from './helpers/state-fixtures';
@@ -47,7 +48,7 @@ describe('viewer store', () => {
     expect(nextState.displaySelection).toEqual(createChannelMonoSelection('X'));
   });
 
-  it('does not preserve arbitrary mixed channel mappings as display defaults', () => {
+  it('falls back from arbitrary mixed spectral channel mappings to spectral RGB', () => {
     const spectralLayer = createLayerFromChannels({
       '400nm': [4, 4, 4, 4],
       '500nm': [5, 5, 5, 5],
@@ -64,7 +65,7 @@ describe('viewer store', () => {
       0
     );
 
-    expect(nextState.displaySelection).toEqual(createChannelMonoSelection('400nm'));
+    expect(nextState.displaySelection).toEqual(createSpectralRgbSelection());
   });
 
   it('resolves a real default mapping when there is no current selection', () => {

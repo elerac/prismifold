@@ -4,7 +4,6 @@ import {
 } from '../../colormap-range';
 import {
   cloneDisplaySelection,
-  isChannelSelection,
   isStokesSelection
 } from '../../display-model';
 import {
@@ -154,7 +153,7 @@ function reduceDisplaySelectionSet(
   }
 
   if (!stokesDefaults) {
-    if (isChannelSelection(selection) && isStokesSelection(currentState.displaySelection)) {
+    if (!isStokesSelection(selection) && isStokesSelection(currentState.displaySelection)) {
       patch = {
         ...patch,
         ...resolveStokesDisplayRestoreState(nextState, activeSession?.id ?? null)

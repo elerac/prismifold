@@ -2,10 +2,13 @@ import { DEFAULT_DISPLAY_GAMMA, computeRec709Luminance, linearToDisplayGammaByte
 import { ColormapLut, mapValueToColormapRgbBytes, modulateRgbBytesHsv } from './colormaps';
 import {
   getDisplaySelectionDegreeModulationValueLabel,
+  getDisplaySelectionOptionLabel,
   getDisplaySelectionValueLabel,
   getSelectionAlpha,
   isGroupedRgbStokesSelection,
+  isChannelSelection,
   isMonoSelection,
+  isSpectralRgbSelection,
   isStokesSelection,
   type DisplaySelection,
   type StokesAolpDegreeModulationMode,
@@ -170,6 +173,15 @@ function readProbeDisplayValues(
     return [value, value, value];
   }
 
+  if (isSpectralRgbSelection(selection)) {
+    const label = getDisplaySelectionOptionLabel(selection);
+    return [
+      readProbeChannel(sample, `${label}.R`),
+      readProbeChannel(sample, `${label}.G`),
+      readProbeChannel(sample, `${label}.B`)
+    ];
+  }
+
   if (selection.kind === 'channelMono') {
     const value = readProbeChannel(sample, selection.channel);
     return [value, value, value];
@@ -179,7 +191,7 @@ function readProbeDisplayValues(
 }
 
 function readProbeDisplayAlpha(sample: PixelSample, selection: DisplaySelection | null): number | null {
-  const alphaChannel = selection && selection.kind !== 'stokesScalar' && selection.kind !== 'stokesAngle'
+  const alphaChannel = isChannelSelection(selection)
     ? getSelectionAlpha(selection)
     : null;
   if (!alphaChannel) {

@@ -3,6 +3,7 @@ import {
   getStokesColormapDefaultGroup,
   getStokesDisplayColormapDefault
 } from './stokes';
+import { isStokesSelection } from './display-model';
 import {
   DisplayLuminanceRange,
   DisplaySelection,
@@ -59,11 +60,7 @@ export function shouldPreserveStokesColormapState(
   previous: DisplaySelection | null,
   next: DisplaySelection | null
 ): boolean {
-  if (!previous || !next || previous.kind === 'channelRgb' || previous.kind === 'channelMono') {
-    return false;
-  }
-
-  if (next.kind === 'channelRgb' || next.kind === 'channelMono') {
+  if (!isStokesSelection(previous) || !isStokesSelection(next)) {
     return false;
   }
 

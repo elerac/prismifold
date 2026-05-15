@@ -33,6 +33,7 @@ const int DISPLAY_MODE_CHANNEL_MONO = 2;
 const int DISPLAY_MODE_STOKES_DIRECT = 3;
 const int DISPLAY_MODE_STOKES_RGB = 4;
 const int DISPLAY_MODE_STOKES_RGB_LUMINANCE = 5;
+const int DISPLAY_MODE_SPECTRAL_RGB = 6;
 const int ALPHA_OUTPUT_OPAQUE = 0;
 const int ALPHA_OUTPUT_STRAIGHT = 1;
 const int ALPHA_OUTPUT_PREMULTIPLIED = 2;
@@ -407,6 +408,19 @@ DisplaySample readDisplaySample(ivec2 pixel) {
     return DisplaySample(
       vec3(value),
       uUseImageAlpha ? sanitizeAlphaValue(readSource3(pixel)) : 1.0,
+      vec4(0.0)
+    );
+  }
+
+  if (uDisplayMode == DISPLAY_MODE_SPECTRAL_RGB) {
+    vec3 spectralRgb = texelFetch(uSourceTextures[0], pixel, 0).rgb;
+    return DisplaySample(
+      vec3(
+        sanitizeDisplayValue(spectralRgb.r),
+        sanitizeDisplayValue(spectralRgb.g),
+        sanitizeDisplayValue(spectralRgb.b)
+      ),
+      1.0,
       vec4(0.0)
     );
   }

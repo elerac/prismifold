@@ -6,6 +6,7 @@ import {
   computeRgbStokesMonoValues,
   readScalarStokesSample
 } from '../stokes/stokes-display';
+import { readSpectralRgbSampleAtIndex } from '../spectral-color';
 import type { StatsChannelSummary } from '../types';
 import type { DisplaySelectionEvaluator } from '../display/evaluator';
 
@@ -48,6 +49,12 @@ export function createDisplaySelectionStatsAccumulators(
       }
       return rows;
     }
+    case 'spectralRgb':
+      return [
+        createStatsAccumulator('R', (pixelIndex) => readSpectralRgbSampleAtIndex(evaluator.channels, pixelIndex).r),
+        createStatsAccumulator('G', (pixelIndex) => readSpectralRgbSampleAtIndex(evaluator.channels, pixelIndex).g),
+        createStatsAccumulator('B', (pixelIndex) => readSpectralRgbSampleAtIndex(evaluator.channels, pixelIndex).b)
+      ];
     case 'stokesDirect':
       return [
         createStatsAccumulator(

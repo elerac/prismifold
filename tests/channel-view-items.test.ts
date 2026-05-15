@@ -5,7 +5,7 @@ import {
   hasSplitChannelViewItems,
   selectVisibleChannelViewItems
 } from '../src/channel-view-items';
-import { createChannelMonoSelection, createStokesSelection } from './helpers/state-fixtures';
+import { createChannelMonoSelection, createSpectralRgbSelection, createStokesSelection } from './helpers/state-fixtures';
 
 describe('channel view items', () => {
   it('keeps merged and split channel ordering stable from one shared descriptor list', () => {
@@ -56,5 +56,13 @@ describe('channel view items', () => {
     const items = buildChannelViewItems(['depth.Z']);
 
     expect(findSelectedChannelViewItem(items, createChannelMonoSelection('depth.Z'))?.value).toBe('channel:depth.Z');
+  });
+
+  it('includes spectral RGB descriptors in merged and split channel lists', () => {
+    const items = buildChannelViewItems(['410nm', '500nm', '650nm']);
+
+    expect(selectVisibleChannelViewItems(items, false).map((item) => item.value)).toContain('spectralRgb:');
+    expect(selectVisibleChannelViewItems(items, true).map((item) => item.value)).toContain('spectralRgb:');
+    expect(findSelectedChannelViewItem(items, createSpectralRgbSelection())?.label).toBe('Spectral RGB');
   });
 });

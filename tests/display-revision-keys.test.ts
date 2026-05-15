@@ -7,6 +7,7 @@ import {
 import {
   createChannelMonoSelection,
   createChannelRgbSelection,
+  createSpectralRgbSelection,
   createStokesSelection,
   createViewerState
 } from './helpers/state-fixtures';
@@ -39,6 +40,11 @@ describe('display revision keys', () => {
       activeLayer: 2,
       displaySelection: createStokesSelection('dolp', 'stokesScalar', null, '500nm')
     })).toBe('2:stokesScalar:dolp:scalar:500nm');
+
+    expect(buildDisplayTextureRevisionKey({
+      activeLayer: 4,
+      displaySelection: createSpectralRgbSelection('hoge')
+    })).toBe('4:spectralRgb:hoge');
   });
 
   it('builds luminance revision keys that ignore alpha-only channel changes', () => {
@@ -63,6 +69,11 @@ describe('display revision keys', () => {
       displaySelection: createStokesSelection('aolp', 'stokesRgb'),
       visualizationMode: 'colormap'
     })).toBe('3:stokesAngle:aolp:rgbLuminance:colormap');
+
+    expect(buildDisplayLuminanceRevisionKey({
+      activeLayer: 4,
+      displaySelection: createSpectralRgbSelection('hoge')
+    })).toBe('4:spectralRgb:hoge');
   });
 
   it('builds auto-exposure revision keys with rgb max percentile context', () => {

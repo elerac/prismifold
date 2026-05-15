@@ -10,6 +10,10 @@ import {
   type RgbStokesChannels,
   type ScalarStokesChannels
 } from '../stokes';
+import {
+  buildSpectralRgbSourceName,
+  isSpectralRgbDisplayAvailable
+} from '../spectral';
 import { getRgbComponentChannels } from '../stokes/stokes-display';
 import type { DecodedLayer, VisualizationMode } from '../types';
 
@@ -19,6 +23,7 @@ export type DisplaySourceMode =
   | 'empty'
   | 'channelRgb'
   | 'channelMono'
+  | 'spectralRgb'
   | 'stokesDirect'
   | 'stokesRgb'
   | 'stokesRgbLuminance';
@@ -67,6 +72,15 @@ export function buildDisplaySourceBinding(
         selection.alpha !== null,
         null
       );
+    case 'spectralRgb':
+      return isSpectralRgbDisplayAvailable(layer.channelNames, selection)
+        ? createDisplaySourceBinding(
+            'spectralRgb',
+            [buildSpectralRgbSourceName(selection.seriesKey)],
+            false,
+            null
+          )
+        : createEmptyDisplaySourceBinding();
     case 'stokesScalar':
     case 'stokesAngle':
       return buildStokesDisplaySourceBinding(layer, selection, visualizationMode);

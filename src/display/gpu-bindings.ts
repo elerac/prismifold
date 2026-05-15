@@ -6,6 +6,7 @@ export const DISPLAY_MODE_CHANNEL_MONO = 2;
 export const DISPLAY_MODE_STOKES_DIRECT = 3;
 export const DISPLAY_MODE_STOKES_RGB = 4;
 export const DISPLAY_MODE_STOKES_RGB_LUMINANCE = 5;
+export const DISPLAY_MODE_SPECTRAL_RGB = 6;
 
 export const ALPHA_OUTPUT_OPAQUE = 0;
 export const ALPHA_OUTPUT_STRAIGHT = 1;
@@ -21,6 +22,8 @@ export function resolveDisplaySourceModeUniformValue(mode: DisplaySourceMode): n
       return DISPLAY_MODE_CHANNEL_RGB;
     case 'channelMono':
       return DISPLAY_MODE_CHANNEL_MONO;
+    case 'spectralRgb':
+      return DISPLAY_MODE_SPECTRAL_RGB;
     case 'stokesDirect':
       return DISPLAY_MODE_STOKES_DIRECT;
     case 'stokesRgb':

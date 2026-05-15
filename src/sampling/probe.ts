@@ -1,5 +1,10 @@
 import { readPixelChannelValue } from '../channel-storage';
-import { isStokesSelection, type DisplaySelection } from '../display-model';
+import {
+  getDisplaySelectionOptionLabel,
+  isSpectralRgbSelection,
+  isStokesSelection,
+  type DisplaySelection
+} from '../display-model';
 import {
   readDisplaySelectionPixelValuesAtIndex,
   resolveDisplaySelectionEvaluator,
@@ -7,6 +12,7 @@ import {
 } from '../display/evaluator';
 import { isStokesDisplayAvailable } from '../stokes';
 import { appendStokesSampleValues } from '../stokes/stokes-display';
+import { isSpectralRgbDisplayAvailable } from '../spectral';
 import type { DecodedLayer, ImagePixel, PixelSample, VisualizationMode } from '../types';
 
 export function readDisplaySelectionPixelValues(
@@ -66,11 +72,25 @@ export function samplePixelValuesForDisplay(
   visualizationMode: VisualizationMode = 'rgb'
 ): PixelSample | null {
   const sample = samplePixelValues(layer, width, height, pixel);
-  if (!sample || !isStokesSelection(selection) || !isStokesDisplayAvailable(layer.channelNames, selection)) {
+  if (!sample) {
     return sample;
   }
 
   const flatIndex = pixel.iy * width + pixel.ix;
-  appendStokesSampleValues(layer, flatIndex, selection, sample.values, visualizationMode);
+  if (isStokesSelection(selection) && isStokesDisplayAvailable(layer.channelNames, selection)) {
+    appendStokesSampleValues(layer, flatIndex, selection, sample.values, visualizationMode);
+  }
+
+  if (isSpectralRgbSelection(selection) && isSpectralRgbDisplayAvailable(layer.channelNames, selection)) {
+    const values = readDisplaySelectionPixelValuesAtIndex(
+      resolveDisplaySelectionEvaluator(layer, selection, visualizationMode),
+      flatIndex
+    );
+    const label = getDisplaySelectionOptionLabel(selection);
+    sample.values[`${label}.R`] = values.r;
+    sample.values[`${label}.G`] = values.g;
+    sample.values[`${label}.B`] = values.b;
+  }
+
   return sample;
 }

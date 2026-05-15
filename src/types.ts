@@ -42,6 +42,7 @@ export type {
   StokesScalarParameter,
   StokesScalarSelection,
   StokesSelection,
+  SpectralRgbSelection,
   StokesSource
 } from './display-model';
 

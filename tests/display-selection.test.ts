@@ -12,6 +12,7 @@ import {
 import {
   createChannelMonoSelection,
   createChannelRgbSelection,
+  createSpectralRgbSelection,
   createStokesSelection
 } from './helpers/state-fixtures';
 
@@ -197,8 +198,17 @@ describe('display selection', () => {
     expect(pickDefaultDisplaySelection(['Y'])).toEqual(createChannelMonoSelection('Y'));
     expect(pickDefaultDisplaySelection(['Y', 'A'])).toEqual(createChannelMonoSelection('Y', 'A'));
     expect(pickDefaultDisplaySelection(['A', 'Z'])).toEqual(createChannelMonoSelection('Z', 'A'));
+  });
+
+  it('uses spectral RGB as the default only for spectral-only layers without RGB groups', () => {
     expect(pickDefaultDisplaySelection(['400nm', '500nm', '600nm', '700nm'])).toEqual(
+      createSpectralRgbSelection()
+    );
+    expect(pickDefaultDisplaySelection(['400nm', '500nm', 'mask'])).toEqual(
       createChannelMonoSelection('400nm')
+    );
+    expect(pickDefaultDisplaySelection(['R', 'G', 'B', '400nm', '500nm'])).toEqual(
+      createChannelRgbSelection('R', 'G', 'B')
     );
   });
 
@@ -214,6 +224,12 @@ describe('display selection', () => {
     );
     expect(resolveDisplaySelectionForLayer(['R', 'G', 'B'], createStokesSelection('aolp'))).toEqual(
       createChannelRgbSelection('R', 'G', 'B')
+    );
+    expect(resolveDisplaySelectionForLayer(['hoge.450nm', 'hoge.550nm'], createSpectralRgbSelection('hoge'))).toEqual(
+      createSpectralRgbSelection('hoge')
+    );
+    expect(resolveDisplaySelectionForLayer(['hoge.450nm', 'hoge.550nm'], createSpectralRgbSelection('missing'))).toEqual(
+      createSpectralRgbSelection('hoge')
     );
   });
 });

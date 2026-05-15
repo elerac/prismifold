@@ -12,6 +12,7 @@ import { createInitialState } from '../src/viewer-store';
 import {
   createChannelMonoSelection,
   createChannelRgbSelection,
+  createSpectralRgbSelection,
   createStokesSelection,
   createLayerFromChannels,
   createInterleavedLayerFromChannels
@@ -109,6 +110,37 @@ describe('gl image renderer', () => {
       { channelName: 'G', textureBytes: 8, materializedBytes: 0 }
     ]);
     expect(__debugGetMaterializedChannelCount(layer)).toBe(0);
+  });
+
+  it('uploads spectral RGB as a derived RGBA32F source texture', () => {
+    const { renderer, gl } = createHarness();
+    const layer = createLayerFromChannels({
+      '410nm': [0.2],
+      '500nm': [0.8],
+      '650nm': [0.3]
+    });
+    const selection = createSpectralRgbSelection();
+    const binding = buildDisplaySourceBinding(layer, selection);
+    const cpuTexture = buildSelectedDisplayTexture(layer, 1, 1, selection);
+
+    const uploads = renderer.ensureLayerChannelsResident(
+      'session-1',
+      0,
+      1,
+      1,
+      layer,
+      getDisplaySourceBindingChannelNames(binding)
+    );
+    renderer.setDisplaySelectionBindings('session-1', 0, 1, 1, binding);
+
+    const texImageCall = gl.texImage2D.mock.calls.at(-1);
+    expect(uploads).toEqual([
+      { channelName: '__spectralRgb:', textureBytes: 16, materializedBytes: 0 }
+    ]);
+    expect(texImageCall?.[2]).toBe(gl.RGBA32F);
+    expect(texImageCall?.[6]).toBe(gl.RGBA);
+    expect(texImageCall?.[8]).toBeInstanceOf(Float32Array);
+    expect(Array.from((texImageCall?.[8] as Float32Array).slice(0, 4))).toEqual(Array.from(cpuTexture));
   });
 
   it('discards materialized interleaved CPU data when source texture upload fails', () => {
@@ -838,6 +870,7 @@ function createWebGlContextMock(): WebGL2RenderingContext & {
     LINEAR: 0x2601,
     CLAMP_TO_EDGE: 0x812f,
     RGBA8: 0x8058,
+    RGBA32F: 0x8814,
     RGBA: 0x1908,
     UNSIGNED_BYTE: 0x1401,
     R32F: 0x822e,

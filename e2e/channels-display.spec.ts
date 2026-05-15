@@ -132,7 +132,8 @@ test('loads arbitrary scalar channels as grayscale display options', async ({ pa
   await expect(openedImages.locator('option:checked')).toContainText('spectral.exr', { timeout: 30000 });
   await expect(channelSelect).toBeEnabled();
   await expect(rgbSplitToggleButton).toBeHidden();
-  await expect(channelSelect.locator('option:checked')).toHaveText('400nm');
+  await expect(channelSelect.locator('option:checked')).toHaveText('Spectral RGB');
+  await expect(channelSelect.locator('option').filter({ hasText: /^Spectral RGB$/ })).toHaveCount(1);
   await expect(channelSelect.locator('option').filter({ hasText: /^400nm,500nm,600nm$/ })).toHaveCount(0);
   await expect(channelSelect.locator('option').filter({ hasText: /^400nm$/ })).toHaveCount(1);
   await expect(channelSelect.locator('option').filter({ hasText: /^500nm$/ })).toHaveCount(1);
@@ -142,6 +143,9 @@ test('loads arbitrary scalar channels as grayscale display options', async ({ pa
   await expect(page.locator('#spectral-empty-state')).toHaveText('');
   await expect(spectralPlot).toBeVisible();
   await expect(spectralPlot.locator('.spectral-point')).toHaveCount(0);
+  await viewer.hover();
+  await expect(probeColorValues.locator('.probe-color-channel')).toHaveText(['R:', 'G:', 'B:']);
+  await expect(spectralPlot.locator('.spectral-point')).toHaveCount(4);
 
   await channelSelect.selectOption({ label: '500nm' });
   await expect(channelSelect.locator('option:checked')).toHaveText('500nm');
@@ -181,13 +185,15 @@ test('loads arbitrary scalar channels as grayscale display options', async ({ pa
   await expect(openedImages.locator('option:checked')).toContainText('duplicate_wavelength_spectral.exr', {
     timeout: 30000
   });
-  await expect(channelSelect.locator('option:checked')).toHaveText('fuga.414nm');
+  await expect(channelSelect.locator('option:checked')).toHaveText(/^(fuga|hoge) Spectral RGB$/);
+  await expect(channelSelect.locator('option').filter({ hasText: /^fuga Spectral RGB$/ })).toHaveCount(1);
+  await expect(channelSelect.locator('option').filter({ hasText: /^hoge Spectral RGB$/ })).toHaveCount(1);
   await expect(spectralPanel).toBeVisible();
   await viewer.hover();
   await expect(spectralPlot.locator('.spectral-point')).toHaveCount(2);
-  await expect(spectralPlot.locator('.spectral-point').nth(0)).toHaveAttribute('data-channel', 'fuga.414nm');
+  await expect(spectralPlot.locator('.spectral-point').nth(0)).toHaveAttribute('data-channel', /^(fuga|hoge)\.414nm$/);
   await expect(spectralPlot.locator('.spectral-point').nth(0)).toHaveAttribute('data-wavelength', '414');
-  await expect(spectralPlot.locator('.spectral-point').nth(1)).toHaveAttribute('data-channel', 'fuga.453nm');
+  await expect(spectralPlot.locator('.spectral-point').nth(1)).toHaveAttribute('data-channel', /^(fuga|hoge)\.453nm$/);
   await expect(spectralPlot.locator('.spectral-point').nth(1)).toHaveAttribute('data-wavelength', '453');
 
   await channelSelect.selectOption({ label: 'hoge.414nm' });

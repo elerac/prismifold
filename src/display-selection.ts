@@ -5,6 +5,10 @@ import {
   isStokesDisplayAvailable
 } from './stokes';
 import {
+  isSpectralRgbDisplayAvailable,
+  pickDefaultSpectralRgbSelection
+} from './spectral';
+import {
   buildRgbGroupLabel,
   type ChannelMonoSelection,
   type ChannelRgbSelection,
@@ -12,6 +16,7 @@ import {
   type DisplaySelection,
   isAlphaChannel,
   isChannelSelection,
+  isSpectralRgbSelection,
   isStokesSelection,
   parseRgbChannelName,
   sameDisplaySelection
@@ -47,6 +52,11 @@ export function pickDefaultDisplaySelection(channelNames: string[]): DisplaySele
     return buildChannelRgbSelection(rgbGroups[0]);
   }
 
+  const spectralRgbSelection = pickDefaultSpectralRgbSelection(names);
+  if (spectralRgbSelection) {
+    return spectralRgbSelection;
+  }
+
   const grayscaleChannel = pickGrayscaleDisplayChannel(names);
   if (grayscaleChannel) {
     return buildChannelMonoSelection(channelNames, grayscaleChannel);
@@ -69,9 +79,19 @@ export function resolveDisplaySelectionForLayer(
     return normalized ?? pickDefaultDisplaySelection(channelNames);
   }
 
-  return isStokesDisplayAvailable(channelNames, currentSelection)
-    ? currentSelection
-    : pickDefaultDisplaySelection(channelNames);
+  if (isStokesSelection(currentSelection)) {
+    return isStokesDisplayAvailable(channelNames, currentSelection)
+      ? currentSelection
+      : pickDefaultDisplaySelection(channelNames);
+  }
+
+  if (isSpectralRgbSelection(currentSelection)) {
+    return isSpectralRgbDisplayAvailable(channelNames, currentSelection)
+      ? currentSelection
+      : pickDefaultDisplaySelection(channelNames);
+  }
+
+  return pickDefaultDisplaySelection(channelNames);
 }
 
 export function extractRgbChannelGroups(channelNames: string[]): RgbChannelGroup[] {

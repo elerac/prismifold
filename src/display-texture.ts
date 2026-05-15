@@ -8,4 +8,5 @@ export * from './display/gpu-bindings';
 export * from './display/materialize-cpu';
 export * from './display/revision-keys';
 export * from './sampling/probe';
+export * from './spectral-color';
 export * from './stokes/stokes-display';

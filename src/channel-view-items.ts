@@ -1,6 +1,7 @@
 import { cloneDisplaySelection, sameDisplaySelection, serializeDisplaySelectionKey, type DisplaySelection } from './display-model';
 import { buildChannelDisplayOptions } from './display-selection';
 import { getStokesDisplayOptions } from './stokes';
+import { getSpectralRgbDisplayOptions } from './spectral';
 import type { DisplayChannelMapping } from './types';
 
 export interface ChannelViewItem {
@@ -119,7 +120,8 @@ function buildDisplayItems(channelNames: string[], includeSplitRgbChannels: bool
     includeRgbGroups: !includeSplitRgbChannels,
     includeSplitChannels: includeSplitRgbChannels
   });
-  return [...channelOptions, ...stokesOptions].map((option) => ({
+  const spectralOptions = getSpectralRgbDisplayOptions(channelNames);
+  return [...channelOptions, ...spectralOptions, ...stokesOptions].map((option) => ({
     value: option.key,
     label: formatChannelViewLabel(option.label),
     meta: formatChannelViewMeta(option.mapping),

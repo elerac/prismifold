@@ -11,7 +11,7 @@ import {
   successResource,
   type AsyncResource
 } from '../async-resource';
-import { cloneDisplaySelection, sameDisplaySelection } from '../display-model';
+import { cloneDisplaySelection, isStokesSelection, sameDisplaySelection } from '../display-model';
 import {
   createPngDataUrlFromPixels,
   parsePngCompressionLevel,
@@ -2430,6 +2430,10 @@ function findCorrespondingChannelForSelection(
         channel.selection.alpha !== null
       )) ??
       null;
+  }
+
+  if (!isStokesSelection(selection)) {
+    return null;
   }
 
   if (selection.source.kind === 'rgbLuminance') {

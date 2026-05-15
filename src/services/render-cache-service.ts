@@ -23,6 +23,7 @@ import {
   buildDisplaySourceBinding,
   getDisplaySourceBindingChannelNames
 } from '../display/bindings';
+import { isSpectralRgbSourceName } from '../spectral';
 import {
   buildDisplayAutoExposureRevisionKey,
   buildDisplayImageStatsRevisionKey,
@@ -279,7 +280,7 @@ export class RenderCacheService implements Disposable {
     const textureRevisionKey = buildDisplayTextureRevisionKey(state);
     const binding = buildDisplaySourceBinding(layer, state.displaySelection, state.visualizationMode);
     const requiredChannelNames = getDisplaySourceBindingChannelNames(binding).filter((channelName) => {
-      return layer.channelStorage.channelIndexByName[channelName] !== undefined;
+      return isSpectralRgbSourceName(channelName) || layer.channelStorage.channelIndexByName[channelName] !== undefined;
     });
     const protectedBinding = this.createProtectedBinding(session.id, state.activeLayer, requiredChannelNames);
     let residentLayer = this.getOrCreateResidentLayerEntry(entry, state.activeLayer);
@@ -297,7 +298,7 @@ export class RenderCacheService implements Disposable {
           session.decoded.width,
           session.decoded.height,
           layer,
-          missingChannelNames.length
+          missingChannelNames
         ),
         protectedBinding
       });
@@ -1627,13 +1628,19 @@ function predictRetainedChannelBytes(
   width: number,
   height: number,
   layer: DecodedLayer,
-  channelCount: number
+  channelNames: readonly string[]
 ): number {
   const perChannelTextureBytes = predictChannelTextureBytes(width, height);
   const perChannelMaterializedBytes = layer.channelStorage.kind === 'interleaved-f32'
     ? predictChannelTextureBytes(width, height)
     : 0;
-  return Math.max(0, channelCount) * (perChannelTextureBytes + perChannelMaterializedBytes);
+  return channelNames.reduce((total, channelName) => {
+    if (isSpectralRgbSourceName(channelName)) {
+      return total + perChannelTextureBytes * 4;
+    }
+
+    return total + perChannelTextureBytes + perChannelMaterializedBytes;
+  }, 0);
 }
 
 function resolveWindowLike(): RenderCacheWindowLike | null {

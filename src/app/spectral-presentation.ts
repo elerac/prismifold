@@ -1,11 +1,12 @@
 import { buildZeroCenteredColormapRange, cloneDisplayLuminanceRange } from '../colormap-range';
-import { isStokesSelection } from '../display-model';
+import { isSpectralRgbSelection, isStokesSelection } from '../display-model';
 import { samplePixelValues } from '../sampling/probe';
 import {
   buildSpectralPlotPoints,
   buildSpectralStokesChannels,
   buildSpectralStokesPlotPoints,
   detectSpectralChannels,
+  detectSpectralChannelsForSeries,
   detectSpectralStokesChannelGroups,
   parseSpectralStokesSuffixWavelength
 } from '../spectral';
@@ -124,7 +125,9 @@ function resolveSpectralPlotSource(args: BuildSpectralPresentationArgs): Spectra
   const preferredSpectralChannelName = selection?.kind === 'channelMono'
     ? selection.channel
     : null;
-  const spectralChannels = detectSpectralChannels(args.activeLayer!.channelNames, preferredSpectralChannelName);
+  const spectralChannels = isSpectralRgbSelection(selection)
+    ? detectSpectralChannelsForSeries(args.activeLayer!.channelNames, selection.seriesKey)
+    : detectSpectralChannels(args.activeLayer!.channelNames, preferredSpectralChannelName);
   return spectralChannels.length > 0
     ? {
         channels: spectralChannels,

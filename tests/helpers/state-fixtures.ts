@@ -1,6 +1,7 @@
 import {
   type ChannelMonoSelection,
   type ChannelRgbSelection,
+  type SpectralRgbSelection,
   type StokesSelection,
   type StokesParameter,
   type ViewerInteractionState,
@@ -13,6 +14,7 @@ import {
   buildScalarStokesSelection,
   type RgbStokesComponent
 } from '../../src/stokes';
+import { buildSpectralRgbSelection } from '../../src/spectral';
 import { createInitialState } from '../../src/viewer-store';
 import {
   createInterleavedChannelStorage,
@@ -193,4 +195,8 @@ export function createChannelMonoSelection(
     channel,
     alpha
   };
+}
+
+export function createSpectralRgbSelection(seriesKey = ''): SpectralRgbSelection {
+  return buildSpectralRgbSelection(seriesKey);
 }

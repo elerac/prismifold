@@ -36,6 +36,8 @@ export function serializeDisplaySelectionLuminanceKey(
       return `channelRgb:${selection.r}:${selection.g}:${selection.b}`;
     case 'channelMono':
       return `channelMono:${selection.channel}`;
+    case 'spectralRgb':
+      return serializeDisplaySelectionRevisionKey(selection, visualizationMode);
     case 'stokesScalar':
     case 'stokesAngle':
       return serializeDisplaySelectionRevisionKey(selection, visualizationMode);

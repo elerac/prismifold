@@ -3,6 +3,8 @@ import {
   DISPLAY_SOURCE_SLOT_COUNT,
   type DisplaySourceBinding
 } from '../../display/bindings';
+import { buildSelectedDisplayTexture } from '../../display/materialize-cpu';
+import { parseSpectralRgbSourceName } from '../../spectral';
 import type { ResidentChannelUpload } from '../../display-cache';
 import type { DecodedLayer } from '../../types';
 import type { GlImageRendererState, LayerSourceTextures } from './types';
@@ -45,6 +47,20 @@ export function ensureLayerChannelsResident(
 
   for (const channelName of channelNames) {
     if (!channelName || layerTextures.textureByChannel.has(channelName)) {
+      continue;
+    }
+
+    const spectralSeriesKey = parseSpectralRgbSourceName(channelName);
+    if (spectralSeriesKey !== null) {
+      uploads.push(uploadSpectralRgbSourceTexture(
+        state,
+        layerTextures,
+        width,
+        height,
+        layer,
+        channelName,
+        spectralSeriesKey
+      ));
       continue;
     }
 
@@ -96,6 +112,53 @@ export function ensureLayerChannelsResident(
   }
 
   return uploads;
+}
+
+function uploadSpectralRgbSourceTexture(
+  state: GlImageRendererState,
+  layerTextures: LayerSourceTextures,
+  width: number,
+  height: number,
+  layer: DecodedLayer,
+  sourceName: string,
+  seriesKey: string
+): ResidentChannelUpload {
+  const pixels = buildSelectedDisplayTexture(layer, width, height, {
+    kind: 'spectralRgb',
+    seriesKey
+  });
+  let texture: WebGLTexture | null = null;
+  try {
+    texture = state.gl.createTexture();
+    if (!texture) {
+      throw new Error('Failed to create spectral RGB source texture.');
+    }
+
+    state.gl.bindTexture(state.gl.TEXTURE_2D, texture);
+    configureSourceTexture(state.gl);
+    state.gl.texImage2D(
+      state.gl.TEXTURE_2D,
+      0,
+      state.gl.RGBA32F,
+      width,
+      height,
+      0,
+      state.gl.RGBA,
+      state.gl.FLOAT,
+      pixels
+    );
+    layerTextures.textureByChannel.set(sourceName, texture);
+    return {
+      channelName: sourceName,
+      textureBytes: predictRgba32fTextureBytes(width, height),
+      materializedBytes: 0
+    };
+  } catch (error) {
+    if (texture) {
+      state.gl.deleteTexture(texture);
+    }
+    throw error;
+  }
 }
 
 export function setDisplaySelectionBindings(
@@ -195,6 +258,10 @@ function configureSourceTexture(gl: WebGL2RenderingContext): void {
 
 function predictR32fTextureBytes(width: number, height: number): number {
   return Math.max(0, width * height * Float32Array.BYTES_PER_ELEMENT);
+}
+
+function predictRgba32fTextureBytes(width: number, height: number): number {
+  return Math.max(0, width * height * 4 * Float32Array.BYTES_PER_ELEMENT);
 }
 
 function getOrCreateLayerSourceTextures(
