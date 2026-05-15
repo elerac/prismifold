@@ -1,5 +1,5 @@
 import { buildZeroCenteredColormapRange } from '../colormap-range';
-import { normalizeDisplayGamma } from '../color';
+import { DEFAULT_DISPLAY_GAMMA, normalizeDisplayGamma } from '../color';
 import { ColormapLut, sampleColormapRgbBytes } from '../colormaps';
 import { DisposableBag, type Disposable } from '../lifecycle';
 import type { DisplayLuminanceRange, StokesAolpDegreeModulationMode, VisualizationMode } from '../types';
@@ -9,6 +9,9 @@ import { syncSelectOptions } from './render-helpers';
 const COLORMAP_ZERO_CENTER_SLIDER_MIN_MAGNITUDE = 1e-16;
 const COLORMAP_GRADIENT_STOP_COUNT = 16;
 const DEFAULT_COLORMAP_GRADIENT = 'linear-gradient(90deg, #d95656 0%, #05070a 50%, #59d884 100%)';
+const DISPLAY_GAMMA_MAGNET_TARGET = DEFAULT_DISPLAY_GAMMA;
+const DISPLAY_GAMMA_MAGNET_RADIUS = 0.05;
+const DISPLAY_GAMMA_MAGNET_EPSILON = 1e-12;
 
 interface ColormapPanelCallbacks {
   onExposureChange: (value: number) => void;
@@ -357,7 +360,12 @@ export class ColormapPanel implements Disposable {
   private bindGammaControl(slider: HTMLInputElement, valueInput: HTMLInputElement): void {
     this.disposables.addEventListener(slider, 'input', (event) => {
       const target = event.currentTarget as HTMLInputElement;
-      this.callbacks.onDisplayGammaChange(normalizeDisplayGamma(Number(target.value)));
+      const displayGamma = magnetizeDisplayGammaSliderValue(Number(target.value));
+      if (displayGamma === DISPLAY_GAMMA_MAGNET_TARGET) {
+        target.value = formatDisplayGammaInputValue(displayGamma);
+      }
+
+      this.callbacks.onDisplayGammaChange(displayGamma);
     });
 
     this.disposables.addEventListener(slider, 'change', () => {
@@ -548,6 +556,18 @@ function formatColormapInputValue(value: number): string {
 
 function formatDisplayGammaInputValue(value: number): string {
   return Number(normalizeDisplayGamma(value).toFixed(2)).toString();
+}
+
+function magnetizeDisplayGammaSliderValue(value: number): number {
+  const displayGamma = normalizeDisplayGamma(value);
+  if (
+    Math.abs(displayGamma - DISPLAY_GAMMA_MAGNET_TARGET) <=
+    DISPLAY_GAMMA_MAGNET_RADIUS + DISPLAY_GAMMA_MAGNET_EPSILON
+  ) {
+    return DISPLAY_GAMMA_MAGNET_TARGET;
+  }
+
+  return displayGamma;
 }
 
 function formatColormapRangeStep(min: number, max: number): string {

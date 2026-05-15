@@ -1076,18 +1076,35 @@ describe('top bar and display controls', () => {
     expect(onDisplayGammaChange).toHaveBeenLastCalledWith(1.8);
     expect(onDisplayGammaCommit).not.toHaveBeenCalled();
 
+    gammaSlider.value = '2.23';
+    gammaSlider.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(onDisplayGammaChange).toHaveBeenLastCalledWith(2.2);
+    expect(gammaSlider.value).toBe('2.2');
+    expect(onDisplayGammaCommit).not.toHaveBeenCalled();
+
+    gammaSlider.value = '2.26';
+    gammaSlider.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(onDisplayGammaChange).toHaveBeenLastCalledWith(2.26);
+    expect(gammaSlider.value).toBe('2.26');
+    expect(onDisplayGammaCommit).not.toHaveBeenCalled();
+
     gammaSlider.dispatchEvent(new Event('change', { bubbles: true }));
     expect(onDisplayGammaCommit).toHaveBeenCalledTimes(1);
+
+    gammaValue.value = '2.23';
+    gammaValue.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onDisplayGammaChange).toHaveBeenLastCalledWith(2.23);
+    expect(onDisplayGammaCommit).toHaveBeenCalledTimes(2);
 
     gammaValue.value = '9';
     gammaValue.dispatchEvent(new Event('change', { bubbles: true }));
     expect(onDisplayGammaChange).toHaveBeenLastCalledWith(5);
-    expect(onDisplayGammaCommit).toHaveBeenCalledTimes(2);
+    expect(onDisplayGammaCommit).toHaveBeenCalledTimes(3);
 
     gammaValue.value = '-1';
     gammaValue.dispatchEvent(new Event('change', { bubbles: true }));
     expect(onDisplayGammaChange).toHaveBeenLastCalledWith(0.01);
-    expect(onDisplayGammaCommit).toHaveBeenCalledTimes(3);
+    expect(onDisplayGammaCommit).toHaveBeenCalledTimes(4);
 
     ui.setDisplayGamma(0.5);
 
