@@ -24,8 +24,11 @@ import {
   getDisplaySourceBindingChannelNames
 } from '../display/bindings';
 import {
+  buildSpectralRgbSourceName,
+  findSpectralRgbSeriesKeyForChannel,
   isSpectralRgbSourceName,
-  isSpectralStokesRgbSourceName
+  isSpectralStokesRgbSourceName,
+  pickDefaultSpectralRgbSelection
 } from '../spectral';
 import {
   buildDisplayAutoExposureRevisionKey,
@@ -204,6 +207,7 @@ type PendingAnalysisJob =
 
 const DISPLAY_LUMINANCE_RANGE_IDLE_TIMEOUT_MS = 250;
 const DISPLAY_LUMINANCE_RANGE_IDLE_FALLBACK_DELAY_MS = 64;
+const SPECTRAL_RGB_PREWARM_IDLE_TIMEOUT_MS = 500;
 const DEFAULT_ANALYSIS_COMPUTE_CHUNK_SIZE = 32_768;
 
 export interface RenderCacheServiceDependencies {
@@ -240,6 +244,11 @@ export class RenderCacheService implements Disposable {
   private boundLayerIndex: number | null = null;
   private boundChannelNames = new Set<string>();
   private boundTextureRevisionKey = '';
+  private activeHotSessionId: string | null = null;
+  private activeHotLayerIndex: number | null = null;
+  private activeHotChannelNames = new Set<string>();
+  private spectralRgbPrewarmToken = 0;
+  private pendingSpectralRgbPrewarmKey: string | null = null;
   private nextAccessToken = 1;
   private processingPromise: Promise<void> | null = null;
   private processingImageStatsPromise: Promise<void> | null = null;
@@ -273,6 +282,9 @@ export class RenderCacheService implements Disposable {
 
     const layer = session.decoded.layers[state.activeLayer] ?? null;
     if (!layer || session.decoded.width <= 0 || session.decoded.height <= 0) {
+      if (this.getActiveSessionId() === session.id) {
+        this.clearActiveHotSourceTracking(session.id);
+      }
       this.enforceResidencyBudget();
       this.syncDisplayCacheUsageUi();
       return {
@@ -287,63 +299,26 @@ export class RenderCacheService implements Disposable {
       return isDerivedDisplaySourceName(channelName) ||
         layer.channelStorage.channelIndexByName[channelName] !== undefined;
     });
-    const protectedBinding = this.createProtectedBinding(session.id, state.activeLayer, requiredChannelNames);
-    let residentLayer = this.getOrCreateResidentLayerEntry(entry, state.activeLayer);
-    const missingChannelNames = requiredChannelNames.filter((channelName) => {
-      return !residentLayer.residentChannels.has(channelName);
+    const protectedBinding = this.resolvePrepareProtectedBinding(
+      session.id,
+      state.activeLayer,
+      layer,
+      state.displaySelection,
+      requiredChannelNames
+    );
+    const { missingChannelNames } = this.ensureResidentChannels({
+      session,
+      layerIndex: state.activeLayer,
+      width: session.decoded.width,
+      height: session.decoded.height,
+      layer,
+      channelNames: requiredChannelNames,
+      protectedBinding
     });
     const textureDirty =
       missingChannelNames.length > 0 ||
       this.boundSessionId !== session.id ||
       this.boundTextureRevisionKey !== textureRevisionKey;
-
-    if (missingChannelNames.length > 0) {
-      this.enforceResidencyBudget({
-        reservedBytes: predictRetainedChannelBytes(
-          session.decoded.width,
-          session.decoded.height,
-          layer,
-          missingChannelNames
-        ),
-        protectedBinding
-      });
-      residentLayer = this.getOrCreateResidentLayerEntry(entry, state.activeLayer);
-
-      const prepareStartedAt = performance.now();
-      traceViewerInteraction({
-        type: 'displayChannelPrepareStart',
-        sessionId: session.id,
-        missingChannelCount: missingChannelNames.length
-      });
-      const residentChannelUploads = this.renderer.ensureLayerChannelsResident(
-        session.id,
-        state.activeLayer,
-        session.decoded.width,
-        session.decoded.height,
-        layer,
-        missingChannelNames
-      );
-      traceViewerInteraction({
-        type: 'displayChannelPrepareEnd',
-        sessionId: session.id,
-        missingChannelCount: missingChannelNames.length,
-        textureBytes: residentChannelUploads.reduce((total, upload) => total + upload.textureBytes, 0),
-        materializedBytes: residentChannelUploads.reduce((total, upload) => total + upload.materializedBytes, 0),
-        durationMs: performance.now() - prepareStartedAt
-      });
-      for (const upload of residentChannelUploads) {
-        residentLayer.residentChannels.set(upload.channelName, {
-          textureBytes: upload.textureBytes,
-          materializedBytes: upload.materializedBytes,
-          lastAccessToken: this.takeAccessToken()
-        });
-      }
-
-      this.enforceResidencyBudget({
-        protectedBinding
-      });
-    }
-    this.touchResidentChannels(residentLayer, requiredChannelNames);
 
     if (textureDirty) {
       this.renderer.setDisplaySelectionBindings(
@@ -364,6 +339,7 @@ export class RenderCacheService implements Disposable {
       protectedBinding
     });
     this.syncDisplayCacheUsageUi();
+    this.scheduleSpectralRgbPrewarm(session, state, layer);
 
     return {
       textureRevisionKey,
@@ -706,6 +682,7 @@ export class RenderCacheService implements Disposable {
     this.entries.delete(sessionId);
     this.renderer.discardSessionTextures(sessionId);
     this.clearBoundTextureTracking(sessionId);
+    this.clearActiveHotSourceTracking(sessionId);
     this.syncDisplayCacheUsageUi();
   }
 
@@ -723,6 +700,7 @@ export class RenderCacheService implements Disposable {
     this.boundLayerIndex = null;
     this.boundChannelNames.clear();
     this.boundTextureRevisionKey = '';
+    this.clearActiveHotSourceTracking();
     this.nextAccessToken = 1;
     this.syncDisplayCacheUsageUi();
   }
@@ -743,6 +721,7 @@ export class RenderCacheService implements Disposable {
     this.boundLayerIndex = null;
     this.boundChannelNames.clear();
     this.boundTextureRevisionKey = '';
+    this.clearActiveHotSourceTracking();
     this.nextAccessToken = 1;
   }
 
@@ -1298,6 +1277,244 @@ export class RenderCacheService implements Disposable {
     );
   }
 
+  private ensureResidentChannels(args: {
+    session: OpenedImageSession;
+    layerIndex: number;
+    width: number;
+    height: number;
+    layer: DecodedLayer;
+    channelNames: readonly string[];
+    protectedBinding: ProtectedBinding;
+  }): {
+    residentLayer: ResidentLayerResourceEntry;
+    missingChannelNames: string[];
+  } {
+    const entry = this.getOrCreateEntry(args.session.id);
+    let residentLayer = this.getOrCreateResidentLayerEntry(entry, args.layerIndex);
+    const channelNames = uniqueStrings(args.channelNames);
+    const missingChannelNames = channelNames.filter((channelName) => {
+      return !residentLayer.residentChannels.has(channelName);
+    });
+
+    if (missingChannelNames.length === 0) {
+      this.touchResidentChannels(residentLayer, channelNames);
+      return {
+        residentLayer,
+        missingChannelNames
+      };
+    }
+
+    this.enforceResidencyBudget({
+      reservedBytes: predictRetainedChannelBytes(
+        args.width,
+        args.height,
+        args.layer,
+        missingChannelNames
+      ),
+      protectedBinding: args.protectedBinding
+    });
+    residentLayer = this.getOrCreateResidentLayerEntry(entry, args.layerIndex);
+
+    const prepareStartedAt = performance.now();
+    traceViewerInteraction({
+      type: 'displayChannelPrepareStart',
+      sessionId: args.session.id,
+      missingChannelCount: missingChannelNames.length
+    });
+    const residentChannelUploads = this.renderer.ensureLayerChannelsResident(
+      args.session.id,
+      args.layerIndex,
+      args.width,
+      args.height,
+      args.layer,
+      missingChannelNames
+    );
+    traceViewerInteraction({
+      type: 'displayChannelPrepareEnd',
+      sessionId: args.session.id,
+      missingChannelCount: missingChannelNames.length,
+      textureBytes: residentChannelUploads.reduce((total, upload) => total + upload.textureBytes, 0),
+      materializedBytes: residentChannelUploads.reduce((total, upload) => total + upload.materializedBytes, 0),
+      durationMs: performance.now() - prepareStartedAt
+    });
+    for (const upload of residentChannelUploads) {
+      residentLayer.residentChannels.set(upload.channelName, {
+        textureBytes: upload.textureBytes,
+        materializedBytes: upload.materializedBytes,
+        lastAccessToken: this.takeAccessToken()
+      });
+    }
+
+    this.enforceResidencyBudget({
+      protectedBinding: args.protectedBinding
+    });
+    this.touchResidentChannels(residentLayer, channelNames);
+
+    return {
+      residentLayer,
+      missingChannelNames
+    };
+  }
+
+  private resolvePrepareProtectedBinding(
+    sessionId: string,
+    layerIndex: number,
+    layer: DecodedLayer,
+    selection: DisplaySelection | null,
+    requiredChannelNames: readonly string[]
+  ): ProtectedBinding {
+    if (this.getActiveSessionId() !== sessionId) {
+      return this.createProtectedBinding(sessionId, layerIndex, requiredChannelNames);
+    }
+
+    this.setActiveHotSourceContext(sessionId, layerIndex);
+    this.addActiveHotSourceNames(resolveSpectralRgbHotSourceNames(layer, selection));
+    return this.createProtectedBinding(
+      sessionId,
+      layerIndex,
+      unionStrings(requiredChannelNames, this.activeHotChannelNames)
+    );
+  }
+
+  private setActiveHotSourceContext(sessionId: string, layerIndex: number): void {
+    if (this.activeHotSessionId === sessionId && this.activeHotLayerIndex === layerIndex) {
+      return;
+    }
+
+    this.activeHotSessionId = sessionId;
+    this.activeHotLayerIndex = layerIndex;
+    this.activeHotChannelNames.clear();
+    this.invalidateSpectralRgbPrewarm();
+  }
+
+  private addActiveHotSourceNames(channelNames: Iterable<string>): void {
+    for (const channelName of channelNames) {
+      this.activeHotChannelNames.add(channelName);
+    }
+  }
+
+  private clearActiveHotSourceTracking(sessionId?: string): void {
+    if (sessionId !== undefined && this.activeHotSessionId !== sessionId) {
+      return;
+    }
+
+    this.activeHotSessionId = null;
+    this.activeHotLayerIndex = null;
+    this.activeHotChannelNames.clear();
+    this.invalidateSpectralRgbPrewarm();
+  }
+
+  private invalidateSpectralRgbPrewarm(): void {
+    this.spectralRgbPrewarmToken += 1;
+    this.pendingSpectralRgbPrewarmKey = null;
+  }
+
+  private scheduleSpectralRgbPrewarm(
+    session: OpenedImageSession,
+    state: ViewerSessionState,
+    layer: DecodedLayer
+  ): void {
+    if (this.disposed || this.getActiveSessionId() !== session.id) {
+      return;
+    }
+
+    const sourceName = resolvePrewarmSpectralRgbSourceName(layer, state.displaySelection);
+    if (!sourceName) {
+      return;
+    }
+
+    this.setActiveHotSourceContext(session.id, state.activeLayer);
+    this.addActiveHotSourceNames([sourceName]);
+
+    const residentLayer = this.entries.get(session.id)?.residentLayers.get(state.activeLayer) ?? null;
+    if (residentLayer?.residentChannels.has(sourceName)) {
+      return;
+    }
+
+    const prewarmKey = buildPrewarmKey(session.id, state.activeLayer, sourceName);
+    if (this.pendingSpectralRgbPrewarmKey === prewarmKey) {
+      return;
+    }
+
+    const token = this.spectralRgbPrewarmToken + 1;
+    this.spectralRgbPrewarmToken = token;
+    this.pendingSpectralRgbPrewarmKey = prewarmKey;
+    void this.runSpectralRgbPrewarm({
+      session,
+      layerIndex: state.activeLayer,
+      layer,
+      sourceName,
+      prewarmKey,
+      token
+    });
+  }
+
+  private async runSpectralRgbPrewarm(args: {
+    session: OpenedImageSession;
+    layerIndex: number;
+    layer: DecodedLayer;
+    sourceName: string;
+    prewarmKey: string;
+    token: number;
+  }): Promise<void> {
+    try {
+      await this.waitForIdleSlot(SPECTRAL_RGB_PREWARM_IDLE_TIMEOUT_MS);
+      if (!this.isSpectralRgbPrewarmCurrent(args)) {
+        return;
+      }
+
+      const entry = this.entries.get(args.session.id);
+      const residentLayer = entry?.residentLayers.get(args.layerIndex) ?? null;
+      if (!entry || residentLayer?.residentChannels.has(args.sourceName)) {
+        return;
+      }
+
+      const protectedBinding = this.createProtectedBinding(
+        args.session.id,
+        args.layerIndex,
+        this.resolveActiveProtectedChannelNames(args.session.id, args.layerIndex)
+      );
+      this.ensureResidentChannels({
+        session: args.session,
+        layerIndex: args.layerIndex,
+        width: args.session.decoded.width,
+        height: args.session.decoded.height,
+        layer: args.layer,
+        channelNames: [args.sourceName],
+        protectedBinding
+      });
+      this.syncDisplayCacheUsageUi();
+    } catch (error) {
+      if (isAbortError(error) || this.disposed) {
+        return;
+      }
+      // Prewarm is opportunistic; a foreground display switch will retry and surface failures.
+    } finally {
+      if (this.pendingSpectralRgbPrewarmKey === args.prewarmKey) {
+        this.pendingSpectralRgbPrewarmKey = null;
+      }
+    }
+  }
+
+  private isSpectralRgbPrewarmCurrent(args: {
+    session: OpenedImageSession;
+    layerIndex: number;
+    sourceName: string;
+    prewarmKey: string;
+    token: number;
+  }): boolean {
+    return (
+      !this.disposed &&
+      this.spectralRgbPrewarmToken === args.token &&
+      this.pendingSpectralRgbPrewarmKey === args.prewarmKey &&
+      this.getActiveSessionId() === args.session.id &&
+      this.activeHotSessionId === args.session.id &&
+      this.activeHotLayerIndex === args.layerIndex &&
+      this.activeHotChannelNames.has(args.sourceName) &&
+      this.entries.has(args.session.id)
+    );
+  }
+
   private clearBoundTextureTracking(sessionId: string): void {
     if (this.boundSessionId === sessionId) {
       this.boundSessionId = null;
@@ -1385,11 +1602,31 @@ export class RenderCacheService implements Disposable {
     }
 
     const activeSessionId = this.getActiveSessionId();
+    if (
+      activeSessionId &&
+      activeSessionId === this.activeHotSessionId &&
+      this.activeHotLayerIndex !== null &&
+      this.activeHotChannelNames.size > 0
+    ) {
+      return this.createProtectedBinding(
+        activeSessionId,
+        this.activeHotLayerIndex,
+        this.resolveActiveProtectedChannelNames(activeSessionId, this.activeHotLayerIndex)
+      );
+    }
+
     if (!activeSessionId || activeSessionId !== this.boundSessionId || this.boundLayerIndex === null) {
       return null;
     }
 
     return this.createProtectedBinding(this.boundSessionId, this.boundLayerIndex, this.boundChannelNames);
+  }
+
+  private resolveActiveProtectedChannelNames(sessionId: string, layerIndex: number): string[] {
+    const boundChannelNames = this.boundSessionId === sessionId && this.boundLayerIndex === layerIndex
+      ? this.boundChannelNames
+      : [];
+    return unionStrings(boundChannelNames, this.activeHotChannelNames);
   }
 
   private getEvictionCandidates(
@@ -1664,6 +1901,54 @@ function predictRetainedChannelBytes(
 
 function isDerivedDisplaySourceName(channelName: string): boolean {
   return isSpectralRgbSourceName(channelName) || isSpectralStokesRgbSourceName(channelName);
+}
+
+function resolveSpectralRgbHotSourceNames(
+  layer: DecodedLayer,
+  selection: DisplaySelection | null
+): string[] {
+  if (selection?.kind === 'spectralRgb') {
+    return [buildSpectralRgbSourceName(selection.seriesKey)];
+  }
+
+  if (selection?.kind !== 'channelMono') {
+    return [];
+  }
+
+  const seriesKey = findSpectralRgbSeriesKeyForChannel(layer.channelNames, selection.channel);
+  return seriesKey === null ? [] : [selection.channel, buildSpectralRgbSourceName(seriesKey)];
+}
+
+function resolvePrewarmSpectralRgbSourceName(
+  layer: DecodedLayer,
+  selection: DisplaySelection | null
+): string | null {
+  const hotSourceNames = resolveSpectralRgbHotSourceNames(layer, selection);
+  const pairedSourceName = hotSourceNames.find(isSpectralRgbSourceName) ?? null;
+  if (pairedSourceName) {
+    return pairedSourceName;
+  }
+
+  const defaultSelection = pickDefaultSpectralRgbSelection(layer.channelNames);
+  return defaultSelection ? buildSpectralRgbSourceName(defaultSelection.seriesKey) : null;
+}
+
+function buildPrewarmKey(sessionId: string, layerIndex: number, sourceName: string): string {
+  return `${sessionId}:${layerIndex}:${sourceName}`;
+}
+
+function uniqueStrings(values: readonly string[]): string[] {
+  return [...new Set(values)];
+}
+
+function unionStrings(...groups: Iterable<string>[]): string[] {
+  const values = new Set<string>();
+  for (const group of groups) {
+    for (const value of group) {
+      values.add(value);
+    }
+  }
+  return [...values];
 }
 
 function resolveWindowLike(): RenderCacheWindowLike | null {

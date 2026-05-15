@@ -10,6 +10,7 @@ import type { DecodedExrImage, DecodedLayer, DisplayLuminanceRange, ImageStats, 
 import { buildViewerStateForLayer, createInitialState } from '../src/viewer-store';
 import {
   createChannelMonoSelection,
+  createSpectralRgbSelection,
   createLayerFromChannels,
   createStokesSelection
 } from './helpers/state-fixtures';
@@ -92,8 +93,10 @@ function createRendererMock() {
         channelNames: string[]
       ) => channelNames.map((channelName) => ({
         channelName,
-        textureBytes: width * height * Float32Array.BYTES_PER_ELEMENT,
-        materializedBytes: layer.channelStorage.kind === 'interleaved-f32'
+        textureBytes: channelName.startsWith('__spectral')
+          ? width * height * 4 * Float32Array.BYTES_PER_ELEMENT
+          : width * height * Float32Array.BYTES_PER_ELEMENT,
+        materializedBytes: !channelName.startsWith('__spectral') && layer.channelStorage.kind === 'interleaved-f32'
           ? width * height * Float32Array.BYTES_PER_ELEMENT
           : 0
       }))
@@ -277,6 +280,203 @@ describe('render cache service', () => {
       '__spectralStokesRgb:S2',
       '__spectralStokesRgb:S3'
     ]);
+  });
+
+  it('keeps active paired spectral RGB resident when switching to split channels over budget', () => {
+    const decoded = createDecodedImage(3_000, 1_000, {
+      '410nm': 0.2,
+      '500nm': 0.8,
+      '650nm': 0.3
+    });
+    const session = createSession('session-1', decoded);
+    const spectralState = {
+      ...session.state,
+      displaySelection: createSpectralRgbSelection()
+    };
+    const splitState = {
+      ...session.state,
+      displaySelection: createChannelMonoSelection('410nm')
+    };
+    const ui = createUiMock();
+    const renderer = createRendererMock();
+    const service = new RenderCacheService({
+      ui,
+      renderer,
+      getActiveSessionId: () => session.id
+    });
+
+    service.setBudgetMb(64);
+
+    service.prepareActiveSession(session, spectralState);
+    service.prepareActiveSession(session, splitState);
+    service.prepareActiveSession(session, spectralState);
+
+    expect(renderer.ensureLayerChannelsResident).toHaveBeenCalledTimes(2);
+    expect(renderer.ensureLayerChannelsResident).toHaveBeenNthCalledWith(
+      1,
+      session.id,
+      0,
+      3_000,
+      1_000,
+      decoded.layers[0],
+      ['__spectralRgb:']
+    );
+    expect(renderer.ensureLayerChannelsResident).toHaveBeenNthCalledWith(
+      2,
+      session.id,
+      0,
+      3_000,
+      1_000,
+      decoded.layers[0],
+      ['410nm']
+    );
+    expect(renderer.discardChannelSourceTexture).not.toHaveBeenCalledWith(session.id, 0, '__spectralRgb:');
+    expect([...getEntries(service).get(session.id)?.residentLayers.get(0)?.residentChannels.keys() ?? []]).toEqual([
+      '__spectralRgb:',
+      '410nm'
+    ]);
+  });
+
+  it('does not pin hot spectral RGB sources after the active session changes', () => {
+    const first = createSession('first', createDecodedImage(3_000, 1_000, {
+      '410nm': 0.2,
+      '500nm': 0.8,
+      '650nm': 0.3
+    }));
+    const second = createSession('second', createDecodedImage(3_000, 1_000, { Z: 1 }));
+    const firstState = {
+      ...first.state,
+      displaySelection: createSpectralRgbSelection()
+    };
+    const secondState = {
+      ...second.state,
+      displaySelection: createChannelMonoSelection('Z')
+    };
+    const ui = createUiMock();
+    const renderer = createRendererMock();
+    let activeSessionId: string | null = first.id;
+    const service = new RenderCacheService({
+      ui,
+      renderer,
+      getActiveSessionId: () => activeSessionId
+    });
+
+    service.setBudgetMb(64);
+    service.prepareActiveSession(first, firstState);
+
+    activeSessionId = second.id;
+    service.prepareActiveSession(second, secondState);
+
+    expect(renderer.discardChannelSourceTexture).toHaveBeenCalledWith(first.id, 0, '__spectralRgb:');
+    expect(getEntries(service).get(first.id)?.residentLayers.get(0)?.residentChannels.has('__spectralRgb:'))
+      .not.toBe(true);
+  });
+
+  it('prewarms active spectral RGB during idle without rebinding the visible split channel', async () => {
+    const decoded = createDecodedImage(2, 1, {
+      '410nm': 0.2,
+      '500nm': 0.8,
+      '650nm': 0.3
+    });
+    const session = createSession('session-1', decoded);
+    const splitState = {
+      ...session.state,
+      displaySelection: createChannelMonoSelection('410nm')
+    };
+    const ui = createUiMock();
+    const renderer = createRendererMock();
+    const { windowLike, flush } = createRenderCacheWindowLike();
+    const service = new RenderCacheService({
+      ui,
+      renderer,
+      windowLike,
+      getActiveSessionId: () => session.id
+    });
+
+    service.prepareActiveSession(session, splitState);
+
+    expect(renderer.ensureLayerChannelsResident).toHaveBeenCalledTimes(1);
+    expect(renderer.ensureLayerChannelsResident).toHaveBeenLastCalledWith(
+      session.id,
+      0,
+      2,
+      1,
+      decoded.layers[0],
+      ['410nm']
+    );
+    expect(renderer.setDisplaySelectionBindings).toHaveBeenCalledTimes(1);
+
+    await flush();
+
+    expect(renderer.ensureLayerChannelsResident).toHaveBeenCalledTimes(2);
+    expect(renderer.ensureLayerChannelsResident).toHaveBeenLastCalledWith(
+      session.id,
+      0,
+      2,
+      1,
+      decoded.layers[0],
+      ['__spectralRgb:']
+    );
+    expect(renderer.setDisplaySelectionBindings).toHaveBeenCalledTimes(1);
+    expect([...getEntries(service).get(session.id)?.residentLayers.get(0)?.residentChannels.keys() ?? []]).toEqual([
+      '410nm',
+      '__spectralRgb:'
+    ]);
+  });
+
+  it('cancels stale spectral RGB prewarm when the active session changes before idle', async () => {
+    const first = createSession('first', createDecodedImage(2, 1, {
+      '410nm': 0.2,
+      '500nm': 0.8,
+      '650nm': 0.3
+    }));
+    const second = createSession('second', createDecodedImage(2, 1, { Z: 1 }));
+    const firstSplitState = {
+      ...first.state,
+      displaySelection: createChannelMonoSelection('410nm')
+    };
+    const secondState = {
+      ...second.state,
+      displaySelection: createChannelMonoSelection('Z')
+    };
+    const ui = createUiMock();
+    const renderer = createRendererMock();
+    const { windowLike, flush } = createRenderCacheWindowLike();
+    let activeSessionId: string | null = first.id;
+    const service = new RenderCacheService({
+      ui,
+      renderer,
+      windowLike,
+      getActiveSessionId: () => activeSessionId
+    });
+
+    service.prepareActiveSession(first, firstSplitState);
+    activeSessionId = second.id;
+    service.prepareActiveSession(second, secondState);
+
+    await flush();
+
+    expect(renderer.ensureLayerChannelsResident).toHaveBeenCalledTimes(2);
+    expect(renderer.ensureLayerChannelsResident).toHaveBeenNthCalledWith(
+      1,
+      first.id,
+      0,
+      2,
+      1,
+      first.decoded.layers[0],
+      ['410nm']
+    );
+    expect(renderer.ensureLayerChannelsResident).toHaveBeenNthCalledWith(
+      2,
+      second.id,
+      0,
+      2,
+      1,
+      second.decoded.layers[0],
+      ['Z']
+    );
+    expect(getEntries(service).get(first.id)?.residentLayers.get(0)?.residentChannels.has('__spectralRgb:'))
+      .not.toBe(true);
   });
 
   it('keeps texture preparation separate from lazy, deduped luminance requests', async () => {
