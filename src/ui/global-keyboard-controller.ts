@@ -27,6 +27,8 @@ interface GlobalKeyboardControllerCallbacks {
   closeFolderLoadDialog: (restoreFocus?: boolean) => void;
   isSettingsDialogOpen: () => boolean;
   closeSettingsDialog: (restoreFocus?: boolean) => void;
+  isMetadataDialogOpen: () => boolean;
+  closeMetadataDialog: (restoreFocus?: boolean) => void;
   isWindowPreviewActive: () => boolean;
   setWindowPreviewEnabled: (enabled: boolean) => void;
   hasOpenMenu: () => boolean;
@@ -90,6 +92,12 @@ export class GlobalKeyboardController implements Disposable {
       if (event.key === 'Escape' && this.callbacks.isSettingsDialogOpen()) {
         event.preventDefault();
         this.callbacks.closeSettingsDialog(true);
+        return;
+      }
+
+      if (event.key === 'Escape' && this.callbacks.isMetadataDialogOpen()) {
+        event.preventDefault();
+        this.callbacks.closeMetadataDialog(true);
         return;
       }
 
@@ -213,6 +221,7 @@ export class GlobalKeyboardController implements Disposable {
       this.callbacks.isExportColormapDialogOpen() ||
       this.callbacks.isFolderLoadDialogOpen() ||
       this.callbacks.isSettingsDialogOpen() ||
+      this.callbacks.isMetadataDialogOpen() ||
       this.callbacks.isScreenshotSelectionActive() ||
       this.callbacks.hasOpenMenu() ||
       this.callbacks.getOpenedImageCount() === 0
@@ -238,6 +247,7 @@ export class GlobalKeyboardController implements Disposable {
       this.callbacks.isExportImageBatchDialogOpen() ||
       this.callbacks.isExportColormapDialogOpen() ||
       this.callbacks.isSettingsDialogOpen() ||
+      this.callbacks.isMetadataDialogOpen() ||
       this.callbacks.isScreenshotSelectionActive() ||
       this.callbacks.isWindowPreviewActive() ||
       this.callbacks.hasOpenMenu()
@@ -292,6 +302,7 @@ export class GlobalKeyboardController implements Disposable {
       this.callbacks.isExportColormapDialogOpen() ||
       this.callbacks.isFolderLoadDialogOpen() ||
       this.callbacks.isSettingsDialogOpen() ||
+      this.callbacks.isMetadataDialogOpen() ||
       this.callbacks.isScreenshotSelectionActive() ||
       this.callbacks.isWindowPreviewActive() ||
       this.callbacks.hasOpenMenu()
@@ -323,6 +334,7 @@ export class GlobalKeyboardController implements Disposable {
       this.callbacks.isExportImageBatchDialogOpen() ||
       this.callbacks.isExportColormapDialogOpen() ||
       this.callbacks.isSettingsDialogOpen() ||
+      this.callbacks.isMetadataDialogOpen() ||
       this.callbacks.isScreenshotSelectionActive() ||
       this.callbacks.getOpenedImageCount() === 0 ||
       this.callbacks.isWindowPreviewActive() ||
@@ -361,6 +373,7 @@ export class GlobalKeyboardController implements Disposable {
       this.callbacks.isExportColormapDialogOpen() ||
       this.callbacks.isFolderLoadDialogOpen() ||
       this.callbacks.isSettingsDialogOpen() ||
+      this.callbacks.isMetadataDialogOpen() ||
       this.callbacks.isScreenshotSelectionActive() ||
       this.callbacks.getOpenedImageCount() === 0 ||
       this.callbacks.isWindowPreviewActive() ||
@@ -535,7 +548,8 @@ export class GlobalKeyboardController implements Disposable {
       this.callbacks.isExportImageBatchDialogOpen() ||
       this.callbacks.isExportColormapDialogOpen() ||
       this.callbacks.isFolderLoadDialogOpen() ||
-      this.callbacks.isSettingsDialogOpen()
+      this.callbacks.isSettingsDialogOpen() ||
+      this.callbacks.isMetadataDialogOpen()
     );
   }
 }

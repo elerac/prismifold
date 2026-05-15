@@ -574,8 +574,6 @@ describe('metadata inspector', () => {
 
     new ViewerUi(createUiCallbacks());
 
-    const metadataToggle = document.getElementById('metadata-toggle') as HTMLButtonElement;
-    const metadataContent = document.getElementById('metadata-content') as HTMLDivElement;
     const probeToggle = document.getElementById('probe-toggle') as HTMLButtonElement;
     const probeContent = document.getElementById('probe-content') as HTMLDivElement;
     const roiToggle = document.getElementById('roi-toggle') as HTMLButtonElement;
@@ -583,8 +581,9 @@ describe('metadata inspector', () => {
     const imageStatsToggle = document.getElementById('image-stats-toggle') as HTMLButtonElement;
     const imageStatsContent = document.getElementById('image-stats-content') as HTMLDivElement;
 
-    expect(metadataToggle.getAttribute('aria-expanded')).toBe('true');
-    expect(metadataContent.hidden).toBe(false);
+    expect(document.getElementById('metadata-panel')).toBeNull();
+    expect(document.getElementById('metadata-toggle')).toBeNull();
+    expect(document.getElementById('metadata-content')).toBeNull();
     expect(probeToggle.getAttribute('aria-expanded')).toBe('true');
     expect(probeContent.hidden).toBe(false);
     expect(roiToggle.getAttribute('aria-expanded')).toBe('true');
@@ -592,22 +591,10 @@ describe('metadata inspector', () => {
     expect(imageStatsToggle.getAttribute('aria-expanded')).toBe('true');
     expect(imageStatsContent.hidden).toBe(false);
 
-    metadataToggle.click();
-
-    expect(metadataToggle.getAttribute('aria-expanded')).toBe('false');
-    expect(metadataContent.hidden).toBe(true);
-    expect((document.getElementById('metadata-panel') as HTMLElement).classList.contains('is-collapsed')).toBe(true);
-    expect(probeContent.hidden).toBe(false);
-    expect(roiContent.hidden).toBe(false);
-    expect(imageStatsContent.hidden).toBe(false);
-
-    metadataToggle.click();
     probeToggle.click();
     roiToggle.click();
     imageStatsToggle.click();
 
-    expect(metadataToggle.getAttribute('aria-expanded')).toBe('true');
-    expect(metadataContent.hidden).toBe(false);
     expect(probeToggle.getAttribute('aria-expanded')).toBe('false');
     expect(probeContent.hidden).toBe(true);
     expect(roiToggle.getAttribute('aria-expanded')).toBe('false');
@@ -619,11 +606,63 @@ describe('metadata inspector', () => {
     expect(document.querySelector('#image-stats-panel .readout-block-header')).not.toBeNull();
   });
 
-  it('shows the empty state until metadata is available', () => {
+  it('opens metadata from the top bar dialog and closes it with Escape, backdrop, and Close', () => {
+    installUiFixture();
+
+    const ui = new ViewerUi(createUiCallbacks());
+
+    const button = document.getElementById('app-metadata-button') as HTMLButtonElement;
+    const backdrop = document.getElementById('metadata-dialog-backdrop') as HTMLDivElement;
+    const dialog = document.getElementById('metadata-dialog') as HTMLElement;
+    const closeButton = document.getElementById('metadata-dialog-close-button') as HTMLButtonElement;
+
+    expect(dialog.getAttribute('role')).toBe('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(dialog.getAttribute('aria-labelledby')).toBe('metadata-dialog-title');
+    expect(backdrop.classList.contains('hidden')).toBe(true);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(button.disabled).toBe(true);
+
+    ui.setMetadata([{ key: 'compression', label: 'Compression', value: 'PIZ' }]);
+    expect(button.disabled).toBe(false);
+
+    button.focus();
+    button.click();
+
+    expect(backdrop.classList.contains('hidden')).toBe(false);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(closeButton);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    expect(backdrop.classList.contains('hidden')).toBe(true);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(button);
+
+    button.click();
+    backdrop.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(backdrop.classList.contains('hidden')).toBe(true);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+
+    button.click();
+    closeButton.click();
+
+    expect(backdrop.classList.contains('hidden')).toBe(true);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('disables the metadata button and shows the empty state until metadata is available', () => {
     installUiFixture();
 
     new ViewerUi(createUiCallbacks());
 
+    const button = document.getElementById('app-metadata-button') as HTMLButtonElement;
+
+    expect(button.disabled).toBe(true);
+    expect((document.getElementById('metadata-dialog-backdrop') as HTMLElement).classList.contains('hidden')).toBe(true);
     expect((document.getElementById('metadata-empty-state') as HTMLElement).textContent).toContain(
       'No metadata available.'
     );
@@ -634,11 +673,13 @@ describe('metadata inspector', () => {
     installUiFixture();
 
     const ui = new ViewerUi(createUiCallbacks());
+    const button = document.getElementById('app-metadata-button') as HTMLButtonElement;
     ui.setMetadata([
       { key: 'compression', label: 'Compression', value: 'PIZ' },
       { key: 'channels', label: 'Channels', value: '3 (R, G, B)' }
     ]);
 
+    expect(button.disabled).toBe(false);
     expect((document.getElementById('metadata-empty-state') as HTMLElement).classList.contains('hidden')).toBe(true);
     expect((document.getElementById('metadata-table') as HTMLElement).classList.contains('hidden')).toBe(false);
     expect(
@@ -661,24 +702,48 @@ describe('metadata inspector', () => {
     ).toEqual([{ key: 'Owner', value: 'render-farm-a' }]);
   });
 
-  it('updates metadata content while the section is collapsed', () => {
+  it('updates metadata content while the dialog is closed', () => {
     installUiFixture();
 
     const ui = new ViewerUi(createUiCallbacks());
-    const metadataToggle = document.getElementById('metadata-toggle') as HTMLButtonElement;
-    const metadataContent = document.getElementById('metadata-content') as HTMLDivElement;
+    const button = document.getElementById('app-metadata-button') as HTMLButtonElement;
+    const backdrop = document.getElementById('metadata-dialog-backdrop') as HTMLDivElement;
 
-    metadataToggle.click();
-    expect(metadataContent.hidden).toBe(true);
+    expect(backdrop.classList.contains('hidden')).toBe(true);
+    expect(button.disabled).toBe(true);
 
     ui.setMetadata([{ key: 'owner', label: 'Owner', value: 'render-farm-a' }]);
 
+    expect(button.disabled).toBe(false);
     expect(
       Array.from(document.querySelectorAll('#metadata-table .metadata-row')).map((row) => ({
         key: row.querySelector('.metadata-key')?.textContent,
         value: row.querySelector('.metadata-value')?.textContent
       }))
     ).toEqual([{ key: 'Owner', value: 'render-farm-a' }]);
+  });
+
+  it('disables and closes the metadata dialog when metadata becomes unavailable', () => {
+    installUiFixture();
+
+    const ui = new ViewerUi(createUiCallbacks());
+    const button = document.getElementById('app-metadata-button') as HTMLButtonElement;
+    const backdrop = document.getElementById('metadata-dialog-backdrop') as HTMLDivElement;
+
+    ui.setMetadata([{ key: 'owner', label: 'Owner', value: 'render-farm-a' }]);
+    button.click();
+
+    expect(backdrop.classList.contains('hidden')).toBe(false);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(button.disabled).toBe(false);
+
+    ui.setMetadata([]);
+
+    expect(backdrop.classList.contains('hidden')).toBe(true);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(button.disabled).toBe(true);
+    expect((document.getElementById('metadata-empty-state') as HTMLElement).classList.contains('hidden')).toBe(false);
+    expect((document.getElementById('metadata-table') as HTMLElement).classList.contains('hidden')).toBe(true);
   });
 });
 
@@ -1373,7 +1438,7 @@ describe('viewer state inspector', () => {
 });
 
 describe('image stats inspector', () => {
-  it('places Image Stats after View and before Metadata and renders the compact stats table', () => {
+  it('places Image Stats after View and renders the compact stats table without Metadata in the inspector', () => {
     installUiFixture();
 
     const ui = new ViewerUi(createUiCallbacks());
@@ -1395,7 +1460,7 @@ describe('image stats inspector', () => {
     expect(panelOrder.indexOf('roi-panel')).toBeLessThan(panelOrder.indexOf('image-stats-panel'));
     expect(panelOrder.indexOf('viewer-state-panel')).toBeGreaterThan(panelOrder.indexOf('roi-panel'));
     expect(panelOrder.indexOf('viewer-state-panel')).toBeLessThan(panelOrder.indexOf('image-stats-panel'));
-    expect(panelOrder.indexOf('image-stats-panel')).toBeLessThan(panelOrder.indexOf('metadata-panel'));
+    expect(panelOrder).not.toContain('metadata-panel');
     expect((document.getElementById('image-stats-empty-state') as HTMLElement).classList.contains('hidden')).toBe(true);
     expect((document.getElementById('image-stats-loading-state') as HTMLElement).classList.contains('hidden')).toBe(true);
 
@@ -1886,22 +1951,26 @@ describe('view menu', () => {
     const autoFitButton = document.getElementById('app-auto-fit-image-button') as HTMLButtonElement;
     const autoExposureButton = document.getElementById('app-auto-exposure-button') as HTMLButtonElement;
     const screenshotButton = document.getElementById('app-screenshot-button') as HTMLButtonElement;
+    const metadataButton = document.getElementById('app-metadata-button') as HTMLButtonElement;
     const fullscreenButton = document.getElementById('app-fullscreen-button') as HTMLButtonElement;
     const settingsButton = document.getElementById('settings-dialog-button') as HTMLButtonElement;
 
     expect(screenshotButton.closest('#app-menu-bar')).not.toBeNull();
+    expect(metadataButton.closest('#app-menu-bar')).not.toBeNull();
     expect(settingsButton.closest('#app-menu-bar')).not.toBeNull();
     expect(actions).not.toBeNull();
     expect(Array.from(actions.children).map((child) => child.id)).toEqual([
       'app-auto-fit-image-button',
       'app-auto-exposure-button',
       'app-screenshot-button',
+      'app-metadata-button',
       'app-fullscreen-button',
       'settings-dialog-button'
     ]);
     expect(autoExposureButton.previousElementSibling).toBe(autoFitButton);
     expect(screenshotButton.previousElementSibling).toBe(autoExposureButton);
-    expect(fullscreenButton.previousElementSibling).toBe(screenshotButton);
+    expect(metadataButton.previousElementSibling).toBe(screenshotButton);
+    expect(fullscreenButton.previousElementSibling).toBe(metadataButton);
     expect(settingsButton.previousElementSibling).toBe(fullscreenButton);
     expect(autoFitButton.getAttribute('aria-label')).toBe('Auto fit selected images');
     expect(autoFitButton.dataset.tooltip).toBe('Auto fit selected images');
@@ -1914,6 +1983,14 @@ describe('view menu', () => {
     expect(screenshotButton.dataset.tooltip).toBe('Export screenshot');
     expect(screenshotButton.title).toBe('Export Screenshot...');
     expect(screenshotButton.querySelectorAll('.app-menu-icon')).toHaveLength(1);
+    expect(metadataButton.getAttribute('aria-label')).toBe('Metadata');
+    expect(metadataButton.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(metadataButton.getAttribute('aria-expanded')).toBe('false');
+    expect(metadataButton.getAttribute('aria-controls')).toBe('metadata-dialog');
+    expect(metadataButton.dataset.tooltip).toBe('Metadata');
+    expect(metadataButton.title).toBe('Metadata');
+    expect(metadataButton.disabled).toBe(true);
+    expect(metadataButton.querySelectorAll('.app-menu-icon')).toHaveLength(1);
     expect(settingsButton.getAttribute('aria-label')).toBe('Settings');
     expect(settingsButton.getAttribute('aria-haspopup')).toBe('dialog');
     expect(settingsButton.getAttribute('aria-expanded')).toBe('false');
@@ -1927,9 +2004,10 @@ describe('view menu', () => {
     installUiFixture();
     installFullscreenApiMock();
 
-    new ViewerUi(createUiCallbacks());
+    const ui = new ViewerUi(createUiCallbacks());
 
     const screenshotButton = document.getElementById('app-screenshot-button') as HTMLButtonElement;
+    const metadataButton = document.getElementById('app-metadata-button') as HTMLButtonElement;
     const fullscreenButton = document.getElementById('app-fullscreen-button') as HTMLButtonElement;
     const tooltip = document.getElementById('app-icon-tooltip') as HTMLElement;
 
@@ -1946,6 +2024,12 @@ describe('view menu', () => {
     expect(tooltip.hidden).toBe(true);
     expect(screenshotButton.hasAttribute('aria-describedby')).toBe(false);
 
+    ui.setMetadata([{ key: 'compression', label: 'Compression', value: 'PIZ' }]);
+    metadataButton.focus();
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.textContent).toBe('Metadata');
+
+    metadataButton.blur();
     fullscreenButton.focus();
     expect(tooltip.hidden).toBe(false);
     expect(tooltip.textContent).toBe('Enter fullscreen');

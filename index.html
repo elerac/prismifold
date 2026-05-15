@@ -271,6 +271,29 @@
             </svg>
           </button>
           <button
+            id="app-metadata-button"
+            class="app-menu-icon-button app-metadata-button"
+            type="button"
+            aria-label="Metadata"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="metadata-dialog"
+            data-tooltip="Metadata"
+            title="Metadata"
+            disabled
+          >
+            <svg
+              class="app-menu-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
+            </svg>
+          </button>
+          <button
             id="app-fullscreen-button"
             class="app-menu-icon-button app-fullscreen-button"
             type="button"
@@ -465,6 +488,26 @@
           <div class="app-dialog-actions">
             <button id="reset-settings-button" type="button">Reset Settings</button>
             <button id="settings-dialog-close-button" type="button">Close</button>
+          </div>
+        </section>
+      </div>
+      <div id="metadata-dialog-backdrop" class="app-dialog-backdrop hidden">
+        <section
+          id="metadata-dialog"
+          class="app-dialog app-dialog--metadata"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="metadata-dialog-title"
+        >
+          <div class="app-dialog-header">
+            <h2 id="metadata-dialog-title" class="app-dialog-title">Metadata</h2>
+          </div>
+          <div class="app-dialog-body">
+            <p id="metadata-empty-state" class="metadata-empty-state">No metadata available.</p>
+            <div id="metadata-table" class="metadata-table hidden" aria-label="EXR metadata"></div>
+          </div>
+          <div class="app-dialog-actions">
+            <button id="metadata-dialog-close-button" type="button">Close</button>
           </div>
         </section>
       </div>
@@ -953,25 +996,6 @@
                 </div>
               </section>
 
-              <section id="metadata-panel" class="readout-block">
-                <div class="readout-block-header">
-                  <h2>Metadata</h2>
-                  <button
-                    id="metadata-toggle"
-                    class="readout-block-toggle"
-                    type="button"
-                    aria-expanded="true"
-                    aria-controls="metadata-content"
-                    aria-label="Collapse Metadata section"
-                  >
-                    <span class="readout-block-chevron" aria-hidden="true"></span>
-                  </button>
-                </div>
-                <div id="metadata-content" class="readout-block-content">
-                  <p id="metadata-empty-state" class="metadata-empty-state">No metadata available.</p>
-                  <div id="metadata-table" class="metadata-table hidden" aria-label="EXR metadata"></div>
-                </div>
-              </section>
             </div>
           </aside>
           <button

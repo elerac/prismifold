@@ -4,6 +4,7 @@ export interface Elements {
   appAutoFitImageButton: HTMLButtonElement;
   appAutoExposureButton: HTMLButtonElement;
   appScreenshotButton: HTMLButtonElement;
+  appMetadataButton: HTMLButtonElement;
   appFullscreenButton: HTMLButtonElement;
   settingsDialogButton: HTMLButtonElement;
   appIconTooltip: HTMLElement;
@@ -32,6 +33,9 @@ export interface Elements {
   settingsDialogBackdrop: HTMLDivElement;
   settingsDialog: HTMLElement;
   settingsDialogCloseButton: HTMLButtonElement;
+  metadataDialogBackdrop: HTMLDivElement;
+  metadataDialog: HTMLElement;
+  metadataDialogCloseButton: HTMLButtonElement;
   themeSelect: HTMLSelectElement;
   spectrumLatticeMotionSelect: HTMLSelectElement;
   imageLoadWorkersInput: HTMLInputElement;
@@ -180,8 +184,6 @@ export interface Elements {
   imageStatsEmptyState: HTMLElement;
   imageStatsLoadingState: HTMLElement;
   imageStatsTable: HTMLElement;
-  metadataToggle: HTMLButtonElement;
-  metadataContent: HTMLDivElement;
   probeMode: HTMLElement;
   probeCoords: HTMLElement;
   probeColorPreview: HTMLDivElement;
@@ -441,6 +443,14 @@ export type SettingsDialogElements = Pick<
   | 'themeSelect'
 >;
 
+export type MetadataDialogElements = Pick<
+  Elements,
+  | 'appMetadataButton'
+  | 'metadataDialogBackdrop'
+  | 'metadataDialog'
+  | 'metadataDialogCloseButton'
+>;
+
 export type ProbeReadoutElements = Pick<
   Elements,
   | 'probeMode'
@@ -517,8 +527,6 @@ export type CollapsibleSectionsElements = Pick<
   | 'imageStatsContent'
   | 'viewerStateToggle'
   | 'viewerStateContent'
-  | 'metadataToggle'
-  | 'metadataContent'
   | 'probeToggle'
   | 'probeContent'
   | 'spectralToggle'
@@ -534,6 +542,7 @@ export function resolveElements(): Elements {
     appAutoFitImageButton: requireElement('app-auto-fit-image-button', HTMLButtonElement),
     appAutoExposureButton: requireElement('app-auto-exposure-button', HTMLButtonElement),
     appScreenshotButton: requireElement('app-screenshot-button', HTMLButtonElement),
+    appMetadataButton: requireElement('app-metadata-button', HTMLButtonElement),
     appFullscreenButton: requireElement('app-fullscreen-button', HTMLButtonElement),
     settingsDialogButton: requireElement('settings-dialog-button', HTMLButtonElement),
     appIconTooltip: requireElement('app-icon-tooltip', HTMLElement),
@@ -562,6 +571,9 @@ export function resolveElements(): Elements {
     settingsDialogBackdrop: requireElement('settings-dialog-backdrop', HTMLDivElement),
     settingsDialog: requireElement('settings-dialog', HTMLElement),
     settingsDialogCloseButton: requireElement('settings-dialog-close-button', HTMLButtonElement),
+    metadataDialogBackdrop: requireElement('metadata-dialog-backdrop', HTMLDivElement),
+    metadataDialog: requireElement('metadata-dialog', HTMLElement),
+    metadataDialogCloseButton: requireElement('metadata-dialog-close-button', HTMLButtonElement),
     themeSelect: requireElement('theme-select', HTMLSelectElement),
     spectrumLatticeMotionSelect: requireElement('spectrum-lattice-motion-select', HTMLSelectElement),
     imageLoadWorkersInput: requireElement('image-load-workers-input', HTMLInputElement),
@@ -716,8 +728,6 @@ export function resolveElements(): Elements {
     imageStatsEmptyState: requireElement('image-stats-empty-state', HTMLElement),
     imageStatsLoadingState: requireElement('image-stats-loading-state', HTMLElement),
     imageStatsTable: requireElement('image-stats-table', HTMLElement),
-    metadataToggle: requireElement('metadata-toggle', HTMLButtonElement),
-    metadataContent: requireElement('metadata-content', HTMLDivElement),
     probeMode: requireElement('probe-mode', HTMLElement),
     probeCoords: requireElement('probe-coords', HTMLElement),
     probeColorPreview: requireElement('probe-color-preview', HTMLDivElement),

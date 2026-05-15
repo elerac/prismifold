@@ -35,6 +35,7 @@ import { setMetadata } from './metadata-panel';
 import { type LayerOptionItem, type OpenedImageOptionItem } from './image-browser-types';
 import { LayoutSplitController } from './layout-split-controller';
 import { LayerPanel } from './layer-panel';
+import { MetadataDialogController } from './metadata-dialog';
 import {
   ProgressiveLoadingOverlayDisclosure,
   renderLoadingOverlayPhase,
@@ -293,6 +294,7 @@ export class ViewerUi implements Disposable {
   private readonly topBarTooltipController: TopBarTooltipController;
   private readonly topMenuController: TopMenuController;
   private readonly settingsDialog: SettingsDialogController;
+  private readonly metadataDialog: MetadataDialogController;
   private readonly appFullscreenController: AppFullscreenController;
   private readonly globalKeyboardController: GlobalKeyboardController;
   private readonly windowPreviewController: WindowPreviewController;
@@ -449,13 +451,22 @@ export class ViewerUi implements Disposable {
     this.settingsDialog = new SettingsDialogController(this.elements, {
       onBeforeOpen: () => {
         this.clearViewerKeyboardNavigationInput();
+        this.metadataDialog.close(false);
         this.topMenuController.closeAll(false);
+      }
+    });
+    this.metadataDialog = new MetadataDialogController(this.elements, {
+      onBeforeOpen: () => {
+        this.clearViewerKeyboardNavigationInput();
+        this.topMenuController.closeAll(false);
+        this.settingsDialog.close(false);
       }
     });
     this.appFullscreenController = new AppFullscreenController(this.elements, {
       onBeforeToggle: () => {
         this.topMenuController.closeAll();
         this.settingsDialog.close(false);
+        this.metadataDialog.close(false);
       }
     });
     this.globalKeyboardController = new GlobalKeyboardController(this.elements, {
@@ -485,6 +496,10 @@ export class ViewerUi implements Disposable {
       isSettingsDialogOpen: () => this.settingsDialog.isOpen(),
       closeSettingsDialog: (restoreFocus) => {
         this.settingsDialog.close(restoreFocus);
+      },
+      isMetadataDialogOpen: () => this.metadataDialog.isOpen(),
+      closeMetadataDialog: (restoreFocus) => {
+        this.metadataDialog.close(restoreFocus);
       },
       isWindowPreviewActive: () => this.windowPreviewController.isActive(),
       setWindowPreviewEnabled: (enabled) => {
@@ -626,6 +641,7 @@ export class ViewerUi implements Disposable {
     this.disposables.addDisposable(this.topBarTooltipController);
     this.disposables.addDisposable(this.topMenuController);
     this.disposables.addDisposable(this.settingsDialog);
+    this.disposables.addDisposable(this.metadataDialog);
     this.disposables.addDisposable(this.appFullscreenController);
     this.disposables.addDisposable(this.globalKeyboardController);
     this.disposables.addDisposable(this.windowPreviewController);
@@ -697,6 +713,7 @@ export class ViewerUi implements Disposable {
     this.closeViewerContextMenu();
     this.folderLoadDialog.close(false, false);
     this.settingsDialog.close(false);
+    this.metadataDialog.close(false);
     this.topMenuController.closeAll(false);
     this.dragDropController.showOverlay(false);
     this.elements.appShell.classList.remove('is-window-preview');
@@ -754,6 +771,7 @@ export class ViewerUi implements Disposable {
       this.exportColormapDialog.close(false);
       this.folderLoadDialog.close(false, false);
       this.settingsDialog.close(false);
+      this.metadataDialog.close(false);
     }
   }
 
@@ -1466,6 +1484,7 @@ export class ViewerUi implements Disposable {
     }
 
     setMetadata(this.elements, metadata);
+    this.metadataDialog.setAvailable((metadata?.length ?? 0) > 0);
   }
 
   setRoiReadout(readout: { roi: ImageRoi | null; stats: RoiStats | null }): void {

@@ -602,6 +602,10 @@ input[type='range'] {
   width: min(100%, 44rem);
 }
 
+.app-dialog--metadata {
+  width: min(100%, 44rem);
+}
+
 .app-dialog-header,
 .app-dialog-body {
   display: grid;
