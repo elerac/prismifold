@@ -461,8 +461,15 @@ function resolveSpectralYRange(
     return normalizeSpectralYRange(yAxis.range.min, yAxis.range.max);
   }
 
-  const maxIntensity = Math.max(...intensities, 0);
-  return { min: 0, max: maxIntensity > 0 ? maxIntensity : 1 };
+  const finiteIntensities = intensities.filter(Number.isFinite);
+  if (finiteIntensities.length === 0) {
+    return { min: 0, max: 1 };
+  }
+
+  const minIntensity = Math.min(...finiteIntensities);
+  const maxIntensity = Math.max(...finiteIntensities);
+  const yMin = minIntensity < 0 ? minIntensity : 0;
+  return normalizeSpectralYRange(yMin, maxIntensity);
 }
 
 function normalizeSpectralYRange(min: number, max: number): SpectralYAxisRange {

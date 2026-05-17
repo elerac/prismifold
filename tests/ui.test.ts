@@ -500,6 +500,42 @@ describe('spectral inspector', () => {
     expect(yTickLabels).not.toContain('112.56');
   });
 
+  it('uses the raw spectral minimum as the y-axis endpoint when values are negative', () => {
+    installUiFixture();
+
+    const ui = new ViewerUi(createUiCallbacks());
+    ui.setSpectralReadout({
+      visible: true,
+      mode: 'Hover',
+      pixel: { x: 1, y: 2 },
+      imageSize: { width: 10, height: 20 },
+      channels: [
+        { channelName: '400nm', wavelength: 400, seriesKey: '', seriesLabel: '' },
+        { channelName: '500nm', wavelength: 500, seriesKey: '', seriesLabel: '' },
+        { channelName: '600nm', wavelength: 600, seriesKey: '', seriesLabel: '' }
+      ],
+      points: [
+        { channelName: '400nm', wavelength: 400, seriesKey: '', seriesLabel: '', intensity: -4 },
+        { channelName: '500nm', wavelength: 500, seriesKey: '', seriesLabel: '', intensity: 8 },
+        { channelName: '600nm', wavelength: 600, seriesKey: '', seriesLabel: '', intensity: 2 }
+      ],
+      yAxis: null
+    });
+
+    const points = Array.from(document.querySelectorAll<SVGCircleElement>('#spectral-plot .spectral-point'));
+    const zeroLine = document.querySelector<SVGLineElement>('#spectral-plot .spectral-zero-line');
+    const yTickLabels = Array.from(
+      document.querySelectorAll<SVGTextElement>('#spectral-plot .spectral-tick-label--y')
+    ).map((text) => text.textContent);
+
+    expect(Number(points.at(0)?.getAttribute('cy'))).toBeCloseTo(200, 6);
+    expect(Number(points.at(1)?.getAttribute('cy'))).toBeCloseTo(14, 6);
+    expect(yTickLabels).toEqual(expect.arrayContaining(['-4', '0', '8']));
+    const zeroY = Number(zeroLine?.getAttribute('y1'));
+    expect(zeroY).toBeCloseTo(138, 6);
+    expect(Number(zeroLine?.getAttribute('y2'))).toBeCloseTo(zeroY, 6);
+  });
+
   it('uses fixed signed y-axis ranges with a zero spectral reference line', () => {
     installUiFixture();
 
