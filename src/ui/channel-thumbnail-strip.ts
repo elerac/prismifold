@@ -229,7 +229,7 @@ export class ChannelThumbnailStrip implements Disposable {
     this.render();
 
     if (!loading && this.restoreFocusAfterLoading) {
-      focusSelectedTile(this.elements.channelThumbnailStrip);
+      focusSelectedTile(this.elements.channelThumbnailStrip, { preventScroll: true });
       this.restoreFocusAfterLoading = false;
     }
   }
@@ -299,7 +299,7 @@ export class ChannelThumbnailStrip implements Disposable {
     this.applyChannelThumbnailDragState();
 
     if (shouldRestoreFocus) {
-      focusSelectedTile(this.elements.channelThumbnailStrip);
+      focusSelectedTile(this.elements.channelThumbnailStrip, { preventScroll: true });
     }
   }
 
@@ -958,9 +958,31 @@ function findClosestStackToggle(target: EventTarget | null, container: HTMLEleme
   return toggle && container.contains(toggle) ? toggle : null;
 }
 
-function focusSelectedTile(container: HTMLElement): void {
+function focusSelectedTile(container: HTMLElement, options: { preventScroll?: boolean } = {}): void {
   const selectedTile = getEnabledTiles(container).find((tile) => tile.getAttribute('aria-selected') === 'true');
-  selectedTile?.focus();
+  if (!selectedTile) {
+    return;
+  }
+
+  if (!options.preventScroll) {
+    selectedTile.focus();
+    return;
+  }
+
+  const previousScrollLeft = container.scrollLeft;
+  const previousScrollTop = container.scrollTop;
+  try {
+    selectedTile.focus({ preventScroll: true });
+  } catch {
+    selectedTile.focus();
+  }
+
+  if (container.scrollLeft !== previousScrollLeft) {
+    container.scrollLeft = previousScrollLeft;
+  }
+  if (container.scrollTop !== previousScrollTop) {
+    container.scrollTop = previousScrollTop;
+  }
 }
 
 function positionHoverPreview(tile: HTMLElement, preview: HTMLElement): void {

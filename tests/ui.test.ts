@@ -7962,6 +7962,66 @@ describe('channel thumbnail strip', () => {
     });
   });
 
+  it('preserves horizontal scroll when stack toggles restore selected thumbnail focus', () => {
+    installUiFixture();
+    mockDesktopLayoutGeometry();
+
+    const onRgbGroupChange = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onRgbGroupChange }));
+    const channelNames = ['410nm', '500nm', '650nm'];
+    const channelThumbnailItems = buildChannelViewItems(channelNames).map((item) => ({
+      ...item,
+      thumbnailDataUrl: null
+    }));
+    const strip = document.getElementById('channel-thumbnail-strip') as HTMLElement;
+    const originalFocus = HTMLButtonElement.prototype.focus;
+    const focusSpy = vi.spyOn(HTMLButtonElement.prototype, 'focus').mockImplementation(function (
+      this: HTMLButtonElement,
+      options?: FocusOptions
+    ) {
+      originalFocus.call(this, options);
+      if (strip.contains(this) && options?.preventScroll !== true) {
+        strip.scrollLeft = 0;
+      }
+    });
+
+    ui.setRgbGroupOptions(channelNames, {
+      kind: 'spectralRgb',
+      seriesKey: ''
+    }, channelThumbnailItems);
+
+    const parentToggle = getChannelStackToggleForValue('spectralRgb:');
+    parentToggle.focus();
+    focusSpy.mockClear();
+    strip.scrollLeft = 96;
+
+    parentToggle.click();
+
+    expect(strip.scrollLeft).toBe(96);
+    expect(getSelectedChannelThumbnailValue()).toBe('channel:410nm');
+    expect(onRgbGroupChange).toHaveBeenLastCalledWith({
+      kind: 'channelMono',
+      channel: '410nm',
+      alpha: null
+    });
+    expect(focusSpy.mock.calls.some((args) => args[0]?.preventScroll === true)).toBe(true);
+
+    const childToggle = getChannelStackToggleForValue('channel:500nm');
+    childToggle.focus();
+    focusSpy.mockClear();
+    strip.scrollLeft = 144;
+
+    childToggle.click();
+
+    expect(strip.scrollLeft).toBe(144);
+    expect(getSelectedChannelThumbnailValue()).toBe('spectralRgb:');
+    expect(onRgbGroupChange).toHaveBeenLastCalledWith({
+      kind: 'spectralRgb',
+      seriesKey: ''
+    });
+    expect(focusSpy.mock.calls.some((args) => args[0]?.preventScroll === true)).toBe(true);
+  });
+
   it('hides stack badges when the measured badge is larger than 75% of the measured thumbnail image', () => {
     installUiFixture();
     mockDesktopLayoutGeometry();
