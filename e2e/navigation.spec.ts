@@ -8,28 +8,27 @@ test('moves bottom-panel thumbnail selections with left and right arrow keys', a
   await gotoViewerApp(page);
 
   const bottomPanelButton = page.locator('#bottom-panel-collapse-button');
-  const channelSelect = page.locator('#rgb-group-select');
   const thumbnailTiles = page.locator('#channel-thumbnail-strip .channel-thumbnail-tile');
 
   await openGalleryCbox(page);
   await expect(bottomPanelButton).toHaveAttribute('aria-expanded', 'true');
   await clickChannelStackToggle(page, 'group:');
-  await expect(channelSelect.locator('option:checked')).toHaveText('R');
   await expect(thumbnailTiles).toHaveCount(3);
+  await expect(thumbnailTiles.nth(0)).toHaveAttribute('aria-selected', 'true');
 
   await thumbnailTiles.nth(0).focus();
   await expect(thumbnailTiles.nth(0)).toBeFocused();
 
   await page.keyboard.press('ArrowRight');
-  await expect(channelSelect.locator('option:checked')).toHaveText('G');
+  await expect(thumbnailTiles.nth(1)).toHaveAttribute('aria-selected', 'true');
   await expect(thumbnailTiles.nth(1)).toBeFocused();
 
   await page.keyboard.press('ArrowRight');
-  await expect(channelSelect.locator('option:checked')).toHaveText('B');
+  await expect(thumbnailTiles.nth(2)).toHaveAttribute('aria-selected', 'true');
   await expect(thumbnailTiles.nth(2)).toBeFocused();
 
   await page.keyboard.press('ArrowLeft');
-  await expect(channelSelect.locator('option:checked')).toHaveText('G');
+  await expect(thumbnailTiles.nth(1)).toHaveAttribute('aria-selected', 'true');
   await expect(thumbnailTiles.nth(1)).toBeFocused();
 });
 
@@ -37,7 +36,6 @@ test('selects a large-image bottom thumbnail on the first gesture before thumbna
   await installIdleCallbackController(page);
   await gotoViewerApp(page);
 
-  const channelSelect = page.locator('#rgb-group-select');
   const thumbnailTiles = page.locator('#channel-thumbnail-strip .channel-thumbnail-tile');
 
   await page.setInputFiles('#file-input', {
@@ -55,7 +53,6 @@ test('selects a large-image bottom thumbnail on the first gesture before thumbna
 
   await thumbnailTiles.nth(1).click();
 
-  await expect(channelSelect.locator('option:checked')).toHaveText('G');
   await expect(thumbnailTiles.nth(1)).toHaveAttribute('aria-selected', 'true');
 });
 
@@ -63,17 +60,15 @@ test('selects a bottom thumbnail when dragged into the image viewer', async ({ p
   await gotoViewerApp(page);
 
   const viewer = page.locator('#viewer-container');
-  const channelSelect = page.locator('#rgb-group-select');
   const thumbnailTiles = page.locator('#channel-thumbnail-strip .channel-thumbnail-tile');
 
   await openGalleryCbox(page);
   await clickChannelStackToggle(page, 'group:');
-  await expect(channelSelect.locator('option:checked')).toHaveText('R');
   await expect(thumbnailTiles).toHaveCount(3);
+  await expect(thumbnailTiles.nth(0)).toHaveAttribute('aria-selected', 'true');
 
   await dragLocatorToPoint(page, thumbnailTiles.nth(1), await resolveViewerPoint(viewer, 0.5, 0.5));
 
-  await expect(channelSelect.locator('option:checked')).toHaveText('G');
   await expect(thumbnailTiles.nth(1)).toHaveAttribute('aria-selected', 'true');
 });
 
@@ -159,7 +154,6 @@ test('keeps collapsed bottom channel names visible and selectable', async ({ pag
 
   const bottomPanel = page.locator('#bottom-panel-content');
   const bottomPanelButton = page.locator('#bottom-panel-collapse-button');
-  const channelSelect = page.locator('#rgb-group-select');
   const thumbnailTiles = page.locator('#channel-thumbnail-strip .channel-thumbnail-tile');
   const thumbnailPreviews = page.locator('#channel-thumbnail-strip .channel-thumbnail-tile-preview');
   const thumbnailImages = page.locator('#channel-thumbnail-strip .channel-thumbnail-image');
@@ -192,11 +186,9 @@ test('keeps collapsed bottom channel names visible and selectable', async ({ pag
   await expect(hoverPreview).toHaveCount(0);
 
   await thumbnailTiles.nth(1).click();
-  await expect(channelSelect.locator('option:checked')).toHaveText('G');
   await expect(thumbnailTiles.nth(1)).toHaveAttribute('aria-selected', 'true');
 
   await page.keyboard.press('ArrowRight');
-  await expect(channelSelect.locator('option:checked')).toHaveText('B');
   await expect(thumbnailTiles.nth(2)).toHaveAttribute('aria-selected', 'true');
 
   await bottomPanelButton.click();
@@ -236,11 +228,11 @@ test('keeps a newly opened image centered after collapsed bottom channel labels 
   });
 });
 
-test('moves open files and channel view selections with arrow keys', async ({ page }) => {
+test('moves open files and bottom channel thumbnail selections with arrow keys', async ({ page }) => {
   await gotoViewerApp(page);
 
   const openedImages = page.locator('#opened-images-select');
-  const channelSelect = page.locator('#rgb-group-select');
+  const thumbnailTiles = page.locator('#channel-thumbnail-strip .channel-thumbnail-tile');
 
   await openGalleryCbox(page);
   await expect(openedImages.locator('option')).toHaveCount(1, { timeout: 30000 });
@@ -283,31 +275,24 @@ test('moves open files and channel view selections with arrow keys', async ({ pa
 
   await cboxRow.locator('.opened-file-label').click();
   await expect(openedImages.locator('option:checked')).toContainText('cbox_rgb.exr');
-  await expect(channelSelect).toBeEnabled();
   await clickChannelStackToggle(page, 'group:');
-  await expect(channelSelect.locator('option:checked')).toHaveText('R');
+  await expect(thumbnailTiles).toHaveCount(3);
 
-  const channelRows = page.locator('#channel-view-list .channel-view-row');
-  const redRow = channelRows.filter({ hasText: /^R/ });
-  const greenRow = channelRows.filter({ hasText: /^G/ });
-  const blueRow = channelRows.filter({ hasText: /^B/ });
-  await expect(channelRows).toHaveCount(3);
+  await thumbnailTiles.nth(0).click();
+  await expect(thumbnailTiles.nth(0)).toHaveAttribute('aria-selected', 'true');
+  await expect(thumbnailTiles.nth(0)).toBeFocused();
 
-  await redRow.click();
-  await expect(channelSelect.locator('option:checked')).toHaveText('R');
-  await expect(redRow).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(thumbnailTiles.nth(1)).toHaveAttribute('aria-selected', 'true');
+  await expect(thumbnailTiles.nth(1)).toBeFocused();
 
-  await page.keyboard.press('ArrowDown');
-  await expect(channelSelect.locator('option:checked')).toHaveText('G');
-  await expect(greenRow).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(thumbnailTiles.nth(2)).toHaveAttribute('aria-selected', 'true');
+  await expect(thumbnailTiles.nth(2)).toBeFocused();
 
-  await page.keyboard.press('ArrowDown');
-  await expect(channelSelect.locator('option:checked')).toHaveText('B');
-  await expect(blueRow).toBeFocused();
-
-  await page.keyboard.press('ArrowUp');
-  await expect(channelSelect.locator('option:checked')).toHaveText('G');
-  await expect(greenRow).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(thumbnailTiles.nth(1)).toHaveAttribute('aria-selected', 'true');
+  await expect(thumbnailTiles.nth(1)).toBeFocused();
 });
 
 test('auto-fits images selected from Open Files when the top-bar toggle is enabled', async ({ page }) => {

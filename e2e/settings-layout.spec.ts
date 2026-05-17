@@ -417,7 +417,7 @@ async function gotoViewerAppWithDelayedRuntime(page: Page): Promise<() => Promis
   });
 
   const navigation = page.goto(process.env.PLAYWRIGHT_APP_PATH ?? '/', { waitUntil: 'load' });
-  await page.waitForSelector('#parts-layers-list', { state: 'attached' });
+  await page.waitForSelector('#opened-files-list', { state: 'attached' });
   await runtimeScriptRequest;
 
   return async () => {
@@ -457,14 +457,9 @@ async function gotoViewerAppWithDelayedColormapManifest(page: Page): Promise<() 
 
 async function readLeftPanelStartupGeometry(page: Page): Promise<{
   openedFilesText: string;
+  openedFilesListTop: number;
   openedFilesListHeight: number;
-  channelViewText: string;
-  channelViewHeadingTop: number;
-  channelViewListTop: number;
-  channelViewListHeight: number;
-  partsLayersHeadingTop: number;
-  partsLayersListTop: number;
-  partsLayersListHeight: number;
+  removedLeftPanelIds: string[];
 }> {
   return await page.evaluate(() => {
     const readElement = (id: string): HTMLElement => {
@@ -478,23 +473,27 @@ async function readLeftPanelStartupGeometry(page: Page): Promise<{
     const readRect = (id: string): DOMRect => readElement(id).getBoundingClientRect();
     const round = (value: number): number => Math.round(value * 100) / 100;
     const openedFilesElement = readElement('opened-files-list');
-    const channelViewElement = readElement('channel-view-list');
     const openedFilesList = readRect('opened-files-list');
-    const channelViewHeading = readRect('channel-view-heading');
-    const channelViewList = readRect('channel-view-list');
-    const partsLayersHeading = readRect('parts-layers-heading');
-    const partsLayersList = readRect('parts-layers-list');
+    const removedLeftPanelIds = [
+      'channel-view-toggle',
+      'channel-view-heading',
+      'channel-view-count',
+      'channel-view-list',
+      'rgb-group-select',
+      'rgb-split-toggle-button',
+      'layer-control',
+      'layer-select',
+      'parts-layers-toggle',
+      'parts-layers-heading',
+      'parts-layers-count',
+      'parts-layers-list'
+    ].filter((id) => document.getElementById(id) !== null);
 
     return {
       openedFilesText: openedFilesElement.textContent ?? '',
+      openedFilesListTop: round(openedFilesList.top),
       openedFilesListHeight: round(openedFilesList.height),
-      channelViewText: channelViewElement.textContent ?? '',
-      channelViewHeadingTop: round(channelViewHeading.top),
-      channelViewListTop: round(channelViewList.top),
-      channelViewListHeight: round(channelViewList.height),
-      partsLayersHeadingTop: round(partsLayersHeading.top),
-      partsLayersListTop: round(partsLayersList.top),
-      partsLayersListHeight: round(partsLayersList.height)
+      removedLeftPanelIds
     };
   });
 }
@@ -504,15 +503,7 @@ async function readInitialEmptyAppState(page: Page): Promise<{
   openedFilesDisabled: boolean;
   openedFilesListHeight: number;
   openedFilesBackingSelectDisabled: boolean;
-  channelViewText: string;
-  channelViewDisabled: boolean;
-  channelViewListHeight: number;
-  channelViewBackingSelectDisabled: boolean;
-  rgbSplitToggleDisabled: boolean;
-  partsLayersText: string;
-  partsLayersDisabled: boolean;
-  partsLayersListHeight: number;
-  layerSelectDisabled: boolean;
+  removedLeftPanelIds: string[];
   appScreenshotDisabled: boolean;
   exportImageDisabled: boolean;
   exportScreenshotDisabled: boolean;
@@ -523,11 +514,6 @@ async function readInitialEmptyAppState(page: Page): Promise<{
   return await page.evaluate(() => {
     const openedFilesList = document.getElementById('opened-files-list');
     const openedImagesSelect = document.getElementById('opened-images-select');
-    const channelViewList = document.getElementById('channel-view-list');
-    const rgbGroupSelect = document.getElementById('rgb-group-select');
-    const rgbSplitToggleButton = document.getElementById('rgb-split-toggle-button');
-    const partsLayersList = document.getElementById('parts-layers-list');
-    const layerSelect = document.getElementById('layer-select');
     const appScreenshotButton = document.getElementById('app-screenshot-button');
     const exportImageButton = document.getElementById('export-image-button');
     const exportScreenshotButton = document.getElementById('export-screenshot-button');
@@ -537,11 +523,6 @@ async function readInitialEmptyAppState(page: Page): Promise<{
     if (
       !(openedFilesList instanceof HTMLElement) ||
       !(openedImagesSelect instanceof HTMLSelectElement) ||
-      !(channelViewList instanceof HTMLElement) ||
-      !(rgbGroupSelect instanceof HTMLSelectElement) ||
-      !(rgbSplitToggleButton instanceof HTMLButtonElement) ||
-      !(partsLayersList instanceof HTMLElement) ||
-      !(layerSelect instanceof HTMLSelectElement) ||
       !(appScreenshotButton instanceof HTMLButtonElement) ||
       !(exportImageButton instanceof HTMLButtonElement) ||
       !(exportScreenshotButton instanceof HTMLButtonElement) ||
@@ -551,21 +532,27 @@ async function readInitialEmptyAppState(page: Page): Promise<{
     ) {
       throw new Error('Missing initial empty app state elements.');
     }
+    const removedLeftPanelIds = [
+      'channel-view-toggle',
+      'channel-view-heading',
+      'channel-view-count',
+      'channel-view-list',
+      'rgb-group-select',
+      'rgb-split-toggle-button',
+      'layer-control',
+      'layer-select',
+      'parts-layers-toggle',
+      'parts-layers-heading',
+      'parts-layers-count',
+      'parts-layers-list'
+    ].filter((id) => document.getElementById(id) !== null);
 
     return {
       openedFilesText: openedFilesList.textContent ?? '',
       openedFilesDisabled: openedFilesList.classList.contains('is-disabled'),
       openedFilesListHeight: openedFilesList.getBoundingClientRect().height,
       openedFilesBackingSelectDisabled: openedImagesSelect.disabled,
-      channelViewText: channelViewList.textContent ?? '',
-      channelViewDisabled: channelViewList.classList.contains('is-disabled'),
-      channelViewListHeight: channelViewList.getBoundingClientRect().height,
-      channelViewBackingSelectDisabled: rgbGroupSelect.disabled,
-      rgbSplitToggleDisabled: rgbSplitToggleButton.disabled,
-      partsLayersText: partsLayersList.textContent ?? '',
-      partsLayersDisabled: partsLayersList.classList.contains('is-disabled'),
-      partsLayersListHeight: partsLayersList.getBoundingClientRect().height,
-      layerSelectDisabled: layerSelect.disabled,
+      removedLeftPanelIds,
       appScreenshotDisabled: appScreenshotButton.disabled,
       exportImageDisabled: exportImageButton.disabled,
       exportScreenshotDisabled: exportScreenshotButton.disabled,
@@ -592,15 +579,7 @@ test('renders empty app state before the app runtime starts', async ({ page }) =
   expect(state.openedFilesText).toContain('No open files');
   expect(state.openedFilesDisabled).toBe(true);
   expect(state.openedFilesBackingSelectDisabled).toBe(true);
-  expect(state.channelViewText).toContain('No channels');
-  expect(state.channelViewDisabled).toBe(true);
-  expect(Math.abs(state.channelViewListHeight - state.openedFilesListHeight)).toBeLessThanOrEqual(1);
-  expect(state.channelViewBackingSelectDisabled).toBe(true);
-  expect(state.rgbSplitToggleDisabled).toBe(true);
-  expect(state.partsLayersText.trim()).toBe('');
-  expect(state.partsLayersDisabled).toBe(true);
-  expect(Math.abs(state.partsLayersListHeight - state.openedFilesListHeight)).toBeLessThanOrEqual(1);
-  expect(state.layerSelectDisabled).toBe(true);
+  expect(state.removedLeftPanelIds).toEqual([]);
   expect(state.appScreenshotDisabled).toBe(true);
   expect(state.exportImageDisabled).toBe(true);
   expect(state.exportScreenshotDisabled).toBe(true);
@@ -615,29 +594,20 @@ test('anchors the default checkerboard before the app runtime starts', async ({ 
   expectCheckerOffsetAnchoredToViewport(await readViewerCheckerOffsetState(page));
 });
 
-test('keeps left panel empty-list geometry stable while the app runtime starts', async ({ page }) => {
+test('keeps left panel startup geometry stable while the app runtime starts', async ({ page }) => {
   const releaseRuntime = await gotoViewerAppWithDelayedRuntime(page);
   const beforeRuntime = await readLeftPanelStartupGeometry(page);
 
   await releaseRuntime();
 
   const afterRuntime = await readLeftPanelStartupGeometry(page);
-  const stableKeys = [
-    'channelViewHeadingTop',
-    'channelViewListTop',
-    'partsLayersHeadingTop',
-    'partsLayersListTop'
-  ] as const;
 
   expect(beforeRuntime.openedFilesText).toContain('No open files');
-  expect(beforeRuntime.channelViewText).toContain('No channels');
   expect(afterRuntime.openedFilesText).toContain('No open files');
-  expect(afterRuntime.channelViewText).toContain('No channels');
-  expect(Math.abs(beforeRuntime.channelViewListHeight - beforeRuntime.openedFilesListHeight)).toBeLessThanOrEqual(1);
-  expect(Math.abs(beforeRuntime.partsLayersListHeight - beforeRuntime.openedFilesListHeight)).toBeLessThanOrEqual(1);
-  for (const key of stableKeys) {
-    expect(Math.abs(afterRuntime[key] - beforeRuntime[key])).toBeLessThanOrEqual(1);
-  }
+  expect(beforeRuntime.removedLeftPanelIds).toEqual([]);
+  expect(afterRuntime.removedLeftPanelIds).toEqual([]);
+  expect(Math.abs(afterRuntime.openedFilesListTop - beforeRuntime.openedFilesListTop)).toBeLessThanOrEqual(1);
+  expect(Math.abs(afterRuntime.openedFilesListHeight - beforeRuntime.openedFilesListHeight)).toBeLessThanOrEqual(1);
 });
 
 test('anchors the default checkerboard while colormap initialization is pending', async ({ page }) => {

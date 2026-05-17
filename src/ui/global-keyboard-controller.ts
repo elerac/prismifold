@@ -9,7 +9,7 @@ import type {
 import type { ViewerPaneSplitOrientation } from '../viewer-pane-layout';
 import type { GlobalKeyboardControllerElements } from './elements';
 
-export type VerticalNavigationTarget = 'openedFiles' | 'channelView';
+export type VerticalNavigationTarget = 'openedFiles';
 
 interface GlobalKeyboardControllerCallbacks {
   isExportImageDialogOpen: () => boolean;
@@ -41,7 +41,6 @@ interface GlobalKeyboardControllerCallbacks {
   routeVerticalNavigation: (target: VerticalNavigationTarget, delta: -1 | 1) => boolean;
   routeOpenedFilesReorder: (delta: -1 | 1) => boolean;
   routeHorizontalNavigation: (delta: -1 | 1) => boolean;
-  canRouteChannelViewNavigation: () => boolean;
 }
 
 export class GlobalKeyboardController implements Disposable {
@@ -203,10 +202,7 @@ export class GlobalKeyboardController implements Disposable {
   }
 
   normalizeVerticalNavigationTarget(): VerticalNavigationTarget {
-    if (this.verticalNavigationTarget === 'channelView' && !this.callbacks.canRouteChannelViewNavigation()) {
-      this.verticalNavigationTarget = 'openedFiles';
-    }
-
+    this.verticalNavigationTarget = 'openedFiles';
     return this.verticalNavigationTarget;
   }
 
@@ -528,11 +524,7 @@ export class GlobalKeyboardController implements Disposable {
     }
 
     if (event.key === 'ArrowUp' || event.key === 'Up' || event.key === 'ArrowDown' || event.key === 'Down') {
-      return (
-        this.elements.openedFilesList.contains(target) ||
-        this.elements.partsLayersList.contains(target) ||
-        this.elements.channelViewList.contains(target)
-      );
+      return this.elements.openedFilesList.contains(target);
     }
 
     if (event.key === 'ArrowLeft' || event.key === 'Left' || event.key === 'ArrowRight' || event.key === 'Right') {

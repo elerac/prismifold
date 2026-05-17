@@ -3,15 +3,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildChannelViewItems } from '../src/channel-view-items';
-import { getChannelViewSwatches } from '../src/ui/channel-panel';
+import { buildChannelViewItems, getChannelViewSwatches } from '../src/channel-view-items';
 import { getPanelSplitSizeRange } from '../src/ui/layout-split-controller';
 import {
   clampPanelSplitSizes,
   getPanelSplitKeyboardAction,
   parsePanelSplitStorageValue
 } from '../src/ui/layout-split-controller';
-import { buildPartLayerItemsFromChannelNames } from '../src/ui/layer-panel';
 import {
   buildExportBatchChannelFilenameToken,
   buildExportBatchOutputFilename,
@@ -7735,31 +7733,6 @@ describe('opened files reordering', () => {
   });
 });
 
-describe('image panel layer summaries', () => {
-  it('groups RGB channel families and scalar channels for parts/layers rows', () => {
-    expect(
-      buildPartLayerItemsFromChannelNames([
-        'beauty.R',
-        'beauty.G',
-        'beauty.B',
-        'beauty.A',
-        'depth.Z',
-        'albedo.R',
-        'albedo.G',
-        'albedo.B',
-        'variance.V',
-        'Y'
-      ]).map(({ label, channelCount, selectable }) => ({ label, channelCount, selectable }))
-    ).toEqual([
-      { label: 'beauty', channelCount: 4, selectable: false },
-      { label: 'depth', channelCount: 1, selectable: false },
-      { label: 'albedo', channelCount: 3, selectable: false },
-      { label: 'variance', channelCount: 1, selectable: false },
-      { label: 'Y', channelCount: 1, selectable: false }
-    ]);
-  });
-});
-
 describe('channel view icons', () => {
   it('uses semantic channel colors instead of positional RGB colors', () => {
     expect(getChannelViewSwatches({
@@ -7853,7 +7826,7 @@ describe('channel thumbnail strip', () => {
       channel: 'depth.Z',
       alpha: null
     });
-    expect((document.getElementById('rgb-group-select') as HTMLSelectElement).value).toBe(depthItem?.value);
+    expect(getSelectedChannelThumbnailValue()).toBe(depthItem?.value);
 
     const nextItems = channelThumbnailItems.map((item) => ({
       ...item,
@@ -7881,7 +7854,6 @@ describe('channel thumbnail strip', () => {
     };
     const ui = new ViewerUi(createUiCallbacks({ onRgbGroupChange }));
     const channelNames = ['beauty.R', 'beauty.G', 'beauty.B'];
-    const channelSelect = document.getElementById('rgb-group-select') as HTMLSelectElement;
     const strip = document.getElementById('channel-thumbnail-strip') as HTMLElement;
     const channelThumbnailItems = buildChannelViewItems(channelNames).map((item) => ({
       ...item,
@@ -7923,7 +7895,7 @@ describe('channel thumbnail strip', () => {
     const rerenderedGreenTile = document.querySelectorAll<HTMLButtonElement>('#channel-thumbnail-strip .channel-thumbnail-tile')[1];
     rerenderedGreenTile?.click();
 
-    expect(channelSelect.value).toBe('channel:beauty.G');
+    expect(getSelectedChannelThumbnailValue()).toBe('channel:beauty.G');
     expect(onRgbGroupChange).toHaveBeenCalledTimes(1);
     expect(onRgbGroupChange).toHaveBeenCalledWith({
       kind: 'channelMono',
@@ -7944,8 +7916,6 @@ describe('channel thumbnail strip', () => {
     const onRgbGroupChange = vi.fn();
     const ui = new ViewerUi(createUiCallbacks({ onRgbGroupChange }));
     const channelNames = ['410nm', '500nm', '650nm'];
-    const splitToggle = document.getElementById('rgb-split-toggle-button') as HTMLButtonElement;
-    const channelSelect = document.getElementById('rgb-group-select') as HTMLSelectElement;
     const channelThumbnailItems = buildChannelViewItems(channelNames).map((item) => ({
       ...item,
       thumbnailDataUrl: null
@@ -7956,21 +7926,19 @@ describe('channel thumbnail strip', () => {
       seriesKey: ''
     }, channelThumbnailItems);
 
-    expect(splitToggle.classList.contains('hidden')).toBe(true);
-    expect(splitToggle.disabled).toBe(true);
-    expect(splitToggle.getAttribute('aria-pressed')).toBe('false');
-    expect(Array.from(channelSelect.options).map((option) => option.textContent)).toEqual(['Spectral RGB']);
+    expect(getChannelThumbnailLabels()).toEqual(['Spectral RGB']);
+    expect(getSelectedChannelThumbnailValue()).toBe('spectralRgb:');
     expect(document.querySelectorAll('#channel-thumbnail-strip .channel-thumbnail-tile')).toHaveLength(1);
     expect(getChannelStackToggleForValue('spectralRgb:').textContent).toBe('3');
 
     clickChannelStackToggleForValue('spectralRgb:');
 
-    expect(Array.from(channelSelect.options).map((option) => option.textContent)).toEqual([
+    expect(getChannelThumbnailLabels()).toEqual([
       '410nm',
       '500nm',
       '650nm'
     ]);
-    expect(channelSelect.value).toBe('channel:410nm');
+    expect(getSelectedChannelThumbnailValue()).toBe('channel:410nm');
     expect(document.querySelectorAll('#channel-thumbnail-strip .channel-thumbnail-tile')).toHaveLength(3);
     expect(Array.from(document.querySelectorAll<HTMLButtonElement>('#channel-thumbnail-strip .channel-thumbnail-stack-toggle')).map((toggle) => toggle.textContent)).toEqual([
       '1/3',
@@ -7985,9 +7953,8 @@ describe('channel thumbnail strip', () => {
 
     clickChannelStackToggleForValue('channel:500nm');
 
-    expect(splitToggle.getAttribute('aria-pressed')).toBe('false');
-    expect(Array.from(channelSelect.options).map((option) => option.textContent)).toEqual(['Spectral RGB']);
-    expect(channelSelect.value).toBe('spectralRgb:');
+    expect(getChannelThumbnailLabels()).toEqual(['Spectral RGB']);
+    expect(getSelectedChannelThumbnailValue()).toBe('spectralRgb:');
     expect(document.querySelectorAll('#channel-thumbnail-strip .channel-thumbnail-tile')).toHaveLength(1);
     expect(onRgbGroupChange).toHaveBeenLastCalledWith({
       kind: 'spectralRgb',
@@ -8045,7 +8012,6 @@ describe('channel thumbnail strip', () => {
       'S0.400nm', 'S1.400nm', 'S2.400nm', 'S3.400nm',
       'S0.500nm', 'S1.500nm', 'S2.500nm', 'S3.500nm'
     ];
-    const channelSelect = document.getElementById('rgb-group-select') as HTMLSelectElement;
     const channelThumbnailItems = buildChannelViewItems(channelNames).map((item) => ({
       ...item,
       thumbnailDataUrl: null
@@ -8057,16 +8023,16 @@ describe('channel thumbnail strip', () => {
       source: { kind: 'spectralRgb' }
     }, channelThumbnailItems);
 
-    expect(Array.from(channelSelect.options).map((option) => option.textContent)).toContain('S1/S0 Spectral RGB');
-    expect(Array.from(channelSelect.options).map((option) => option.textContent)).not.toContain('S1/S0.400nm');
-    expect(channelSelect.value).toBe('stokesSpectralRgb:s1_over_s0:group');
+    expect(getChannelThumbnailLabels()).toContain('S1/S0 Spectral RGB');
+    expect(getChannelThumbnailLabels()).not.toContain('S1/S0.400nm');
+    expect(getSelectedChannelThumbnailValue()).toBe('stokesSpectralRgb:s1_over_s0:group');
     expect(getChannelStackToggleForValue('stokesSpectralRgb:s1_over_s0:group').textContent).toBe('2');
 
     clickChannelStackToggleForValue('stokesSpectralRgb:s1_over_s0:group');
 
-    expect(Array.from(channelSelect.options).map((option) => option.textContent)).toContain('S1/S0.400nm');
-    expect(Array.from(channelSelect.options).map((option) => option.textContent)).not.toContain('S1/S0 Spectral RGB');
-    expect(channelSelect.value).toBe('stokesScalar:s1_over_s0:400nm');
+    expect(getChannelThumbnailLabels()).toContain('S1/S0.400nm');
+    expect(getChannelThumbnailLabels()).not.toContain('S1/S0 Spectral RGB');
+    expect(getSelectedChannelThumbnailValue()).toBe('stokesScalar:s1_over_s0:400nm');
     expect(onRgbGroupChange).toHaveBeenLastCalledWith({
       kind: 'stokesScalar',
       parameter: 's1_over_s0',
@@ -8075,7 +8041,7 @@ describe('channel thumbnail strip', () => {
 
     clickChannelStackToggleForValue('stokesScalar:s1_over_s0:500nm');
 
-    expect(channelSelect.value).toBe('stokesSpectralRgb:s1_over_s0:group');
+    expect(getSelectedChannelThumbnailValue()).toBe('stokesSpectralRgb:s1_over_s0:group');
     expect(onRgbGroupChange).toHaveBeenLastCalledWith({
       kind: 'stokesScalar',
       parameter: 's1_over_s0',
@@ -8090,7 +8056,6 @@ describe('channel thumbnail strip', () => {
     const onRgbGroupChange = vi.fn();
     const ui = new ViewerUi(createUiCallbacks({ onRgbGroupChange }));
     const viewerContainer = ui.viewerContainer;
-    const channelSelect = document.getElementById('rgb-group-select') as HTMLSelectElement;
     const channelNames = ['beauty.R', 'beauty.G', 'beauty.B'];
 
     ui.setRgbGroupOptions(channelNames, {
@@ -8117,7 +8082,7 @@ describe('channel thumbnail strip', () => {
     viewerContainer.dispatchEvent(createChannelThumbnailDragEvent('drop', dataTransfer));
 
     expect(viewerContainer.classList.contains('is-channel-thumbnail-drop-target')).toBe(false);
-    expect(channelSelect.value).toBe('channel:beauty.G');
+    expect(getSelectedChannelThumbnailValue()).toBe('channel:beauty.G');
     expect(onRgbGroupChange).toHaveBeenCalledWith({
       kind: 'channelMono',
       channel: 'beauty.G',
@@ -8168,7 +8133,6 @@ describe('channel thumbnail strip', () => {
 
     const onRgbGroupChange = vi.fn();
     const ui = new ViewerUi(createUiCallbacks({ onRgbGroupChange }));
-    const channelSelect = document.getElementById('rgb-group-select') as HTMLSelectElement;
     const channelNames = ['beauty.R', 'beauty.G', 'beauty.B'];
 
     ui.setRgbGroupOptions(channelNames, {
@@ -8200,7 +8164,7 @@ describe('channel thumbnail strip', () => {
     }));
     tiles[1]!.click();
 
-    expect(channelSelect.value).toBe('channel:beauty.R');
+    expect(getSelectedChannelThumbnailValue()).toBe('channel:beauty.R');
     expect(onRgbGroupChange).not.toHaveBeenCalled();
   });
 
@@ -8213,7 +8177,6 @@ describe('channel thumbnail strip', () => {
     const ui = new ViewerUi(createUiCallbacks({ onRgbGroupChange, onFilesDropped }));
     const viewerContainer = ui.viewerContainer;
     const dropOverlay = document.getElementById('drop-overlay') as HTMLDivElement;
-    const channelSelect = document.getElementById('rgb-group-select') as HTMLSelectElement;
     const channelNames = ['beauty.R', 'beauty.G', 'beauty.B'];
 
     ui.setRgbGroupOptions(channelNames, {
@@ -8232,7 +8195,7 @@ describe('channel thumbnail strip', () => {
     let tiles = Array.from(document.querySelectorAll<HTMLButtonElement>('#channel-thumbnail-strip .channel-thumbnail-tile'));
     tiles[2]!.click();
 
-    expect(channelSelect.value).toBe('channel:beauty.B');
+    expect(getSelectedChannelThumbnailValue()).toBe('channel:beauty.B');
     expect(onRgbGroupChange).toHaveBeenCalledWith({
       kind: 'channelMono',
       channel: 'beauty.B',
@@ -8639,7 +8602,6 @@ describe('channel thumbnail strip', () => {
       ...item,
       thumbnailDataUrl: null
     }));
-    const channelSelect = document.getElementById('rgb-group-select') as HTMLSelectElement;
     const getTiles = (): HTMLButtonElement[] => Array.from(
       document.querySelectorAll<HTMLButtonElement>('#channel-thumbnail-strip .channel-thumbnail-tile')
     );
@@ -8663,7 +8625,7 @@ describe('channel thumbnail strip', () => {
     tiles[0]?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
 
     tiles = getTiles();
-    expect(channelSelect.value).toBe('channel:beauty.G');
+    expect(getSelectedChannelThumbnailValue()).toBe('channel:beauty.G');
     expect(document.activeElement).toBe(tiles[1]);
     expect(tiles[1]?.getAttribute('aria-selected')).toBe('true');
     expect(onRgbGroupChange).toHaveBeenNthCalledWith(1, {
@@ -8675,7 +8637,7 @@ describe('channel thumbnail strip', () => {
     tiles[1]?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
 
     tiles = getTiles();
-    expect(channelSelect.value).toBe('channel:beauty.B');
+    expect(getSelectedChannelThumbnailValue()).toBe('channel:beauty.B');
     expect(document.activeElement).toBe(tiles[2]);
     expect(tiles[2]?.getAttribute('aria-selected')).toBe('true');
     expect(onRgbGroupChange).toHaveBeenNthCalledWith(2, {
@@ -8687,7 +8649,7 @@ describe('channel thumbnail strip', () => {
     tiles[2]?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
 
     tiles = getTiles();
-    expect(channelSelect.value).toBe('channel:beauty.G');
+    expect(getSelectedChannelThumbnailValue()).toBe('channel:beauty.G');
     expect(document.activeElement).toBe(tiles[1]);
     expect(tiles[1]?.getAttribute('aria-selected')).toBe('true');
     expect(onRgbGroupChange).toHaveBeenNthCalledWith(3, {
@@ -8704,7 +8666,6 @@ describe('channel thumbnail strip', () => {
     const onRgbGroupChange = vi.fn();
     const ui = new ViewerUi(createUiCallbacks({ onRgbGroupChange }));
     const channelNames = ['R', 'G', 'B', 'A', 'mask'];
-    const channelSelect = document.getElementById('rgb-group-select') as HTMLSelectElement;
 
     ui.setRgbGroupOptions(channelNames, {
       kind: 'channelMono',
@@ -8715,11 +8676,11 @@ describe('channel thumbnail strip', () => {
       thumbnailDataUrl: null
     })));
 
-    expect(Array.from(channelSelect.selectedOptions).map((option) => option.textContent)).toEqual(['mask,A']);
+    expect(getSelectedChannelThumbnailLabels()).toEqual(['mask,A']);
 
     clickChannelStackToggleForValue('group:');
 
-    expect(Array.from(channelSelect.selectedOptions).map((option) => option.textContent)).toEqual(['mask,A']);
+    expect(getSelectedChannelThumbnailLabels()).toEqual(['mask,A']);
     expect(onRgbGroupChange).not.toHaveBeenCalled();
   });
 
@@ -8856,7 +8817,7 @@ describe('global panel arrow navigation', () => {
     });
   });
 
-  it('switches ArrowUp and ArrowDown to Channel View after a channel-view row click', () => {
+  it('keeps ArrowUp and ArrowDown routed to Open Files after a bottom thumbnail click', () => {
     installUiFixture();
     mockDesktopLayoutGeometry();
 
@@ -8880,125 +8841,17 @@ describe('global panel arrow navigation', () => {
       thumbnailDataUrl: null
     })));
 
-    const channelRows = Array.from(document.querySelectorAll<HTMLButtonElement>('#channel-view-list .channel-view-row'));
-    channelRows[0]?.click();
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    clickChannelStackToggleForValue('group:beauty');
+    document.querySelector<HTMLButtonElement>(
+      '#channel-thumbnail-strip .channel-thumbnail-tile[data-channel-value="channel:beauty.G"]'
+    )?.click();
+    onOpenedImageSelected.mockClear();
+    onRgbGroupChange.mockClear();
 
-    expect(onRgbGroupChange).toHaveBeenLastCalledWith({
-      kind: 'channelMono',
-      channel: 'depth.Z',
-      alpha: null
-    });
-    expect(onOpenedImageSelected).not.toHaveBeenCalled();
-    expect((document.getElementById('rgb-group-select') as HTMLSelectElement).value).toBe('channel:depth.Z');
-  });
-
-  it('does not reorder Open Files with Alt+ArrowDown when Channel View is the vertical target', () => {
-    installUiFixture();
-    mockDesktopLayoutGeometry();
-
-    const onReorderOpenedImage = vi.fn();
-    const ui = new ViewerUi(createUiCallbacks({ onReorderOpenedImage }));
-    const channelNames = ['beauty.R', 'beauty.G', 'beauty.B', 'depth.Z'];
-
-    ui.setOpenedImageOptions([
-      { id: 'session-1', label: 'image-a.exr' },
-      { id: 'session-2', label: 'image-b.exr' }
-    ], 'session-1');
-    ui.setRgbGroupOptions(channelNames, {
-      kind: 'channelRgb',
-      r: 'beauty.R',
-      g: 'beauty.G',
-      b: 'beauty.B',
-      alpha: null
-    }, buildChannelViewItems(channelNames).map((item) => ({
-      ...item,
-      thumbnailDataUrl: null
-    })));
-
-    const channelRows = Array.from(document.querySelectorAll<HTMLButtonElement>('#channel-view-list .channel-view-row'));
-    channelRows[0]?.click();
-    document.body.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'ArrowDown',
-      altKey: true,
-      bubbles: true,
-      cancelable: true
-    }));
-
-    expect(onReorderOpenedImage).not.toHaveBeenCalled();
-  });
-
-  it('switches ArrowUp and ArrowDown back to Open Files after an open-files row click', () => {
-    installUiFixture();
-    mockDesktopLayoutGeometry();
-
-    const onOpenedImageSelected = vi.fn();
-    const onRgbGroupChange = vi.fn();
-    const ui = new ViewerUi(createUiCallbacks({ onOpenedImageSelected, onRgbGroupChange }));
-    const channelNames = ['beauty.R', 'beauty.G', 'beauty.B', 'depth.Z'];
-
-    ui.setOpenedImageOptions([
-      { id: 'session-1', label: 'image-a.exr' },
-      { id: 'session-2', label: 'image-b.exr' },
-      { id: 'session-3', label: 'image-c.exr' }
-    ], 'session-1');
-    ui.setRgbGroupOptions(channelNames, {
-      kind: 'channelRgb',
-      r: 'beauty.R',
-      g: 'beauty.G',
-      b: 'beauty.B',
-      alpha: null
-    }, buildChannelViewItems(channelNames).map((item) => ({
-      ...item,
-      thumbnailDataUrl: null
-    })));
-
-    const channelRows = Array.from(document.querySelectorAll<HTMLButtonElement>('#channel-view-list .channel-view-row'));
-    channelRows[0]?.click();
-
-    const openedFileRows = mockOpenedFilesListGeometry() as HTMLDivElement[];
-    openedFileRows[0]?.click();
-    openedFileRows[0]?.blur();
     document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
 
     expect(onOpenedImageSelected).toHaveBeenLastCalledWith('session-2');
     expect((document.getElementById('opened-images-select') as HTMLSelectElement).value).toBe('session-2');
-    expect(onRgbGroupChange).not.toHaveBeenCalledWith({
-      kind: 'channelMono',
-      channel: 'depth.Z',
-      alpha: null
-    });
-  });
-
-  it('does not switch the vertical target when only the Channel View toggle is clicked', () => {
-    installUiFixture();
-    mockDesktopLayoutGeometry();
-
-    const onOpenedImageSelected = vi.fn();
-    const onRgbGroupChange = vi.fn();
-    const ui = new ViewerUi(createUiCallbacks({ onOpenedImageSelected, onRgbGroupChange }));
-    const channelNames = ['beauty.R', 'beauty.G', 'beauty.B', 'depth.Z'];
-
-    ui.setOpenedImageOptions([
-      { id: 'session-1', label: 'image-a.exr' },
-      { id: 'session-2', label: 'image-b.exr' }
-    ], 'session-1');
-    ui.setRgbGroupOptions(channelNames, {
-      kind: 'channelRgb',
-      r: 'beauty.R',
-      g: 'beauty.G',
-      b: 'beauty.B',
-      alpha: null
-    }, buildChannelViewItems(channelNames).map((item) => ({
-      ...item,
-      thumbnailDataUrl: null
-    })));
-
-    (document.getElementById('channel-view-toggle') as HTMLButtonElement).click();
-    (document.getElementById('channel-view-toggle') as HTMLButtonElement).click();
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-
-    expect(onOpenedImageSelected).toHaveBeenLastCalledWith('session-2');
     expect(onRgbGroupChange).not.toHaveBeenCalled();
   });
 
@@ -9620,42 +9473,6 @@ describe('global panel arrow navigation', () => {
     });
   });
 
-  it('falls back to Open Files when Channel View was active but becomes unavailable', () => {
-    installUiFixture();
-    mockDesktopLayoutGeometry();
-
-    const onOpenedImageSelected = vi.fn();
-    const onRgbGroupChange = vi.fn();
-    const ui = new ViewerUi(createUiCallbacks({ onOpenedImageSelected, onRgbGroupChange }));
-    const channelNames = ['beauty.R', 'beauty.G', 'beauty.B', 'depth.Z'];
-
-    ui.setOpenedImageOptions([
-      { id: 'session-1', label: 'image-a.exr' },
-      { id: 'session-2', label: 'image-b.exr' }
-    ], 'session-1');
-    ui.setRgbGroupOptions(channelNames, {
-      kind: 'channelRgb',
-      r: 'beauty.R',
-      g: 'beauty.G',
-      b: 'beauty.B',
-      alpha: null
-    }, buildChannelViewItems(channelNames).map((item) => ({
-      ...item,
-      thumbnailDataUrl: null
-    })));
-
-    const channelRows = Array.from(document.querySelectorAll<HTMLButtonElement>('#channel-view-list .channel-view-row'));
-    channelRows[0]?.click();
-    (document.getElementById('channel-view-toggle') as HTMLButtonElement).click();
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-
-    expect(onOpenedImageSelected).toHaveBeenLastCalledWith('session-2');
-    expect(onRgbGroupChange).not.toHaveBeenCalledWith({
-      kind: 'channelMono',
-      channel: 'depth.Z',
-      alpha: null
-    });
-  });
 });
 
 function installUiFixture(): void {
@@ -10464,6 +10281,24 @@ function getChannelStackToggleForValue(value: string): HTMLButtonElement {
   }
 
   return toggle;
+}
+
+function getChannelThumbnailLabels(): string[] {
+  return Array.from(document.querySelectorAll<HTMLElement>(
+    '#channel-thumbnail-strip .channel-thumbnail-tile-label'
+  )).map((label) => label.textContent ?? '');
+}
+
+function getSelectedChannelThumbnailValue(): string | null {
+  return document.querySelector<HTMLButtonElement>(
+    '#channel-thumbnail-strip .channel-thumbnail-tile[aria-selected="true"]'
+  )?.dataset.channelValue ?? null;
+}
+
+function getSelectedChannelThumbnailLabels(): string[] {
+  return Array.from(document.querySelectorAll<HTMLButtonElement>(
+    '#channel-thumbnail-strip .channel-thumbnail-tile[aria-selected="true"]'
+  )).map((tile) => tile.querySelector('.channel-thumbnail-tile-label')?.textContent ?? '');
 }
 
 function clickChannelStackToggleForValue(value: string): HTMLButtonElement {

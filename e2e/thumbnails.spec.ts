@@ -66,17 +66,15 @@ test('keeps the previous thumbnail visible until reload thumbnails are regenerat
   await expect.poll(async () => await getPendingIdleCallbackCount(page)).toBe(0);
 });
 
-test('keeps bottom-panel channel thumbnail frames stable across image selection changes and syncs them with the channel selector', async ({ page }) => {
+test('keeps bottom-panel channel thumbnail frames stable across image selection changes and syncs selection', async ({ page }) => {
   await installIdleCallbackController(page);
   await gotoViewerApp(page);
 
   const bottomPanelButton = page.locator('#bottom-panel-collapse-button');
-  const channelSelect = page.locator('#rgb-group-select');
   const landscapeRow = page.locator('#opened-files-list .opened-file-row').filter({ hasText: 'landscape_rgb.exr' });
   const portraitRow = page.locator('#opened-files-list .opened-file-row').filter({ hasText: 'portrait_rgb.exr' });
   const thumbnailTiles = page.locator('#channel-thumbnail-strip .channel-thumbnail-tile');
   const firstThumbnailPreview = page.locator('#channel-thumbnail-strip .channel-thumbnail-tile-preview').first();
-  const greenRow = page.locator('#channel-view-list .channel-view-row').filter({ hasText: /^G/ });
 
   await page.setInputFiles('#file-input', {
     name: 'landscape_rgb.exr',
@@ -86,8 +84,8 @@ test('keeps bottom-panel channel thumbnail frames stable across image selection 
   await expect(landscapeRow).toHaveCount(1);
   await expect(bottomPanelButton).toHaveAttribute('aria-expanded', 'true');
   await clickChannelStackToggle(page, 'group:');
-  await expect(channelSelect.locator('option:checked')).toHaveText('R');
   await expect(thumbnailTiles).toHaveCount(3);
+  await expect(thumbnailTiles.nth(0)).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#channel-thumbnail-strip .channel-thumbnail-placeholder')).toHaveCount(3);
   await expect.poll(async () => await getPendingIdleCallbackCount(page)).not.toBe(0);
 
@@ -118,8 +116,7 @@ test('keeps bottom-panel channel thumbnail frames stable across image selection 
   expect(Math.abs(portraitPreviewRect.height - landscapePreviewRect.height)).toBeLessThanOrEqual(1);
 
   await thumbnailTiles.nth(1).click();
-  await expect(channelSelect.locator('option:checked')).toHaveText('G');
-  await expect(greenRow).toHaveAttribute('aria-selected', 'true');
+  await expect(thumbnailTiles.nth(1)).toHaveAttribute('aria-selected', 'true');
 });
 
 test('defers channel thumbnail exposure refresh until slider changes are committed', async ({ page }) => {

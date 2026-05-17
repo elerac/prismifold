@@ -169,16 +169,6 @@ export interface Elements {
   displayCacheUsage: HTMLElement;
   reloadAllOpenedImagesButton: HTMLButtonElement;
   closeAllOpenedImagesButton: HTMLButtonElement;
-  layerControl: HTMLDivElement;
-  layerSelect: HTMLSelectElement;
-  partsLayersToggle: HTMLButtonElement;
-  partsLayersList: HTMLElement;
-  partsLayersCount: HTMLElement;
-  rgbSplitToggleButton: HTMLButtonElement;
-  rgbGroupSelect: HTMLSelectElement;
-  channelViewToggle: HTMLButtonElement;
-  channelViewList: HTMLElement;
-  channelViewCount: HTMLElement;
   imageStatsToggle: HTMLButtonElement;
   imageStatsContent: HTMLDivElement;
   imageStatsEmptyState: HTMLElement;
@@ -259,16 +249,6 @@ export type OpenedImagesPanelElements = Pick<
   | 'displayCacheUsage'
   | 'reloadAllOpenedImagesButton'
   | 'closeAllOpenedImagesButton'
->;
-
-export type LayerPanelElements = Pick<
-  Elements,
-  'layerControl' | 'layerSelect' | 'partsLayersList' | 'partsLayersCount'
->;
-
-export type ChannelPanelElements = Pick<
-  Elements,
-  'rgbSplitToggleButton' | 'rgbGroupSelect' | 'channelViewList' | 'channelViewCount'
 >;
 
 export type ChannelThumbnailStripElements = Pick<Elements, 'channelThumbnailStrip' | 'viewerContainer'>;
@@ -508,8 +488,6 @@ export type GlobalKeyboardControllerElements = Pick<
   | 'rightPanelResizer'
   | 'bottomPanelResizer'
   | 'openedFilesList'
-  | 'partsLayersList'
-  | 'channelViewList'
   | 'channelThumbnailStrip'
 >;
 
@@ -519,10 +497,6 @@ export type CollapsibleSectionsElements = Pick<
   Elements,
   | 'openedFilesToggle'
   | 'openedFilesList'
-  | 'partsLayersToggle'
-  | 'partsLayersList'
-  | 'channelViewToggle'
-  | 'channelViewList'
   | 'imageStatsToggle'
   | 'imageStatsContent'
   | 'viewerStateToggle'
@@ -713,16 +687,6 @@ export function resolveElements(): Elements {
     displayCacheUsage: requireElement('display-cache-usage', HTMLElement),
     reloadAllOpenedImagesButton: requireElement('reload-all-opened-images-button', HTMLButtonElement),
     closeAllOpenedImagesButton: requireElement('close-all-opened-images-button', HTMLButtonElement),
-    layerControl: requireElement('layer-control', HTMLDivElement),
-    layerSelect: requireElement('layer-select', HTMLSelectElement),
-    partsLayersToggle: requireElement('parts-layers-toggle', HTMLButtonElement),
-    partsLayersList: requireElement('parts-layers-list', HTMLElement),
-    partsLayersCount: requireElement('parts-layers-count', HTMLElement),
-    rgbSplitToggleButton: requireElement('rgb-split-toggle-button', HTMLButtonElement),
-    rgbGroupSelect: requireElement('rgb-group-select', HTMLSelectElement),
-    channelViewToggle: requireElement('channel-view-toggle', HTMLButtonElement),
-    channelViewList: requireElement('channel-view-list', HTMLElement),
-    channelViewCount: requireElement('channel-view-count', HTMLElement),
     imageStatsToggle: requireElement('image-stats-toggle', HTMLButtonElement),
     imageStatsContent: requireElement('image-stats-content', HTMLDivElement),
     imageStatsEmptyState: requireElement('image-stats-empty-state', HTMLElement),

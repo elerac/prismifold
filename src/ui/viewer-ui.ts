@@ -9,7 +9,6 @@ import {
 } from '../channel-view-items';
 import { cloneDisplaySelection, sameDisplaySelection } from '../display-model';
 import { AppFullscreenController } from './app-fullscreen-controller';
-import { ChannelPanel } from './channel-panel';
 import { ChannelThumbnailStrip } from './channel-thumbnail-strip';
 import { CollapsibleSectionsController } from './collapsible-sections';
 import { ColormapPanel } from './colormap-panel';
@@ -36,7 +35,6 @@ import { setImageStats } from './image-stats-panel';
 import { setMetadata } from './metadata-panel';
 import { type LayerOptionItem, type OpenedImageOptionItem } from './image-browser-types';
 import { LayoutSplitController } from './layout-split-controller';
-import { LayerPanel } from './layer-panel';
 import { MetadataDialogController } from './metadata-dialog';
 import {
   ProgressiveLoadingOverlayDisclosure,
@@ -288,8 +286,6 @@ export class ViewerUi implements Disposable {
   private readonly elements: Elements;
   private readonly loadingOverlayDisclosure: ProgressiveLoadingOverlayDisclosure;
   private readonly openedImagesPanel: OpenedImagesPanel;
-  private readonly layerPanel: LayerPanel;
-  private readonly channelPanel: ChannelPanel;
   private readonly channelThumbnailStrip: ChannelThumbnailStrip;
   private readonly colormapPanel: ColormapPanel;
   private readonly layoutSplitController: LayoutSplitController;
@@ -384,20 +380,6 @@ export class ViewerUi implements Disposable {
       onCloseSelectedOpenedImage: (sessionId) => {
         this.callbacks.onCloseSelectedOpenedImage(sessionId);
       }
-    });
-    this.layerPanel = new LayerPanel(this.elements, {
-      onLayerChange: (layerIndex) => {
-        this.callbacks.onLayerChange(layerIndex);
-      }
-    });
-    this.channelPanel = new ChannelPanel(this.elements, {
-      onChannelViewChange: (value) => {
-        this.handleChannelViewValueChange(value);
-      },
-      onChannelViewRowClick: () => {
-        this.globalKeyboardController.setVerticalNavigationTarget('channelView');
-      },
-      onSplitToggle: () => undefined
     });
     this.channelThumbnailStrip = new ChannelThumbnailStrip(this.elements, {
       onChannelViewChange: (value) => {
@@ -524,11 +506,7 @@ export class ViewerUi implements Disposable {
       onViewerKeyboardZoomInputChange: (input) => {
         this.callbacks.onViewerKeyboardZoomInputChange(input);
       },
-      routeVerticalNavigation: (target, delta) => {
-        if (target === 'channelView') {
-          return this.channelPanel.stepSelection(delta);
-        }
-
+      routeVerticalNavigation: (_target, delta) => {
         return this.openedImagesPanel.stepSelection(delta);
       },
       routeOpenedFilesReorder: (delta) => {
@@ -536,13 +514,6 @@ export class ViewerUi implements Disposable {
       },
       routeHorizontalNavigation: (delta) => {
         return this.channelThumbnailStrip.stepSelection(delta);
-      },
-      canRouteChannelViewNavigation: () => {
-        return (
-          !this.elements.channelViewList.hidden &&
-          !this.elements.rgbGroupSelect.disabled &&
-          this.elements.channelViewList.querySelector('.image-browser-row') !== null
-        );
       }
     });
     this.windowPreviewController = new WindowPreviewController(this.elements);
@@ -637,8 +608,6 @@ export class ViewerUi implements Disposable {
     });
     this.disposables.addDisposable(this.loadingOverlayDisclosure);
     this.disposables.addDisposable(this.openedImagesPanel);
-    this.disposables.addDisposable(this.layerPanel);
-    this.disposables.addDisposable(this.channelPanel);
     this.disposables.addDisposable(this.channelThumbnailStrip);
     this.disposables.addDisposable(this.colormapPanel);
     this.disposables.addDisposable(this.layoutSplitController);
@@ -761,8 +730,6 @@ export class ViewerUi implements Disposable {
     this.elements.galleryCboxRgbButton.disabled = loading;
     this.elements.resetViewButton.disabled = viewerBlocked;
     this.openedImagesPanel.setLoading(loading, viewerBlocked);
-    this.layerPanel.setLoading(viewerBlocked);
-    this.channelPanel.setLoading(viewerBlocked);
     this.channelThumbnailStrip.setLoading(viewerBlocked);
     this.colormapPanel.setLoading(viewerBlocked);
     this.updateFileMenuItemsDisabled();
@@ -881,7 +848,6 @@ export class ViewerUi implements Disposable {
     if (displayBusy) {
       this.hideScreenshotSelection();
     }
-    this.channelPanel.setRgbViewLoading(displayBusy);
     if (this.hasActiveChannelImage) {
       this.renderChannelViewControls();
     }
@@ -1365,18 +1331,14 @@ export class ViewerUi implements Disposable {
     this.channelThumbnailItems = [];
     this.currentChannelSelection = null;
     this.channelStackScopeKey = 'default';
-    this.layerPanel.clearForNoImage();
-    this.channelPanel.clearForNoImage();
     this.channelThumbnailStrip.clearForNoImage();
     this.globalKeyboardController.normalizeVerticalNavigationTarget();
   }
 
-  setLayerOptions(items: LayerOptionItem[], activeIndex: number): void {
+  setLayerOptions(_items: LayerOptionItem[], _activeIndex: number): void {
     if (this.disposed) {
       return;
     }
-
-    this.layerPanel.setLayerOptions(items, activeIndex);
   }
 
   setRgbGroupOptions(
@@ -1389,9 +1351,6 @@ export class ViewerUi implements Disposable {
       return;
     }
 
-    if (!this.layerPanel.hasMultipleLayers()) {
-      this.layerPanel.setFallbackPartLayerItemsFromChannelNames(channelNames);
-    }
     this.hasActiveChannelImage = true;
     this.rgbGroupChannelNames = [...channelNames];
     this.channelThumbnailItems = [...channelThumbnailItems];
@@ -1525,9 +1484,6 @@ export class ViewerUi implements Disposable {
     if (!findSelectedChannelViewItem(visibleItems, this.currentChannelSelection) && selectedItem) {
       this.currentChannelSelection = cloneDisplaySelection(selectedItem.selection);
     }
-
-    this.channelPanel.setSplitToggleState(false, false);
-    this.channelPanel.setChannelViewItems(visibleItems, selectedValue);
 
     if (this.hasActiveChannelImage) {
       this.channelThumbnailStrip.setChannelViewItems(visibleItems, selectedValue);

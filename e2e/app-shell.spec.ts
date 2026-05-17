@@ -9,7 +9,14 @@ import {
   buildScalarChannelExr,
   expectedColormapLabels
 } from './helpers/exr-fixtures';
-import { clickChannelStackToggle, readProbeCoords, resolveViewerPoint, setExposureValue } from './helpers/viewer';
+import {
+  clickChannelStackToggle,
+  getChannelThumbnailTile,
+  getSelectedChannelThumbnailTile,
+  readProbeCoords,
+  resolveViewerPoint,
+  setExposureValue
+} from './helpers/viewer';
 
 async function expectVisibleShellGap(page: Page, upper: Locator, lower: Locator): Promise<void> {
   const [expectedGap, upperBox, lowerBox] = await Promise.all([
@@ -369,9 +376,8 @@ test('opens the gallery demo image and keeps core display controls stable', asyn
   await gotoViewerApp(page);
 
   const openedImages = page.locator('#opened-images-select');
-  const layerControl = page.locator('#layer-control');
-  const rgbGroupSelect = page.locator('#rgb-group-select');
-  const rgbSplitToggleButton = page.locator('#rgb-split-toggle-button');
+  const channelTiles = page.locator('#channel-thumbnail-strip .channel-thumbnail-tile');
+  const selectedChannelTile = getSelectedChannelThumbnailTile(page);
   const probeCoords = page.locator('#probe-coords');
   const probeColorValues = page.locator('#probe-color-values');
   const metadataTable = page.locator('#metadata-table');
@@ -413,7 +419,6 @@ test('opens the gallery demo image and keeps core display controls stable', asyn
   await expect(reloadOpenedFileButton).toBeVisible();
   await expect(closeOpenedFileButton).toBeVisible();
   await expect(openedFileRow.locator('.opened-file-label')).toHaveAttribute('title', /Path: .*cbox_rgb\.exr\nSize: .* MB/);
-  await expect(layerControl).toBeHidden();
   await expect(metadataTable).toContainText('compression');
   await expect(metadataTable).toContainText('PIZ');
   await expect(metadataTable).toContainText('dataWindow');
@@ -429,21 +434,17 @@ test('opens the gallery demo image and keeps core display controls stable', asyn
   await page.mouse.click(lockedProbePoint.x, lockedProbePoint.y);
   await expect(page.locator('#probe-mode')).toHaveText('Locked');
 
-  await expect(rgbGroupSelect).toBeEnabled();
-  await expect(rgbSplitToggleButton).toBeHidden();
-  await expect(rgbSplitToggleButton).toHaveAttribute('aria-pressed', 'false');
-  await expect(rgbGroupSelect.locator('option:checked')).toHaveText('RGB');
-  await expect(rgbGroupSelect.locator('option').filter({ hasText: /^R$/ })).toHaveCount(0);
+  await expect(selectedChannelTile).toHaveText('RGB');
+  await expect(channelTiles.filter({ hasText: /^R$/ })).toHaveCount(0);
   await clickChannelStackToggle(page, 'group:');
-  await expect(rgbGroupSelect.locator('option:checked')).toHaveText('R');
-  await expect(rgbGroupSelect.locator('option').filter({ hasText: /^R$/ })).toHaveCount(1);
-  await expect(rgbGroupSelect.locator('option').filter({ hasText: /^G$/ })).toHaveCount(1);
-  await expect(rgbGroupSelect.locator('option').filter({ hasText: /^B$/ })).toHaveCount(1);
-  await rgbGroupSelect.selectOption({ label: 'R' });
+  await expect(selectedChannelTile).toHaveText('R');
+  await expect(channelTiles.filter({ hasText: /^R$/ })).toHaveCount(1);
+  await expect(channelTiles.filter({ hasText: /^G$/ })).toHaveCount(1);
+  await expect(channelTiles.filter({ hasText: /^B$/ })).toHaveCount(1);
+  await getChannelThumbnailTile(page, 'channel:R').click();
   await expect(probeColorValues.locator('.probe-color-channel')).toHaveText(['Mono:']);
   await clickChannelStackToggle(page, 'channel:R');
-  await expect(rgbSplitToggleButton).toHaveAttribute('aria-pressed', 'false');
-  await expect(rgbGroupSelect.locator('option:checked')).toHaveText('RGB');
+  await expect(selectedChannelTile).toHaveText('RGB');
 
   await expect(page.locator('#display-toolbar')).toHaveCount(0);
   await expect(page.locator('#window-toolbar-menu-item')).toHaveCount(0);
@@ -532,7 +533,6 @@ test('opens the gallery demo image and keeps core display controls stable', asyn
 
   await closeOpenedFileButton.click();
   await expect(openedImages.locator('option')).toHaveCount(0, { timeout: 30000 });
-  await expect(layerControl).toBeHidden();
   await expect.poll(async () => await probeCoords.evaluate((element) => element.textContent ?? '')).toBe('x -   y -');
   await fileMenuButton.click();
   await expect(fileMenu).toBeVisible();

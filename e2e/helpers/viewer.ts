@@ -105,6 +105,15 @@ export function getChannelStackToggle(page: Page, value: string): Locator {
     .locator('.channel-thumbnail-stack-toggle');
 }
 
+export function getChannelThumbnailTile(page: Page, value: string): Locator {
+  const escapedValue = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return page.locator(`#channel-thumbnail-strip .channel-thumbnail-tile[data-channel-value="${escapedValue}"]`);
+}
+
+export function getSelectedChannelThumbnailTile(page: Page): Locator {
+  return page.locator('#channel-thumbnail-strip .channel-thumbnail-tile[aria-selected="true"]');
+}
+
 export async function clickChannelStackToggle(page: Page, value: string): Promise<void> {
   await getChannelStackToggle(page, value).click();
 }
