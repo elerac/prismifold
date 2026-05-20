@@ -38,6 +38,7 @@ import type { RenderCacheService } from '../../services/render-cache-service';
 import type { ChannelThumbnailService } from '../../services/channel-thumbnail-service';
 import type { WebGlExrRenderer } from '../../renderer';
 import type { DisplaySelection } from '../../display-model';
+import { saveStoredInvalidValueWarningSetting } from '../../invalid-value-warning-settings';
 
 interface InteractionInputBridge {
   setViewerKeyboardNavigationInput(input: ViewerKeyboardNavigationInput): void;
@@ -350,7 +351,8 @@ export function createViewerUi({
       getDisplayController().setMaskInvalidStokesVectors(enabled);
     },
     onInvalidValueWarningChange: (enabled) => {
-      getDisplayController().setInvalidValueWarningEnabled(enabled);
+      saveStoredInvalidValueWarningSetting(enabled);
+      core.dispatch({ type: 'invalidValueWarningSet', enabled });
     },
     onClearRoi: () => {
       core.dispatch({

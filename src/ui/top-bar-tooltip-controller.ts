@@ -19,6 +19,7 @@ export class TopBarTooltipController implements Disposable {
     this.buttons = [
       this.elements.appAutoFitImageButton,
       this.elements.appAutoExposureButton,
+      this.elements.appInvalidValueWarningButton,
       this.elements.appScreenshotButton,
       this.elements.appMetadataButton,
       this.elements.appFullscreenButton,

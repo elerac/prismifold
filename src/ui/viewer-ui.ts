@@ -1096,7 +1096,7 @@ export class ViewerUi implements Disposable {
     }
 
     this.invalidValueWarningEnabled = enabled;
-    this.elements.invalidValueWarningCheckbox.checked = enabled;
+    this.elements.appInvalidValueWarningButton.setAttribute('aria-pressed', enabled ? 'true' : 'false');
   }
 
   setActiveColormap(activeId: string): void {
@@ -2463,6 +2463,14 @@ export class ViewerUi implements Disposable {
       event.preventDefault();
     });
 
+    this.disposables.addEventListener(this.elements.appInvalidValueWarningButton, 'mousedown', (event) => {
+      if (event.button !== 0) {
+        return;
+      }
+
+      event.preventDefault();
+    });
+
     this.disposables.addEventListener(this.elements.appAutoFitImageButton, 'click', (event) => {
       if (this.elements.appAutoFitImageButton.disabled) {
         return;
@@ -2489,6 +2497,19 @@ export class ViewerUi implements Disposable {
       this.callbacks.onAutoExposureChange(enabled);
       if (event.detail > 0) {
         this.elements.appAutoExposureButton.blur();
+      }
+    });
+
+    this.disposables.addEventListener(this.elements.appInvalidValueWarningButton, 'click', (event) => {
+      if (this.elements.appInvalidValueWarningButton.disabled) {
+        return;
+      }
+
+      const enabled = !this.invalidValueWarningEnabled;
+      this.setInvalidValueWarningEnabled(enabled);
+      this.callbacks.onInvalidValueWarningChange(this.invalidValueWarningEnabled);
+      if (event.detail > 0) {
+        this.elements.appInvalidValueWarningButton.blur();
       }
     });
 
@@ -2646,11 +2667,6 @@ export class ViewerUi implements Disposable {
     this.disposables.addEventListener(this.elements.stokesInvalidVectorMaskCheckbox, 'change', () => {
       this.setMaskInvalidStokesVectors(this.elements.stokesInvalidVectorMaskCheckbox.checked);
       this.callbacks.onMaskInvalidStokesVectorsChange(this.maskInvalidStokesVectors);
-    });
-
-    this.disposables.addEventListener(this.elements.invalidValueWarningCheckbox, 'change', () => {
-      this.setInvalidValueWarningEnabled(this.elements.invalidValueWarningCheckbox.checked);
-      this.callbacks.onInvalidValueWarningChange(this.invalidValueWarningEnabled);
     });
 
     this.disposables.addEventListener(this.elements.spectrumLatticeMotionSelect, 'change', () => {

@@ -3,6 +3,7 @@ export interface Elements {
   appMenuBar: HTMLElement;
   appAutoFitImageButton: HTMLButtonElement;
   appAutoExposureButton: HTMLButtonElement;
+  appInvalidValueWarningButton: HTMLButtonElement;
   appScreenshotButton: HTMLButtonElement;
   appMetadataButton: HTMLButtonElement;
   appFullscreenButton: HTMLButtonElement;
@@ -41,7 +42,6 @@ export interface Elements {
   imageLoadWorkersInput: HTMLInputElement;
   autoExposurePercentileInput: HTMLInputElement;
   stokesInvalidVectorMaskCheckbox: HTMLInputElement;
-  invalidValueWarningCheckbox: HTMLInputElement;
   stokesDefaultSettingsTable: HTMLTableElement;
   resetSettingsButton: HTMLButtonElement;
   imageViewerMenuItem: HTMLButtonElement;
@@ -517,6 +517,7 @@ export function resolveElements(): Elements {
     appMenuBar: requireElement('app-menu-bar', HTMLElement),
     appAutoFitImageButton: requireElement('app-auto-fit-image-button', HTMLButtonElement),
     appAutoExposureButton: requireElement('app-auto-exposure-button', HTMLButtonElement),
+    appInvalidValueWarningButton: requireElement('app-invalid-value-warning-button', HTMLButtonElement),
     appScreenshotButton: requireElement('app-screenshot-button', HTMLButtonElement),
     appMetadataButton: requireElement('app-metadata-button', HTMLButtonElement),
     appFullscreenButton: requireElement('app-fullscreen-button', HTMLButtonElement),
@@ -555,7 +556,6 @@ export function resolveElements(): Elements {
     imageLoadWorkersInput: requireElement('image-load-workers-input', HTMLInputElement),
     autoExposurePercentileInput: requireElement('auto-exposure-percentile-input', HTMLInputElement),
     stokesInvalidVectorMaskCheckbox: requireElement('stokes-invalid-vector-mask-checkbox', HTMLInputElement),
-    invalidValueWarningCheckbox: requireElement('invalid-value-warning-checkbox', HTMLInputElement),
     stokesDefaultSettingsTable: requireElement('stokes-default-settings-table', HTMLTableElement),
     resetSettingsButton: requireElement('reset-settings-button', HTMLButtonElement),
     imageViewerMenuItem: requireElement('image-viewer-menu-item', HTMLButtonElement),

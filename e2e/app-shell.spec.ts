@@ -193,6 +193,7 @@ test('boots an empty app shell with menu actions gated until an image opens', as
   const closeAllMenuItem = page.locator('#close-all-opened-images-button');
   const autoFitButton = page.locator('#app-auto-fit-image-button');
   const autoExposureButton = page.locator('#app-auto-exposure-button');
+  const invalidValueWarningButton = page.locator('#app-invalid-value-warning-button');
   const themeInput = page.locator('#theme-select');
   const spectrumMotionInput = page.locator('#spectrum-lattice-motion-select');
   const imageLoadWorkersInput = page.locator('#image-load-workers-input');
@@ -240,12 +241,19 @@ test('boots an empty app shell with menu actions gated until an image opens', as
   await expect(autoExposureButton).toBeVisible();
   await expect(autoExposureButton).toHaveAttribute('aria-label', 'Auto exposure');
   await expect(autoExposureButton).toHaveAttribute('aria-pressed', 'false');
+  await expect(invalidValueWarningButton).toBeVisible();
+  await expect(invalidValueWarningButton).toHaveAttribute('aria-label', 'Warn invalid values');
+  await expect(invalidValueWarningButton).toHaveAttribute('aria-pressed', 'true');
   await expectViewerCheckerBackground(viewer);
 
   await autoFitButton.click();
   await expect(autoFitButton).toHaveAttribute('aria-pressed', 'true');
   await autoFitButton.click();
   await expect(autoFitButton).toHaveAttribute('aria-pressed', 'false');
+  await invalidValueWarningButton.click();
+  await expect(invalidValueWarningButton).toHaveAttribute('aria-pressed', 'false');
+  await invalidValueWarningButton.click();
+  await expect(invalidValueWarningButton).toHaveAttribute('aria-pressed', 'true');
 
   await fileMenuButton.click();
   await expect(fileMenu).toBeVisible();

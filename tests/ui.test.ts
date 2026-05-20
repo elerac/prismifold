@@ -894,6 +894,28 @@ describe('top bar and display controls', () => {
     expect(restoredCallback).toHaveBeenLastCalledWith(false);
   });
 
+  it('dispatches the top-bar invalid value warning toggle', () => {
+    installUiFixture();
+
+    const onInvalidValueWarningChange = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onInvalidValueWarningChange }));
+    const button = document.getElementById('app-invalid-value-warning-button') as HTMLButtonElement;
+
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.closest('#app-menu-bar')).not.toBeNull();
+    expect(document.getElementById('invalid-value-warning-control')).toBeNull();
+    expect(document.getElementById('invalid-value-warning-checkbox')).toBeNull();
+
+    button.click();
+
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(onInvalidValueWarningChange).toHaveBeenLastCalledWith(false);
+
+    ui.setInvalidValueWarningEnabled(true);
+
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('persists and dispatches the auto exposure percentile setting', () => {
     installUiFixture();
 
@@ -1887,7 +1909,9 @@ describe('panel split sizing', () => {
     const imageLoadWorkersInput = document.getElementById('image-load-workers-input') as HTMLInputElement;
     const stokesAolpSelect = document.getElementById('stokes-default-aolp-colormap-select') as HTMLSelectElement;
     const stokesMaskCheckbox = document.getElementById('stokes-invalid-vector-mask-checkbox') as HTMLInputElement;
-    const invalidValueWarningCheckbox = document.getElementById('invalid-value-warning-checkbox') as HTMLInputElement;
+    const invalidValueWarningButton = document.getElementById(
+      'app-invalid-value-warning-button'
+    ) as HTMLButtonElement;
     const imageButton = document.getElementById('image-panel-collapse-button') as HTMLButtonElement;
     const rightButton = document.getElementById('right-panel-collapse-button') as HTMLButtonElement;
     const bottomButton = document.getElementById('bottom-panel-collapse-button') as HTMLButtonElement;
@@ -1904,7 +1928,9 @@ describe('panel split sizing', () => {
     expect(imageLoadWorkersInput.value).toBe('1');
     expect(stokesAolpSelect.value).toBe('0');
     stokesMaskCheckbox.checked = false;
-    invalidValueWarningCheckbox.checked = false;
+    invalidValueWarningButton.click();
+    expect(invalidValueWarningButton.getAttribute('aria-pressed')).toBe('false');
+    onInvalidValueWarningChange.mockClear();
     autoExposurePercentileInput.value = '97.5';
     autoExposurePercentileInput.dispatchEvent(new Event('change', { bubbles: true }));
     expect(window.localStorage.getItem(AUTO_EXPOSURE_PERCENTILE_STORAGE_KEY)).toBe('97.5');
@@ -1920,7 +1946,7 @@ describe('panel split sizing', () => {
     expect(imageLoadWorkersInput.value).toBe(String(getDefaultImageLoadWorkers()));
     expect(stokesAolpSelect.value).toBe('1');
     expect(stokesMaskCheckbox.checked).toBe(true);
-    expect(invalidValueWarningCheckbox.checked).toBe(true);
+    expect(invalidValueWarningButton.getAttribute('aria-pressed')).toBe('true');
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
     expect(window.localStorage.getItem(SPECTRUM_LATTICE_MOTION_STORAGE_KEY)).toBeNull();
@@ -2002,6 +2028,9 @@ describe('view menu', () => {
     const actions = document.querySelector('.app-menu-actions') as HTMLElement;
     const autoFitButton = document.getElementById('app-auto-fit-image-button') as HTMLButtonElement;
     const autoExposureButton = document.getElementById('app-auto-exposure-button') as HTMLButtonElement;
+    const invalidValueWarningButton = document.getElementById(
+      'app-invalid-value-warning-button'
+    ) as HTMLButtonElement;
     const screenshotButton = document.getElementById('app-screenshot-button') as HTMLButtonElement;
     const metadataButton = document.getElementById('app-metadata-button') as HTMLButtonElement;
     const fullscreenButton = document.getElementById('app-fullscreen-button') as HTMLButtonElement;
@@ -2014,13 +2043,15 @@ describe('view menu', () => {
     expect(Array.from(actions.children).map((child) => child.id)).toEqual([
       'app-auto-fit-image-button',
       'app-auto-exposure-button',
+      'app-invalid-value-warning-button',
       'app-screenshot-button',
       'app-metadata-button',
       'app-fullscreen-button',
       'settings-dialog-button'
     ]);
     expect(autoExposureButton.previousElementSibling).toBe(autoFitButton);
-    expect(screenshotButton.previousElementSibling).toBe(autoExposureButton);
+    expect(invalidValueWarningButton.previousElementSibling).toBe(autoExposureButton);
+    expect(screenshotButton.previousElementSibling).toBe(invalidValueWarningButton);
     expect(metadataButton.previousElementSibling).toBe(screenshotButton);
     expect(fullscreenButton.previousElementSibling).toBe(metadataButton);
     expect(settingsButton.previousElementSibling).toBe(fullscreenButton);
@@ -2031,6 +2062,11 @@ describe('view menu', () => {
     expect(autoExposureButton.getAttribute('aria-pressed')).toBe('false');
     expect(autoExposureButton.dataset.tooltip).toBe('Auto exposure');
     expect(autoExposureButton.title).toBe('Auto exposure');
+    expect(invalidValueWarningButton.getAttribute('aria-label')).toBe('Warn invalid values');
+    expect(invalidValueWarningButton.getAttribute('aria-pressed')).toBe('true');
+    expect(invalidValueWarningButton.dataset.tooltip).toBe('Warn invalid values');
+    expect(invalidValueWarningButton.title).toBe('Warn invalid values');
+    expect(invalidValueWarningButton.querySelectorAll('.app-menu-icon')).toHaveLength(1);
     expect(screenshotButton.getAttribute('aria-label')).toBe('Export Screenshot...');
     expect(screenshotButton.dataset.tooltip).toBe('Export screenshot');
     expect(screenshotButton.title).toBe('Export Screenshot...');
@@ -2058,6 +2094,9 @@ describe('view menu', () => {
 
     const ui = new ViewerUi(createUiCallbacks());
 
+    const invalidValueWarningButton = document.getElementById(
+      'app-invalid-value-warning-button'
+    ) as HTMLButtonElement;
     const screenshotButton = document.getElementById('app-screenshot-button') as HTMLButtonElement;
     const metadataButton = document.getElementById('app-metadata-button') as HTMLButtonElement;
     const fullscreenButton = document.getElementById('app-fullscreen-button') as HTMLButtonElement;
@@ -2075,6 +2114,10 @@ describe('view menu', () => {
     screenshotButton.dispatchEvent(new Event('pointerleave'));
     expect(tooltip.hidden).toBe(true);
     expect(screenshotButton.hasAttribute('aria-describedby')).toBe(false);
+
+    invalidValueWarningButton.focus();
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.textContent).toBe('Warn invalid values');
 
     ui.setMetadata([{ key: 'compression', label: 'Compression', value: 'PIZ' }]);
     metadataButton.focus();
@@ -2519,25 +2562,13 @@ describe('view menu', () => {
     expect(checkbox.checked).toBe(true);
   });
 
-  it('renders and dispatches the invalid value warning setting from Settings', () => {
+  it('keeps the invalid value warning setting out of Settings', () => {
     installUiFixture();
 
-    const onInvalidValueWarningChange = vi.fn();
-    const ui = new ViewerUi(createUiCallbacks({ onInvalidValueWarningChange }));
-    const checkbox = document.getElementById('invalid-value-warning-checkbox') as HTMLInputElement;
+    new ViewerUi(createUiCallbacks());
 
-    expect(checkbox).not.toBeNull();
-    expect(checkbox.checked).toBe(true);
-    expect(checkbox.closest('#settings-dialog')).toBe(document.getElementById('settings-dialog'));
-
-    checkbox.checked = false;
-    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-
-    expect(onInvalidValueWarningChange).toHaveBeenCalledWith(false);
-
-    ui.setInvalidValueWarningEnabled(true);
-
-    expect(checkbox.checked).toBe(true);
+    expect(document.getElementById('invalid-value-warning-control')).toBeNull();
+    expect(document.getElementById('invalid-value-warning-checkbox')).toBeNull();
   });
 
   it('applies and persists the Spectrum lattice theme from Settings', () => {
@@ -3017,7 +3048,6 @@ describe('view menu', () => {
     const themeSelect = document.getElementById('theme-select') as HTMLSelectElement;
     const spectrumMotionSelect = document.getElementById('spectrum-lattice-motion-select') as HTMLSelectElement;
     const stokesMaskCheckbox = document.getElementById('stokes-invalid-vector-mask-checkbox') as HTMLInputElement;
-    const invalidValueWarningCheckbox = document.getElementById('invalid-value-warning-checkbox') as HTMLInputElement;
     const aolpEnabled = document.getElementById('stokes-default-aolp-enabled-checkbox') as HTMLInputElement;
     const aolpSelect = document.getElementById('stokes-default-aolp-colormap-select') as HTMLSelectElement;
     const aolpVmin = document.getElementById('stokes-default-aolp-vmin-input') as HTMLInputElement;
@@ -3064,7 +3094,6 @@ describe('view menu', () => {
       themeSelect,
       spectrumMotionSelect,
       stokesMaskCheckbox,
-      invalidValueWarningCheckbox,
       aolpEnabled,
       aolpSelect,
       aolpVmin,
