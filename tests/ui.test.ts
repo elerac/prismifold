@@ -7085,7 +7085,9 @@ describe('opened files actions', () => {
 
     expect(rowLabels).toEqual(['hoge/image.exr', 'fuga/image.exr']);
     expect(selectLabels).toEqual(['hoge/image.exr', 'fuga/image.exr']);
-    expect(document.querySelector('#opened-files-list .opened-file-label')?.getAttribute('title')).toBeNull();
+    expect(document.querySelector('#opened-files-list .opened-file-label')?.getAttribute('title')).toBe(
+      'Path: shots/hoge/image.exr\nSize: -- MB'
+    );
   });
 
   it('shows opened-file filename and size quickly when hovering the whole row', () => {

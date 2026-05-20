@@ -46,9 +46,9 @@ function renderRoiStats(elements: RoiReadoutElements, stats: RoiStats): void {
       row.className = 'roi-stats-row';
       row.append(
         buildRoiStatsCell('roi-stats-cell roi-stats-cell--label', channel.label),
-        buildRoiStatsCell('roi-stats-cell', formatRoiStatValue(channel.min)),
-        buildRoiStatsCell('roi-stats-cell', formatRoiStatValue(channel.mean)),
-        buildRoiStatsCell('roi-stats-cell', formatRoiStatValue(channel.max))
+        buildRoiStatsCell('roi-stats-cell roi-stats-cell--data', formatRoiStatValue(channel.min)),
+        buildRoiStatsCell('roi-stats-cell roi-stats-cell--data', formatRoiStatValue(channel.mean)),
+        buildRoiStatsCell('roi-stats-cell roi-stats-cell--data', formatRoiStatValue(channel.max))
       );
       return row;
     })

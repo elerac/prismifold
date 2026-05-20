@@ -1,4 +1,5 @@
 import {
+  getSuccessValue,
   idleResource,
   isPendingMatch,
   pendingResource,
@@ -23,14 +24,16 @@ export function thumbnailReducer(
           [intent.session.id]: staleResource(intent.session.id)
         }
       };
-    case 'thumbnailRequested':
+    case 'thumbnailRequested': {
+      const currentThumbnail = state.thumbnailsBySessionId[intent.sessionId] ?? idleResource<string | null>();
       return {
         ...state,
         thumbnailsBySessionId: {
           ...state.thumbnailsBySessionId,
-          [intent.sessionId]: pendingResource(intent.sessionId, intent.token)
+          [intent.sessionId]: pendingResource(intent.sessionId, intent.token, getSuccessValue(currentThumbnail))
         }
       };
+    }
     case 'thumbnailReady':
       if (!isPendingMatch(
         state.thumbnailsBySessionId[intent.sessionId] ?? idleResource(),
@@ -74,16 +77,20 @@ export function thumbnailReducer(
         }
       };
     case 'sessionReloaded':
-      return sessionExists(context.initialState, intent.sessionId)
-        ? {
-            ...state,
-            thumbnailsBySessionId: {
-              ...state.thumbnailsBySessionId,
-              [intent.sessionId]: staleResource(intent.sessionId)
-            },
-            ...pruneChannelThumbnailStateForSession(state, intent.sessionId)
-          }
-        : state;
+      if (!sessionExists(context.initialState, intent.sessionId)) {
+        return state;
+      }
+      {
+        const currentThumbnail = state.thumbnailsBySessionId[intent.sessionId] ?? idleResource<string | null>();
+        return {
+          ...state,
+          thumbnailsBySessionId: {
+            ...state.thumbnailsBySessionId,
+            [intent.sessionId]: staleResource(intent.sessionId, getSuccessValue(currentThumbnail))
+          },
+          ...pruneChannelThumbnailStateForSession(state, intent.sessionId)
+        };
+      }
     case 'sessionClosed':
       return sessionExists(context.initialState, intent.sessionId)
         ? removeThumbnailStateForSession(state, intent.sessionId)

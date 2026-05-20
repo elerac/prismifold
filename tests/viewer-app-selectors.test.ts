@@ -150,6 +150,12 @@ describe('opened image option labels', () => {
     });
 
     core.dispatch({ type: 'thumbnailRequested', sessionId: 'session-1', token: 2 });
+
+    expect(buildOpenedImageOptions(core.getState())[0]).toMatchObject({
+      thumbnailDataUrl: 'data:image/png;base64,AAAA',
+      thumbnailLoading: true
+    });
+
     core.dispatch({
       type: 'thumbnailReady',
       sessionId: 'session-1',

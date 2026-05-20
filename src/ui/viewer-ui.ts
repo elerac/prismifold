@@ -398,7 +398,15 @@ export class ViewerUi implements Disposable {
         this.handleChannelStackToggle(stackKey);
       },
       onCollapsedContentAvailabilityChange: (available) => {
+        const bottomPanelCollapsed = this.elements.bottomPanelContent.classList.contains('is-collapsed');
         this.layoutSplitController.setBottomCollapsedContentAvailable(available);
+        if (available && bottomPanelCollapsed && this.openedImageCount > 0) {
+          window.requestAnimationFrame(() => {
+            if (!this.disposed && this.elements.bottomPanelContent.classList.contains('is-collapsed')) {
+              this.callbacks.onAutoFitImage();
+            }
+          });
+        }
       }
     });
     this.colormapPanel = new ColormapPanel(this.elements, {

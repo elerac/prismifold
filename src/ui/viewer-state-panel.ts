@@ -77,12 +77,12 @@ export class ViewerStatePanel implements Disposable {
     this.elements.viewerStatePitchInput.disabled = !panoramaFieldsActive;
     this.elements.viewerStateHfovInput.disabled = !panoramaFieldsActive;
 
-    this.elements.viewerStateZoomInput.value = formatViewerStateNumber(readout.view.zoom);
-    this.elements.viewerStatePanXInput.value = formatViewerStateNumber(readout.view.panX);
-    this.elements.viewerStatePanYInput.value = formatViewerStateNumber(readout.view.panY);
-    this.elements.viewerStateYawInput.value = formatViewerStateNumber(readout.view.panoramaYawDeg);
-    this.elements.viewerStatePitchInput.value = formatViewerStateNumber(readout.view.panoramaPitchDeg);
-    this.elements.viewerStateHfovInput.value = formatViewerStateNumber(readout.view.panoramaHfovDeg);
+    this.elements.viewerStateZoomInput.value = formatViewerStateNumber(readout.view.zoom, 'zoom');
+    this.elements.viewerStatePanXInput.value = formatViewerStateNumber(readout.view.panX, 'panX');
+    this.elements.viewerStatePanYInput.value = formatViewerStateNumber(readout.view.panY, 'panY');
+    this.elements.viewerStateYawInput.value = formatViewerStateNumber(readout.view.panoramaYawDeg, 'panoramaYawDeg');
+    this.elements.viewerStatePitchInput.value = formatViewerStateNumber(readout.view.panoramaPitchDeg, 'panoramaPitchDeg');
+    this.elements.viewerStateHfovInput.value = formatViewerStateNumber(readout.view.panoramaHfovDeg, 'panoramaHfovDeg');
   }
 
   dispose(): void {
@@ -122,7 +122,7 @@ export class ViewerStatePanel implements Disposable {
 
     const normalized = normalizeViewerStateField(field, value);
     input.removeAttribute('aria-invalid');
-    input.value = formatViewerStateNumber(normalized);
+    input.value = formatViewerStateNumber(normalized, field);
 
     if (this.readout.view[field] === normalized) {
       return;
@@ -163,10 +163,26 @@ function normalizeViewerStateField(field: ViewerStateField, value: number): numb
   }
 }
 
-function formatViewerStateNumber(value: number): string {
+function formatViewerStateNumber(value: number, field: ViewerStateField): string {
   if (!Number.isFinite(value)) {
     return '0';
   }
 
-  return Number(value.toPrecision(7)).toString();
+  switch (field) {
+    case 'zoom':
+      return formatCompactNumber(value, Math.abs(value) < 1 ? 3 : 2);
+    case 'panX':
+    case 'panY':
+    case 'panoramaYawDeg':
+    case 'panoramaPitchDeg':
+    case 'panoramaHfovDeg':
+      return formatCompactNumber(value, 2);
+    default:
+      throw new Error(`Unknown viewer state field: ${field satisfies never}`);
+  }
+}
+
+function formatCompactNumber(value: number, fractionDigits: number): string {
+  const rounded = Number(value.toFixed(fractionDigits));
+  return Object.is(rounded, -0) ? '0' : rounded.toString();
 }

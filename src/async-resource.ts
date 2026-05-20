@@ -6,7 +6,7 @@ export interface ViewerError {
 
 export type AsyncResource<T> =
   | { status: 'idle' }
-  | { status: 'pending'; key: string; requestId: number }
+  | { status: 'pending'; key: string; requestId: number; previous?: T }
   | { status: 'success'; key: string; value: T }
   | { status: 'error'; key: string; error: ViewerError }
   | { status: 'stale'; key: string; previous?: T };
@@ -17,9 +17,12 @@ export function idleResource<T>(): AsyncResource<T> {
 
 export function pendingResource<T>(
   key: string,
-  requestId: number
+  requestId: number,
+  previous?: T
 ): AsyncResource<T> {
-  return { status: 'pending', key, requestId };
+  return previous === undefined
+    ? { status: 'pending', key, requestId }
+    : { status: 'pending', key, requestId, previous };
 }
 
 export function startedResource<T>(
@@ -104,7 +107,7 @@ export function getSuccessValue<T>(resource: AsyncResource<T>): T | undefined {
     return resource.value;
   }
 
-  if (resource.status === 'stale') {
+  if (resource.status === 'pending' || resource.status === 'stale') {
     return resource.previous;
   }
 

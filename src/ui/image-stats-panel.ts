@@ -53,14 +53,14 @@ function buildImageStatsRow(channel: StatsChannelSummary, pixelCount: number): H
   row.className = 'image-stats-row';
   row.append(
     buildImageStatsCell('image-stats-cell image-stats-cell--label', channel.label),
-    buildImageStatsCell('image-stats-cell', formatImageStatsValue(channel.min)),
-    buildImageStatsCell('image-stats-cell', formatImageStatsValue(channel.mean)),
-    buildImageStatsCell('image-stats-cell', formatImageStatsValue(channel.max)),
-    buildImageStatsCell('image-stats-cell', String(channel.validPixelCount)),
-    buildImageStatsCell('image-stats-cell', String(channel.nanPixelCount)),
-    buildImageStatsCell('image-stats-cell', String(channel.negativeInfinityPixelCount)),
-    buildImageStatsCell('image-stats-cell', String(channel.positiveInfinityPixelCount)),
-    buildImageStatsCell('image-stats-cell', formatInvalidPercent(channel, pixelCount))
+    buildImageStatsCell('image-stats-cell image-stats-cell--data', formatImageStatsValue(channel.min)),
+    buildImageStatsCell('image-stats-cell image-stats-cell--data', formatImageStatsValue(channel.mean)),
+    buildImageStatsCell('image-stats-cell image-stats-cell--data', formatImageStatsValue(channel.max)),
+    buildImageStatsCell('image-stats-cell image-stats-cell--data', String(channel.validPixelCount)),
+    buildImageStatsCell('image-stats-cell image-stats-cell--data', String(channel.nanPixelCount)),
+    buildImageStatsCell('image-stats-cell image-stats-cell--data', String(channel.negativeInfinityPixelCount)),
+    buildImageStatsCell('image-stats-cell image-stats-cell--data', String(channel.positiveInfinityPixelCount)),
+    buildImageStatsCell('image-stats-cell image-stats-cell--data', formatInvalidPercent(channel, pixelCount))
   );
   return row;
 }

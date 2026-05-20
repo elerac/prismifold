@@ -1228,13 +1228,17 @@ function updateOpenedFileLabel(
   editing: boolean,
   disabled: boolean
 ): void {
+  const title = `Path: ${item.sourceDetail ?? item.label}\nSize: ${formatFileSizeMb(item.sizeBytes ?? null)}`;
+
   refs.label.classList.toggle('opened-file-label--editing', editing);
   if (!editing) {
     refs.renameInput = null;
     refs.label.textContent = item.label;
+    refs.label.title = title;
     return;
   }
 
+  refs.label.removeAttribute('title');
   let input = refs.renameInput;
   if (!input || !refs.label.contains(input)) {
     input = createOpenedFileRenameInput(item);
