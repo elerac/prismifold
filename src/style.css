@@ -2463,6 +2463,48 @@ body.is-resizing-panel-rows * {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 
+.opened-file-info-tooltip {
+  position: fixed;
+  z-index: 40;
+  max-width: min(18rem, calc(100vw - 1rem));
+  display: grid;
+  gap: 0.14rem;
+  padding: 0.42rem 0.58rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--panel-border));
+  border-radius: 0.42rem;
+  background: color-mix(in srgb, var(--panel) 94%, #000);
+  box-shadow:
+    0 0.75rem 1.8rem rgba(0, 0, 0, 0.38),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  pointer-events: none;
+}
+
+.opened-file-info-tooltip[hidden] {
+  display: none;
+}
+
+.opened-file-info-tooltip-filename,
+.opened-file-info-tooltip-size {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opened-file-info-tooltip-filename {
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.16;
+}
+
+.opened-file-info-tooltip-size {
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  line-height: 1.14;
+}
+
 .channel-thumbnail-strip {
   flex: 1 1 auto;
   min-width: 0;

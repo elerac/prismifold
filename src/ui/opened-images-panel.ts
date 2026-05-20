@@ -17,6 +17,10 @@ import {
 
 const OPENED_IMAGES_MAX_VISIBLE_ROWS = 10;
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const OPENED_FILE_INFO_TOOLTIP_ID = 'opened-file-info-tooltip';
+const OPENED_FILE_INFO_TOOLTIP_DELAY_MS = 75;
+const OPENED_FILE_INFO_TOOLTIP_GAP_PX = 8;
+const OPENED_FILE_INFO_TOOLTIP_VIEWPORT_MARGIN_PX = 8;
 
 interface OpenedImagesPanelCallbacks {
   onOpenedImageSelected: (sessionId: string) => void;
@@ -59,6 +63,13 @@ interface OpenedFileRowRefs {
   closeButton: HTMLButtonElement;
 }
 
+interface OpenedFileRowCallbacks {
+  onPointerEnter: (row: HTMLDivElement) => void;
+  onPointerLeave: (row: HTMLDivElement) => void;
+  onFocusIn: (row: HTMLDivElement) => void;
+  onFocusOut: (row: HTMLDivElement, relatedTarget: EventTarget | null) => void;
+}
+
 const openedFileRowRefs = new WeakMap<HTMLElement, OpenedFileRowRefs>();
 const OPENED_FILE_DRAG_MIME = 'application/x-openexr-viewer-opened-file';
 const OPENED_FILE_DRAG_IMAGE_OFFSET_X = 16;
@@ -77,6 +88,9 @@ export class OpenedImagesPanel implements Disposable {
   private openedFilesFilterText = '';
   private restoreOpenedFilesFocusAfterLoading = false;
   private displayCacheBudgetMb = 256;
+  private openedFileInfoTooltipRow: HTMLDivElement | null = null;
+  private openedFileInfoTooltipElement: HTMLDivElement | null = null;
+  private openedFileInfoTooltipTimer: number | null = null;
   private disposed = false;
 
   constructor(
@@ -106,6 +120,7 @@ export class OpenedImagesPanel implements Disposable {
       this.renderOpenedFileRows();
     });
     this.disposables.addEventListener(this.elements.openedFilesList, 'click', (event) => {
+      this.hideOpenedFileInfoTooltip();
       if (this.openedImageDragState || performance.now() < this.suppressOpenedImageSelectionUntilMs) {
         event.preventDefault();
         return;
@@ -252,6 +267,18 @@ export class OpenedImagesPanel implements Disposable {
     this.disposables.addEventListener(window, 'blur', () => {
       this.commitActiveOpenedFileRename();
       this.finishOpenedImagesDrag();
+      this.hideOpenedFileInfoTooltip();
+    });
+    this.disposables.addEventListener(window, 'resize', () => {
+      this.repositionOpenedFileInfoTooltip();
+    });
+    this.disposables.addEventListener(window, 'scroll', () => {
+      this.repositionOpenedFileInfoTooltip();
+    }, true);
+    this.disposables.addEventListener(document, 'keydown', (event) => {
+      if (event.key === 'Escape') {
+        this.hideOpenedFileInfoTooltip();
+      }
     });
   }
 
@@ -261,6 +288,7 @@ export class OpenedImagesPanel implements Disposable {
     }
 
     this.disposed = true;
+    this.hideOpenedFileInfoTooltip();
     this.cancelOpenedFileRename();
     this.finishOpenedImagesDrag();
     this.elements.openedFilesList.replaceChildren();
@@ -352,6 +380,7 @@ export class OpenedImagesPanel implements Disposable {
     }
 
     if (loading) {
+      this.hideOpenedFileInfoTooltip();
       this.finishOpenedImagesDrag();
       this.cancelOpenedFileRename();
       this.restoreOpenedFilesFocusAfterLoading = isFocusWithinElement(this.elements.openedFilesList);
@@ -443,6 +472,7 @@ export class OpenedImagesPanel implements Disposable {
   }
 
   private renderOpenedFileRows(): void {
+    this.hideOpenedFileInfoTooltip();
     const selectionDisabled = this.isViewerBlocked || this.openedImageCount === 0;
     const actionDisabled = this.isLoading || selectionDisabled;
     const shouldRestoreFocus = !selectionDisabled && isFocusWithinElement(this.elements.openedFilesList);
@@ -477,7 +507,27 @@ export class OpenedImagesPanel implements Disposable {
         const row =
           existing && existing instanceof HTMLDivElement
             ? existing
-            : createOpenedFileRow(item, this.callbacks);
+            : createOpenedFileRow(item, this.callbacks, {
+                onPointerEnter: (targetRow) => {
+                  this.scheduleOpenedFileInfoTooltip(targetRow);
+                },
+                onPointerLeave: (targetRow) => {
+                  if (this.openedFileInfoTooltipRow === targetRow) {
+                    this.hideOpenedFileInfoTooltip();
+                  }
+                },
+                onFocusIn: (targetRow) => {
+                  this.showOpenedFileInfoTooltip(targetRow);
+                },
+                onFocusOut: (targetRow, relatedTarget) => {
+                  if (relatedTarget instanceof Node && targetRow.contains(relatedTarget)) {
+                    return;
+                  }
+                  if (this.openedFileInfoTooltipRow === targetRow) {
+                    this.hideOpenedFileInfoTooltip();
+                  }
+                }
+              });
 
         updateOpenedFileRow(row, item, {
           sizeText: formatFileSizeMb(item.sizeBytes ?? null),
@@ -530,6 +580,7 @@ export class OpenedImagesPanel implements Disposable {
       return;
     }
 
+    this.hideOpenedFileInfoTooltip();
     const item = this.openedImageItems.find((current) => current.id === sessionId);
     if (!item) {
       return;
@@ -627,6 +678,7 @@ export class OpenedImagesPanel implements Disposable {
   }
 
   private handleOpenedFileDragStart(event: DragEvent): void {
+    this.hideOpenedFileInfoTooltip();
     const row = findClosestListRow(event.target, 'sessionId');
     if (
       !row ||
@@ -649,6 +701,7 @@ export class OpenedImagesPanel implements Disposable {
     this.commitActiveOpenedFileRename();
     row.focus();
     this.callbacks.onOpenedImageRowClick();
+    this.hideOpenedFileInfoTooltip();
 
     const dragImage = createOpenedFileDragImage(item);
     document.body.append(dragImage);
@@ -789,6 +842,7 @@ export class OpenedImagesPanel implements Disposable {
   }
 
   private finishOpenedImagesDrag(): void {
+    this.hideOpenedFileInfoTooltip();
     const dragState = this.openedImageDragState;
     this.openedImageDragState = null;
     this.elements.openedFilesList.classList.remove('is-reordering');
@@ -909,6 +963,98 @@ export class OpenedImagesPanel implements Disposable {
       placement: 'after'
     };
   }
+
+  private scheduleOpenedFileInfoTooltip(row: HTMLDivElement): void {
+    this.clearOpenedFileInfoTooltipTimer();
+    this.openedFileInfoTooltipRow?.removeAttribute('aria-describedby');
+    this.openedFileInfoTooltipRow = row;
+    this.openedFileInfoTooltipTimer = window.setTimeout(() => {
+      this.openedFileInfoTooltipTimer = null;
+      if (this.openedFileInfoTooltipRow === row) {
+        this.showOpenedFileInfoTooltip(row);
+      }
+    }, OPENED_FILE_INFO_TOOLTIP_DELAY_MS);
+  }
+
+  private showOpenedFileInfoTooltip(row: HTMLDivElement): void {
+    if (this.disposed || this.isLoading || this.openedImageDragState?.isDragging || !row.isConnected) {
+      this.hideOpenedFileInfoTooltip();
+      return;
+    }
+
+    const item = this.getOpenedFileInfoTooltipItem(row);
+    if (!item) {
+      this.hideOpenedFileInfoTooltip();
+      return;
+    }
+
+    this.clearOpenedFileInfoTooltipTimer();
+    this.openedFileInfoTooltipRow?.removeAttribute('aria-describedby');
+    this.openedFileInfoTooltipRow = row;
+
+    const tooltip = this.ensureOpenedFileInfoTooltipElement();
+    tooltip.replaceChildren(
+      createOpenedFileInfoTooltipLine(item.label, 'opened-file-info-tooltip-filename'),
+      createOpenedFileInfoTooltipLine(formatFileSizeMb(item.sizeBytes ?? null), 'opened-file-info-tooltip-size')
+    );
+    tooltip.hidden = false;
+    row.setAttribute('aria-describedby', tooltip.id);
+    positionOpenedFileInfoTooltip(row, tooltip);
+  }
+
+  private hideOpenedFileInfoTooltip(): void {
+    this.clearOpenedFileInfoTooltipTimer();
+    this.openedFileInfoTooltipRow?.removeAttribute('aria-describedby');
+    this.openedFileInfoTooltipRow = null;
+    this.openedFileInfoTooltipElement?.remove();
+    this.openedFileInfoTooltipElement = null;
+  }
+
+  private repositionOpenedFileInfoTooltip(): void {
+    if (!this.openedFileInfoTooltipRow || !this.openedFileInfoTooltipElement) {
+      return;
+    }
+
+    if (!this.openedFileInfoTooltipRow.isConnected) {
+      this.hideOpenedFileInfoTooltip();
+      return;
+    }
+
+    positionOpenedFileInfoTooltip(this.openedFileInfoTooltipRow, this.openedFileInfoTooltipElement);
+  }
+
+  private clearOpenedFileInfoTooltipTimer(): void {
+    if (this.openedFileInfoTooltipTimer === null) {
+      return;
+    }
+
+    window.clearTimeout(this.openedFileInfoTooltipTimer);
+    this.openedFileInfoTooltipTimer = null;
+  }
+
+  private ensureOpenedFileInfoTooltipElement(): HTMLDivElement {
+    if (this.openedFileInfoTooltipElement) {
+      return this.openedFileInfoTooltipElement;
+    }
+
+    const tooltip = document.createElement('div');
+    tooltip.id = OPENED_FILE_INFO_TOOLTIP_ID;
+    tooltip.className = 'opened-file-info-tooltip';
+    tooltip.setAttribute('role', 'tooltip');
+    tooltip.hidden = true;
+    document.body.append(tooltip);
+    this.openedFileInfoTooltipElement = tooltip;
+    return tooltip;
+  }
+
+  private getOpenedFileInfoTooltipItem(row: HTMLDivElement): OpenedImageOptionItem | null {
+    const sessionId = row.dataset.sessionId ?? null;
+    if (!sessionId) {
+      return null;
+    }
+
+    return this.openedImageItems.find((item) => item.id === sessionId) ?? null;
+  }
 }
 
 export function formatDisplayCacheUsageText(usedBytes: number, budgetBytes: number): string {
@@ -927,10 +1073,35 @@ export function getDisplayCacheUsageState(
 
 function createOpenedFileRow(
   item: OpenedImageOptionItem,
-  callbacks: OpenedImagesPanelCallbacks
+  callbacks: OpenedImagesPanelCallbacks,
+  rowCallbacks: OpenedFileRowCallbacks
 ): HTMLDivElement {
   const row = document.createElement('div');
   row.className = 'image-browser-row opened-file-row';
+  row.addEventListener('pointerenter', () => {
+    rowCallbacks.onPointerEnter(row);
+  });
+  row.addEventListener('pointerover', (event) => {
+    if (event.relatedTarget instanceof Node && row.contains(event.relatedTarget)) {
+      return;
+    }
+    rowCallbacks.onPointerEnter(row);
+  });
+  row.addEventListener('pointerleave', () => {
+    rowCallbacks.onPointerLeave(row);
+  });
+  row.addEventListener('pointerout', (event) => {
+    if (event.relatedTarget instanceof Node && row.contains(event.relatedTarget)) {
+      return;
+    }
+    rowCallbacks.onPointerLeave(row);
+  });
+  row.addEventListener('focusin', () => {
+    rowCallbacks.onFocusIn(row);
+  });
+  row.addEventListener('focusout', (event) => {
+    rowCallbacks.onFocusOut(row, event.relatedTarget);
+  });
 
   const thumbnail = createOpenedFileThumbnail(item.thumbnailDataUrl ?? null, item.thumbnailLoading === true);
 
@@ -1032,7 +1203,6 @@ function updateOpenedFileRow(
   row.classList.toggle('opened-file-row--drop-after', options.dropPlacement === 'after');
 
   updateOpenedFileLabel(refs, item, options.editing, options.actionDisabled);
-  refs.label.title = `Path: ${item.sourceDetail ?? item.label}\nSize: ${options.sizeText}`;
 
   const nextThumbnail = createOpenedFileThumbnail(item.thumbnailDataUrl ?? null, item.thumbnailLoading === true);
   if (!sameThumbnail(refs.thumbnail, nextThumbnail)) {
@@ -1292,6 +1462,42 @@ function getVerticalArrowKeyDelta(key: string): -1 | 1 | null {
 
 function serializeOpenedImageDropTarget(target: OpenedImageDropTarget): string {
   return `${target.sessionId}:${target.placement}`;
+}
+
+function createOpenedFileInfoTooltipLine(text: string, className: string): HTMLSpanElement {
+  const line = document.createElement('span');
+  line.className = className;
+  line.textContent = text;
+  return line;
+}
+
+function positionOpenedFileInfoTooltip(row: HTMLElement, tooltip: HTMLElement): void {
+  const rowRect = row.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth || tooltipRect.width;
+  const viewportHeight = document.documentElement.clientHeight || window.innerHeight || tooltipRect.height;
+  const tooltipWidth = tooltipRect.width || 180;
+  const tooltipHeight = tooltipRect.height || 44;
+  const maxLeft = Math.max(
+    OPENED_FILE_INFO_TOOLTIP_VIEWPORT_MARGIN_PX,
+    viewportWidth - tooltipWidth - OPENED_FILE_INFO_TOOLTIP_VIEWPORT_MARGIN_PX
+  );
+  const maxTop = Math.max(
+    OPENED_FILE_INFO_TOOLTIP_VIEWPORT_MARGIN_PX,
+    viewportHeight - tooltipHeight - OPENED_FILE_INFO_TOOLTIP_VIEWPORT_MARGIN_PX
+  );
+  let left = rowRect.right + OPENED_FILE_INFO_TOOLTIP_GAP_PX;
+  if (left + tooltipWidth > viewportWidth - OPENED_FILE_INFO_TOOLTIP_VIEWPORT_MARGIN_PX) {
+    left = rowRect.left - tooltipWidth - OPENED_FILE_INFO_TOOLTIP_GAP_PX;
+  }
+
+  const top = rowRect.top + (rowRect.height - tooltipHeight) / 2;
+  tooltip.style.left = `${clamp(left, OPENED_FILE_INFO_TOOLTIP_VIEWPORT_MARGIN_PX, maxLeft)}px`;
+  tooltip.style.top = `${clamp(top, OPENED_FILE_INFO_TOOLTIP_VIEWPORT_MARGIN_PX, maxTop)}px`;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function formatDisplayCacheMegabytes(bytes: number): string {

@@ -7082,11 +7082,120 @@ describe('opened files actions', () => {
     const selectLabels = Array.from(
       (document.getElementById('opened-images-select') as HTMLSelectElement).options
     ).map((option) => option.label);
-    const firstLabel = document.querySelector('#opened-files-list .opened-file-label') as HTMLSpanElement;
 
     expect(rowLabels).toEqual(['hoge/image.exr', 'fuga/image.exr']);
     expect(selectLabels).toEqual(['hoge/image.exr', 'fuga/image.exr']);
-    expect(firstLabel.title).toContain('Path: shots/hoge/image.exr');
+    expect(document.querySelector('#opened-files-list .opened-file-label')?.getAttribute('title')).toBeNull();
+  });
+
+  it('shows opened-file filename and size quickly when hovering the whole row', () => {
+    vi.useFakeTimers();
+    installUiFixture();
+
+    const ui = new ViewerUi(createUiCallbacks());
+    ui.setOpenedImageOptions([{
+      id: 'session-1',
+      label: 'beauty.exr',
+      sizeBytes: 3 * 1024 * 1024
+    }], 'session-1');
+
+    const row = mockOpenedFilesListGeometry()[0] as HTMLDivElement;
+    row.dispatchEvent(new Event('pointerenter'));
+    vi.advanceTimersByTime(74);
+
+    expect(document.querySelector('.opened-file-info-tooltip')).toBeNull();
+
+    vi.advanceTimersByTime(1);
+
+    const tooltip = document.querySelector('.opened-file-info-tooltip') as HTMLElement;
+    expect(tooltip).toBeInstanceOf(HTMLDivElement);
+    expect(tooltip.id).toBe('opened-file-info-tooltip');
+    expect(tooltip.getAttribute('role')).toBe('tooltip');
+    expect(tooltip.querySelector('.opened-file-info-tooltip-filename')?.textContent).toBe('beauty.exr');
+    expect(tooltip.querySelector('.opened-file-info-tooltip-size')?.textContent).toBe('3.0 MB');
+    expect(row.getAttribute('aria-describedby')).toBe('opened-file-info-tooltip');
+
+    row.dispatchEvent(new Event('pointerleave'));
+
+    expect(document.querySelector('.opened-file-info-tooltip')).toBeNull();
+    expect(row.hasAttribute('aria-describedby')).toBe(false);
+  });
+
+  it('opens the opened-file info tooltip from thumbnail hover and keyboard focus', () => {
+    vi.useFakeTimers();
+    installUiFixture();
+
+    const ui = new ViewerUi(createUiCallbacks());
+    ui.setOpenedImageOptions([{
+      id: 'session-1',
+      label: 'preview.exr',
+      sizeBytes: 1024 * 1024,
+      thumbnailDataUrl: 'data:image/png;base64,AAAA'
+    }], 'session-1');
+
+    const row = mockOpenedFilesListGeometry()[0] as HTMLDivElement;
+    const thumbnail = row.querySelector('.opened-file-thumbnail') as HTMLImageElement;
+    thumbnail.dispatchEvent(new MouseEvent('pointerover', {
+      bubbles: true,
+      relatedTarget: document.body
+    }));
+    vi.advanceTimersByTime(75);
+
+    expect(document.querySelector('.opened-file-info-tooltip')?.textContent).toBe('preview.exr1.0 MB');
+
+    row.dispatchEvent(new MouseEvent('pointerout', {
+      bubbles: true,
+      relatedTarget: document.body
+    }));
+    expect(document.querySelector('.opened-file-info-tooltip')).toBeNull();
+
+    row.dispatchEvent(new FocusEvent('focusin', { bubbles: true, relatedTarget: null }));
+
+    expect(document.querySelector('.opened-file-info-tooltip')?.textContent).toBe('preview.exr1.0 MB');
+  });
+
+  it('hides the opened-file info tooltip on drag start', () => {
+    vi.useFakeTimers();
+    installUiFixture();
+
+    const ui = new ViewerUi(createUiCallbacks());
+    ui.setOpenedImageOptions([{
+      id: 'session-1',
+      label: 'drag.exr',
+      sizeBytes: 1024 * 1024
+    }], 'session-1');
+
+    const row = mockOpenedFilesListGeometry()[0] as HTMLDivElement;
+    row.dispatchEvent(new Event('pointerenter'));
+    vi.advanceTimersByTime(75);
+    expect(document.querySelector('.opened-file-info-tooltip')).not.toBeNull();
+
+    row.dispatchEvent(createOpenedFileDragEvent('dragstart', createMockDataTransfer()));
+
+    expect(document.querySelector('.opened-file-info-tooltip')).toBeNull();
+    expect(row.hasAttribute('aria-describedby')).toBe(false);
+  });
+
+  it('uses the unavailable size marker in opened-file info for pending rows', () => {
+    vi.useFakeTimers();
+    installUiFixture();
+
+    const ui = new ViewerUi(createUiCallbacks());
+    ui.setOpenedImageOptions([{
+      id: 'session-1',
+      label: 'queued.exr',
+      sizeBytes: null,
+      thumbnailLoading: true,
+      selectable: false
+    }], null);
+
+    const row = mockOpenedFilesListGeometry()[0] as HTMLDivElement;
+    row.dispatchEvent(new Event('pointerenter'));
+    vi.advanceTimersByTime(75);
+
+    const tooltip = document.querySelector('.opened-file-info-tooltip') as HTMLElement;
+    expect(tooltip.querySelector('.opened-file-info-tooltip-filename')?.textContent).toBe('queued.exr');
+    expect(tooltip.querySelector('.opened-file-info-tooltip-size')?.textContent).toBe('-- MB');
   });
 
   it('filters visible open-file rows by label or source path without changing total open files', () => {
