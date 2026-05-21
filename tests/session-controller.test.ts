@@ -22,6 +22,8 @@ const RGB_STOKES_CHANNEL_NAMES = [
 
 const BEACHBALL_MULTIPART_URL =
   'https://raw.githubusercontent.com/AcademySoftwareFoundation/openexr-images/main/Beachball/multipart.0001.exr';
+const BROWN_PHOTOSTUDIO_02_1K_URL =
+  'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/brown_photostudio_02_1k.exr';
 
 const rulerFitInsets = {
   top: 24,
@@ -121,7 +123,18 @@ describe('session controller shim', () => {
     expect(core.getState().sessionState.displaySelection).toEqual(createChannelRgbSelection('R', 'G', 'B'));
   });
 
-  it('loads URL-backed gallery images from their configured raw URL', async () => {
+  it.each([
+    {
+      galleryId: 'beachball-multipart-0001',
+      filename: 'multipart.0001.exr',
+      url: BEACHBALL_MULTIPART_URL
+    },
+    {
+      galleryId: 'brown-photostudio-02-1k',
+      filename: 'brown_photostudio_02_1k.exr',
+      url: BROWN_PHOTOSTUDIO_02_1K_URL
+    }
+  ])('loads $filename from its configured raw URL', async ({ galleryId, filename, url }) => {
     const encodedBytes = new Uint8Array([9, 8, 7]);
     const decodeBytes = vi.fn<(
       bytes: Uint8Array,
@@ -138,22 +151,22 @@ describe('session controller shim', () => {
     try {
       const { controller } = createController({ decodeBytes });
 
-      await controller.enqueueGalleryImage('beachball-multipart-0001');
+      await controller.enqueueGalleryImage(galleryId);
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(fetchMock).toHaveBeenCalledWith(BEACHBALL_MULTIPART_URL, { signal: expect.any(AbortSignal) });
+      expect(fetchMock).toHaveBeenCalledWith(url, { signal: expect.any(AbortSignal) });
       expect(decodeBytes).toHaveBeenCalledTimes(1);
       expect(Array.from(decodeBytes.mock.calls[0]?.[0] ?? [])).toEqual(Array.from(encodedBytes));
       expect(decodeBytes.mock.calls[0]?.[1]).toEqual(expect.objectContaining({
-        filename: 'multipart.0001.exr',
+        filename,
         signal: expect.any(AbortSignal)
       }));
 
       const session = controller.getActiveSession();
-      expect(session?.filename).toBe('multipart.0001.exr');
+      expect(session?.filename).toBe(filename);
       expect(session?.source).toEqual({
         kind: 'url',
-        url: BEACHBALL_MULTIPART_URL
+        url
       });
     } finally {
       Object.defineProperty(globalThis, 'fetch', {

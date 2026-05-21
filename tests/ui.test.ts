@@ -2042,11 +2042,13 @@ describe('view menu', () => {
 
     expect(galleryItems.map((item) => item.textContent?.trim())).toEqual([
       'cbox_rgb.exr',
-      'multipart.0001.exr'
+      'multipart.0001.exr',
+      'brown_photostudio_02_1k.exr'
     ]);
     expect(onGalleryImageSelected.mock.calls.map(([galleryId]) => galleryId)).toEqual([
       'cbox-rgb',
-      'beachball-multipart-0001'
+      'beachball-multipart-0001',
+      'brown-photostudio-02-1k'
     ]);
   });
 
@@ -3284,7 +3286,8 @@ describe('view menu', () => {
     expect((document.getElementById('open-folder-button') as HTMLButtonElement).disabled).toBe(true);
     expect(galleryItems.map((item) => item.dataset.galleryId)).toEqual([
       'cbox-rgb',
-      'beachball-multipart-0001'
+      'beachball-multipart-0001',
+      'brown-photostudio-02-1k'
     ]);
     expect(galleryItems.every((item) => item.disabled)).toBe(true);
     expect((document.getElementById('reset-view-button') as HTMLButtonElement).disabled).toBe(false);

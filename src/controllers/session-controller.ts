@@ -41,6 +41,12 @@ const GALLERY_IMAGES = [
     label: 'multipart.0001.exr',
     filename: 'multipart.0001.exr',
     url: 'https://raw.githubusercontent.com/AcademySoftwareFoundation/openexr-images/main/Beachball/multipart.0001.exr'
+  },
+  {
+    id: 'brown-photostudio-02-1k',
+    label: 'brown_photostudio_02_1k.exr',
+    filename: 'brown_photostudio_02_1k.exr',
+    url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/brown_photostudio_02_1k.exr'
   }
 ] as const;
 

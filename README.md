@@ -7,7 +7,7 @@ Browser-based OpenEXR viewer for graphics/computer-vision workflows, with tev-li
 ## Current MVP Features
 
 - OpenEXR decode via a browser-safe `exrs` WASM adapter with full layer/channel extraction.
-- Built-in Gallery samples: `Gallery > cbox_rgb.exr` and `Gallery > multipart.0001.exr`.
+- Built-in Gallery samples: `Gallery > cbox_rgb.exr`, `Gallery > multipart.0001.exr`, and `Gallery > brown_photostudio_02_1k.exr`.
 - Local EXR load via `File > Open...` or drag/drop (drag-and-drop supports multiple files and recursive folder drops in one action).
 - Recursive folder EXR load via `File > Open Folder...`; all `.exr` files under the selected folder are appended as sessions.
 - `File > Export...` exports the full active image to LDR PNG with the current layer, channel/stokes selection, exposure, colormap, and alpha settings applied.
@@ -144,7 +144,7 @@ npm run test:e2e
 - `Opened Images` selector: switch active image session by filename.
 - `Layer` selector: switch the active layer for the selected multi-layer EXR.
 - `Opened Images` list: click-hold-move a filename row to reorder.
-- `Gallery > cbox_rgb.exr` / `multipart.0001.exr`: open a gallery sample and append it as a new session.
+- `Gallery > cbox_rgb.exr` / `multipart.0001.exr` / `brown_photostudio_02_1k.exr`: open a gallery sample and append it as a new session.
 - `File > Open...`: open one EXR file and append it as a new session.
 - `File > Open Folder...`: recursively open every `.exr` file under the selected folder and append them as new sessions.
 - Drag/drop: drop one or more `.exr` files, or drop a folder to recursively load every `.exr` under it.

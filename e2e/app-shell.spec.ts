@@ -188,6 +188,7 @@ test('boots an empty app shell with menu actions gated until an image opens', as
   const settingsDialog = page.locator('#settings-dialog');
   const galleryCboxItem = page.getByRole('menuitem', { name: 'cbox_rgb.exr', exact: true });
   const galleryMultipartItem = page.getByRole('menuitem', { name: 'multipart.0001.exr', exact: true });
+  const galleryBrownPhotostudioItem = page.getByRole('menuitem', { name: 'brown_photostudio_02_1k.exr', exact: true });
   const openMenuItem = page.locator('#open-file-button');
   const exportMenuItem = page.locator('#export-image-button');
   const reloadAllMenuItem = page.locator('#reload-all-opened-images-button');
@@ -272,6 +273,8 @@ test('boots an empty app shell with menu actions gated until an image opens', as
   await expect(galleryCboxItem).toBeEnabled();
   await expect(galleryMultipartItem).toBeVisible();
   await expect(galleryMultipartItem).toBeEnabled();
+  await expect(galleryBrownPhotostudioItem).toBeVisible();
+  await expect(galleryBrownPhotostudioItem).toBeEnabled();
   await page.keyboard.press('Escape');
   await expect(galleryMenu).toBeHidden();
 
