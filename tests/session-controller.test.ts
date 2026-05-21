@@ -20,6 +20,9 @@ const RGB_STOKES_CHANNEL_NAMES = [
   'S3.R', 'S3.G', 'S3.B'
 ];
 
+const BEACHBALL_MULTIPART_URL =
+  'https://raw.githubusercontent.com/AcademySoftwareFoundation/openexr-images/main/Beachball/multipart.0001.exr';
+
 const rulerFitInsets = {
   top: 24,
   right: 0,
@@ -116,6 +119,49 @@ describe('session controller shim', () => {
     expect(session?.filename).toBe('beauty.exr');
     expect(core.getState().sessionState.activeColormapId).toBe(core.getState().defaultColormapId);
     expect(core.getState().sessionState.displaySelection).toEqual(createChannelRgbSelection('R', 'G', 'B'));
+  });
+
+  it('loads URL-backed gallery images from their configured raw URL', async () => {
+    const encodedBytes = new Uint8Array([9, 8, 7]);
+    const decodeBytes = vi.fn<(
+      bytes: Uint8Array,
+      options?: DecodeBytesOptions
+    ) => Promise<DecodedExrImage>>(async () => createDecodedImage(8, 4));
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(encodedBytes));
+    const originalFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      writable: true,
+      value: fetchMock
+    });
+
+    try {
+      const { controller } = createController({ decodeBytes });
+
+      await controller.enqueueGalleryImage('beachball-multipart-0001');
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(BEACHBALL_MULTIPART_URL, { signal: expect.any(AbortSignal) });
+      expect(decodeBytes).toHaveBeenCalledTimes(1);
+      expect(Array.from(decodeBytes.mock.calls[0]?.[0] ?? [])).toEqual(Array.from(encodedBytes));
+      expect(decodeBytes.mock.calls[0]?.[1]).toEqual(expect.objectContaining({
+        filename: 'multipart.0001.exr',
+        signal: expect.any(AbortSignal)
+      }));
+
+      const session = controller.getActiveSession();
+      expect(session?.filename).toBe('multipart.0001.exr');
+      expect(session?.source).toEqual({
+        kind: 'url',
+        url: BEACHBALL_MULTIPART_URL
+      });
+    } finally {
+      Object.defineProperty(globalThis, 'fetch', {
+        configurable: true,
+        writable: true,
+        value: originalFetch
+      });
+    }
   });
 
   it('activates the first decoded image while the rest of a multi-file open continues loading', async () => {

@@ -2029,6 +2029,27 @@ describe('view menu', () => {
     expect(navButtonLabels).not.toContain('Settings');
   });
 
+  it('dispatches gallery selections for every gallery menu item', () => {
+    installUiFixture();
+
+    const onGalleryImageSelected = vi.fn();
+    new ViewerUi(createUiCallbacks({ onGalleryImageSelected }));
+
+    const galleryItems = Array.from(document.querySelectorAll<HTMLButtonElement>('#gallery-menu [data-gallery-id]'));
+    for (const galleryItem of galleryItems) {
+      galleryItem.click();
+    }
+
+    expect(galleryItems.map((item) => item.textContent?.trim())).toEqual([
+      'cbox_rgb.exr',
+      'multipart.0001.exr'
+    ]);
+    expect(onGalleryImageSelected.mock.calls.map(([galleryId]) => galleryId)).toEqual([
+      'cbox-rgb',
+      'beachball-multipart-0001'
+    ]);
+  });
+
   it('renders top bar icon actions in the expected order', () => {
     installUiFixture();
 
@@ -3257,10 +3278,15 @@ describe('view menu', () => {
     vi.advanceTimersByTime(2000);
 
     const loadingOverlay = document.getElementById('loading-overlay') as HTMLDivElement;
+    const galleryItems = Array.from(document.querySelectorAll<HTMLButtonElement>('#gallery-menu [data-gallery-id]'));
     expect(loadingOverlay.classList.contains('hidden')).toBe(true);
     expect((document.getElementById('open-file-button') as HTMLButtonElement).disabled).toBe(true);
     expect((document.getElementById('open-folder-button') as HTMLButtonElement).disabled).toBe(true);
-    expect((document.querySelector('[data-gallery-id="cbox-rgb"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(galleryItems.map((item) => item.dataset.galleryId)).toEqual([
+      'cbox-rgb',
+      'beachball-multipart-0001'
+    ]);
+    expect(galleryItems.every((item) => item.disabled)).toBe(true);
     expect((document.getElementById('reset-view-button') as HTMLButtonElement).disabled).toBe(false);
     expect((document.getElementById('image-viewer-menu-item') as HTMLButtonElement).disabled).toBe(false);
     expect((document.getElementById('reload-all-opened-images-button') as HTMLButtonElement).disabled).toBe(true);

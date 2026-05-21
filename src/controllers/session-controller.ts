@@ -35,6 +35,12 @@ const GALLERY_IMAGES = [
     id: 'cbox-rgb',
     label: 'cbox_rgb.exr',
     filename: 'cbox_rgb.exr'
+  },
+  {
+    id: 'beachball-multipart-0001',
+    label: 'multipart.0001.exr',
+    filename: 'multipart.0001.exr',
+    url: 'https://raw.githubusercontent.com/AcademySoftwareFoundation/openexr-images/main/Beachball/multipart.0001.exr'
   }
 ] as const;
 
@@ -665,7 +671,7 @@ export class SessionController implements Disposable {
       return;
     }
 
-    const galleryImageUrl = `${import.meta.env.BASE_URL}${galleryImage.filename}`;
+    const galleryImageUrl = getGalleryImageUrl(galleryImage);
 
     try {
       const response = await fetch(galleryImageUrl, { signal });
@@ -794,6 +800,10 @@ export class SessionController implements Disposable {
       throwIfAborted(signal, 'Load queue has been disposed.');
     }
   }
+}
+
+function getGalleryImageUrl(galleryImage: (typeof GALLERY_IMAGES)[number]): string {
+  return 'url' in galleryImage ? galleryImage.url : `${import.meta.env.BASE_URL}${galleryImage.filename}`;
 }
 
 async function decodeExrFromSessionSource(

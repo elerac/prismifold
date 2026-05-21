@@ -732,6 +732,10 @@ export class ViewerUi implements Disposable {
     this.elements.errorBanner.textContent = message;
   }
 
+  private getGalleryMenuItemButtons(): HTMLButtonElement[] {
+    return Array.from(this.elements.galleryMenu.querySelectorAll<HTMLButtonElement>('button[data-gallery-id]'));
+  }
+
   setLoading(loading: boolean, viewerBlocked = loading): void {
     if (this.disposed) {
       return;
@@ -750,7 +754,9 @@ export class ViewerUi implements Disposable {
     this.closeViewerContextMenu();
     this.elements.openFileButton.disabled = loading;
     this.elements.openFolderButton.disabled = loading;
-    this.elements.galleryCboxRgbButton.disabled = loading;
+    for (const galleryItem of this.getGalleryMenuItemButtons()) {
+      galleryItem.disabled = loading;
+    }
     this.elements.resetViewButton.disabled = viewerBlocked;
     this.openedImagesPanel.setLoading(loading, viewerBlocked);
     this.channelThumbnailStrip.setLoading(viewerBlocked);
@@ -2576,14 +2582,16 @@ export class ViewerUi implements Disposable {
       this.exportColormapDialog.openDialog();
     });
 
-    this.disposables.addEventListener(this.elements.galleryCboxRgbButton, 'click', () => {
-      if (this.elements.galleryCboxRgbButton.disabled) {
-        return;
-      }
+    for (const galleryItem of this.getGalleryMenuItemButtons()) {
+      this.disposables.addEventListener(galleryItem, 'click', () => {
+        if (galleryItem.disabled) {
+          return;
+        }
 
-      this.topMenuController.closeAll();
-      this.callbacks.onGalleryImageSelected(this.elements.galleryCboxRgbButton.dataset.galleryId ?? '');
-    });
+        this.topMenuController.closeAll();
+        this.callbacks.onGalleryImageSelected(galleryItem.dataset.galleryId ?? '');
+      });
+    }
 
     this.disposables.addEventListener(this.elements.reloadAllOpenedImagesButton, 'click', () => {
       if (this.elements.reloadAllOpenedImagesButton.disabled) {

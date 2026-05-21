@@ -53,7 +53,6 @@ export interface Elements {
   windowSinglePaneMenuItem: HTMLButtonElement;
   windowSplitVerticalMenuItem: HTMLButtonElement;
   windowSplitHorizontalMenuItem: HTMLButtonElement;
-  galleryCboxRgbButton: HTMLButtonElement;
   openFileButton: HTMLButtonElement;
   openFolderButton: HTMLButtonElement;
   exportImageButton: HTMLButtonElement;
@@ -568,7 +567,6 @@ export function resolveElements(): Elements {
     windowSinglePaneMenuItem: requireElement('window-single-pane-menu-item', HTMLButtonElement),
     windowSplitVerticalMenuItem: requireElement('window-split-vertical-menu-item', HTMLButtonElement),
     windowSplitHorizontalMenuItem: requireElement('window-split-horizontal-menu-item', HTMLButtonElement),
-    galleryCboxRgbButton: requireElement('gallery-cbox-rgb-button', HTMLButtonElement),
     openFileButton: requireElement('open-file-button', HTMLButtonElement),
     openFolderButton: requireElement('open-folder-button', HTMLButtonElement),
     exportImageButton: requireElement('export-image-button', HTMLButtonElement),
