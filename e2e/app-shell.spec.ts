@@ -492,15 +492,18 @@ test('opens the gallery demo image and keeps core display controls stable', asyn
   await expect(probeColorValues.locator('.probe-color-channel')).toHaveText(['Mono:']);
   await expect(colormapAutoRangeButton).toHaveAttribute('aria-pressed', 'true');
   await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'false');
-  expect(expectedColormapLabels.length).toBeGreaterThanOrEqual(2);
+  const rdBuId = String(expectedColormapLabels.indexOf('RdBu'));
+  expect(rdBuId).not.toBe('-1');
   await expect(colormapSelect.locator('option')).toHaveText(expectedColormapLabels);
   await expect(colormapSelect).toHaveValue('0');
-  await colormapSelect.selectOption({ label: expectedColormapLabels[1] });
-  await expect(colormapSelect).toHaveValue('1');
+  await colormapSelect.selectOption({ label: 'RdBu' });
+  await expect(colormapSelect).toHaveValue(rdBuId);
   await expect(colormapRangeSlider).toBeVisible();
   await expect(colormapVminInput).toBeEnabled();
   await expect(colormapVmaxInput).toBeEnabled();
   await expect(colormapVmaxSlider).toBeEnabled();
+  await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(colormapRangeSlider).toHaveClass(/zero-centered/);
 
   const autoMin = Number(await colormapVminInput.inputValue());
   const autoMax = Number(await colormapVmaxInput.inputValue());
@@ -514,15 +517,13 @@ test('opens the gallery demo image and keeps core display controls stable', asyn
           return 0;
         }
 
-        return slider.getBoundingClientRect().width - track.getBoundingClientRect().width;
+        const trackWidth = track.getBoundingClientRect().width;
+        return slider.getBoundingClientRect().width - trackWidth / 2;
       });
     })
     .toBeCloseTo(0, 1);
 
   const zeroCenteredAutoMax = Math.max(Math.abs(autoMin), Math.abs(autoMax));
-  await colormapZeroCenterButton.click();
-  await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'true');
-  await expect(colormapRangeSlider).toHaveClass(/zero-centered/);
   expect(Number(await colormapVminSlider.getAttribute('max'))).toBeLessThan(0);
   expect(Number(await colormapVmaxSlider.getAttribute('min'))).toBeGreaterThan(0);
   await expect.poll(async () => Number(await colormapVminInput.inputValue())).toBeCloseTo(-zeroCenteredAutoMax, 5);

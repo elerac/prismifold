@@ -118,20 +118,22 @@ test('loads scalar Stokes channels and applies derived-channel defaults', async 
 
   await colormapSelect.selectOption({ label: 'coolwarm' });
   await expect(colormapSelect).toHaveValue(coolwarmId);
+  await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'true');
   await colormapVminInput.fill('0.2');
   await colormapVminInput.dispatchEvent('change');
   await colormapVmaxInput.fill('0.8');
   await colormapVmaxInput.dispatchEvent('change');
   await colormapVmaxInput.blur();
-  await expect.poll(async () => Number(await colormapVminInput.inputValue())).toBeCloseTo(0.2, 8);
+  await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => Number(await colormapVminInput.inputValue())).toBeCloseTo(-0.8, 8);
   await expect.poll(async () => Number(await colormapVmaxInput.inputValue())).toBeCloseTo(0.8, 8);
 
   await selectChannelTile(page, 'Stokes DoCP');
   await expect(stokesDegreeModulationButton).toBeHidden();
   await expect(stokesAolpModeControl).toBeHidden();
   await expect(colormapSelect).toHaveValue(coolwarmId);
-  await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'false');
-  await expect.poll(async () => Number(await colormapVminInput.inputValue())).toBeCloseTo(0.2, 8);
+  await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => Number(await colormapVminInput.inputValue())).toBeCloseTo(-0.8, 8);
   await expect.poll(async () => Number(await colormapVmaxInput.inputValue())).toBeCloseTo(0.8, 8);
 
   await selectChannelTile(page, 'Stokes CoP');
@@ -167,20 +169,22 @@ test('loads scalar Stokes channels and applies derived-channel defaults', async 
   await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'false');
   await colormapSelect.selectOption({ label: 'coolwarm' });
   await expect(colormapSelect).toHaveValue(coolwarmId);
+  await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'true');
   await colormapVminInput.fill('-0.4');
   await colormapVminInput.dispatchEvent('change');
   await colormapVmaxInput.fill('0.6');
   await colormapVmaxInput.dispatchEvent('change');
   await colormapVmaxInput.blur();
-  await expect.poll(async () => Number(await colormapVminInput.inputValue())).toBeCloseTo(-0.4, 8);
+  await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => Number(await colormapVminInput.inputValue())).toBeCloseTo(-0.6, 8);
   await expect.poll(async () => Number(await colormapVmaxInput.inputValue())).toBeCloseTo(0.6, 8);
 
   await selectChannelTile(page, 'Stokes S2/S0');
   await expect(stokesDegreeModulationButton).toBeHidden();
   await expect(stokesAolpModeControl).toBeHidden();
   await expect(colormapSelect).toHaveValue(coolwarmId);
-  await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'false');
-  await expect.poll(async () => Number(await colormapVminInput.inputValue())).toBeCloseTo(-0.4, 8);
+  await expect(colormapZeroCenterButton).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => Number(await colormapVminInput.inputValue())).toBeCloseTo(-0.6, 8);
   await expect.poll(async () => Number(await colormapVmaxInput.inputValue())).toBeCloseTo(0.6, 8);
 });
 
