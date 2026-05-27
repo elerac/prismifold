@@ -87,7 +87,9 @@ export interface ScreenshotReproductionMetadataV2 {
     visualizationMode: ViewerState['visualizationMode'];
     exposureEv: number;
     displayGamma: number;
-    activeColormapId: string;
+    activeColormapId: ViewerState['activeColormapId'];
+    colormapExposureEv: number;
+    colormapGamma: number;
     colormapRange: ViewerState['colormapRange'];
     colormapRangeMode: ViewerState['colormapRangeMode'];
     colormapZeroCentered: boolean;
@@ -156,6 +158,8 @@ export function buildScreenshotReproductionMetadata({
       exposureEv: renderState.exposureEv,
       displayGamma: renderState.displayGamma,
       activeColormapId: renderState.activeColormapId,
+      colormapExposureEv: renderState.colormapExposureEv,
+      colormapGamma: renderState.colormapGamma,
       colormapRange: cloneDisplayLuminanceRange(renderState.colormapRange),
       colormapRangeMode: renderState.colormapRangeMode,
       colormapZeroCentered: renderState.colormapZeroCentered,

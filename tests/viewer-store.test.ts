@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_COLORMAP_ID } from '../src/colormaps';
 import { buildViewerStateForLayer, createInitialState, ViewerStore } from '../src/viewer-store';
 import {
   createChannelMonoSelection,
@@ -15,7 +14,9 @@ import {
 describe('viewer store', () => {
   it('defaults to normal RGB visualization mode', () => {
     expect(createInitialState().visualizationMode).toBe('rgb');
-    expect(createInitialState().activeColormapId).toBe(DEFAULT_COLORMAP_ID);
+    expect(createInitialState().activeColormapId).toBeNull();
+    expect(createInitialState().colormapExposureEv).toBe(0);
+    expect(createInitialState().colormapGamma).toBe(1);
     expect(createInitialState().colormapRange).toBeNull();
     expect(createInitialState().colormapRangeMode).toBe('alwaysAuto');
     expect(createInitialState().colormapZeroCentered).toBe(false);

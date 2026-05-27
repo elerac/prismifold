@@ -50,7 +50,9 @@ const mocks = vi.hoisted(() => {
       channelThumbnailDisplayGamma: 2.2,
       viewerMode: 'image',
       visualizationMode: 'rgb',
-      activeColormapId: '0',
+      activeColormapId: null,
+      colormapExposureEv: 0,
+      colormapGamma: 1,
       colormapRange: null,
       colormapRangeMode: 'alwaysAuto',
       colormapZeroCentered: false,
@@ -106,6 +108,7 @@ const mocks = vi.hoisted(() => {
     textureDirty: false
   }));
   const displayGetActiveColormapLutForState = vi.fn(() => null);
+  const displayResetActiveSessionDisplayState = vi.fn();
   const loadColormapLut = vi.fn();
   const findColormapIdByLabel = vi.fn((
     registry: { options?: Array<{ id: string; label: string }> },
@@ -178,6 +181,7 @@ const mocks = vi.hoisted(() => {
     rendererReadExportPixels,
     renderCachePrepareActiveSession,
     displayGetActiveColormapLutForState,
+    displayResetActiveSessionDisplayState,
     loadColormapLut,
     findColormapIdByLabel,
     getColormapAsset,
@@ -406,6 +410,7 @@ vi.mock('../src/controllers/display-controller', () => ({
     readonly dispose = mocks.displayDispose;
     readonly initialize = vi.fn(async () => undefined);
     readonly getActiveColormapLutForState = mocks.displayGetActiveColormapLutForState;
+    readonly resetActiveSessionDisplayState = mocks.displayResetActiveSessionDisplayState;
   }
 }));
 
@@ -869,6 +874,20 @@ describe('bootstrap app lifecycle', () => {
       type: 'viewerStateEdited',
       patch: { zoom: 3 }
     });
+
+    app.dispose();
+  });
+
+  it('routes display reset callbacks through the display controller', async () => {
+    const { bootstrapApp } = await import('../src/app/bootstrap');
+    const app = await bootstrapApp();
+    const callbacks = mocks.getUiCallbacks() as {
+      onResetView: () => void;
+    };
+
+    callbacks.onResetView();
+
+    expect(mocks.displayResetActiveSessionDisplayState).toHaveBeenCalledTimes(1);
 
     app.dispose();
   });
@@ -2000,7 +2019,9 @@ describe('bootstrap app lifecycle', () => {
     mutableCoreState.stokesDisplayRestoreStates = {
       'session-1': {
         visualizationMode: 'rgb',
-        activeColormapId: '0',
+        activeColormapId: null,
+        colormapExposureEv: 0,
+        colormapGamma: 1,
         colormapRange: null,
         colormapRangeMode: 'alwaysAuto',
         colormapZeroCentered: false
@@ -2821,7 +2842,9 @@ describe('bootstrap app lifecycle', () => {
     mutableCoreState.stokesDisplayRestoreStates = {
       'session-1': {
         visualizationMode: 'rgb',
-        activeColormapId: '0',
+        activeColormapId: null,
+        colormapExposureEv: 0,
+        colormapGamma: 1,
         colormapRange: null,
         colormapRangeMode: 'alwaysAuto',
         colormapZeroCentered: false
@@ -2880,7 +2903,7 @@ describe('bootstrap app lifecycle', () => {
     expect(preparedStates[0]).toMatchObject({
       displaySelection: rgbSelection,
       visualizationMode: 'rgb',
-      activeColormapId: '0',
+      activeColormapId: null,
       colormapRange: null,
       colormapRangeMode: 'alwaysAuto',
       colormapZeroCentered: false

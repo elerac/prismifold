@@ -13,6 +13,9 @@ uniform float uZoom;
 uniform float uExposure;
 uniform float uDisplayGamma;
 uniform bool uUseColormap;
+uniform float uColormapExposure;
+uniform float uColormapGamma;
+uniform bool uColormapZeroCentered;
 uniform float uColormapMin;
 uniform float uColormapMax;
 uniform ivec2 uColormapTextureSize;
@@ -60,6 +63,7 @@ const float REC709_LUMINANCE_WEIGHT_R = 0.2126;
 const float REC709_LUMINANCE_WEIGHT_G = 0.7152;
 const float REC709_LUMINANCE_WEIGHT_B = 0.0722;
 const float DISPLAY_GAMMA_MIN = 0.01;
+const float COLORMAP_GAMMA_MIN = 0.2;
 const float STOKES_VECTOR_VALIDITY_RTOL = 1.0e-8;
 const vec3 INVALID_VALUE_WARNING_COLOR = vec3(1.0, 0.0, 1.0);
 
@@ -187,7 +191,6 @@ ivec2 colormapCoord(int index) {
 vec3 sampleColormap(float value, float vmin, float vmax) {
   if (
     !isFiniteValue(value) ||
-    vmax <= vmin ||
     uColormapEntryCount < 2 ||
     uColormapTextureSize.x <= 0 ||
     uColormapTextureSize.y <= 0
@@ -195,7 +198,26 @@ vec3 sampleColormap(float value, float vmin, float vmax) {
     return vec3(0.0);
   }
 
-  float t = clamp((value - vmin) / (vmax - vmin), 0.0, 1.0);
+  float gamma = max(uColormapGamma, COLORMAP_GAMMA_MIN);
+  float scaledValue = value * exp2(uColormapExposure);
+  float t = 0.0;
+  if (uColormapZeroCentered) {
+    float magnitude = max(abs(vmin), abs(vmax));
+    if (!isFiniteValue(magnitude) || magnitude <= 0.0) {
+      return vec3(0.0);
+    }
+
+    float signedValue = clamp(scaledValue / magnitude, -1.0, 1.0);
+    float signedGamma = sign(signedValue) * pow(abs(signedValue), 1.0 / gamma);
+    t = clamp(0.5 + 0.5 * signedGamma, 0.0, 1.0);
+  } else {
+    if (vmax <= vmin) {
+      return vec3(0.0);
+    }
+
+    t = pow(clamp((scaledValue - vmin) / (vmax - vmin), 0.0, 1.0), 1.0 / gamma);
+  }
+
   float lutIndex = t * float(uColormapEntryCount - 1);
   int index0 = int(floor(lutIndex));
   int index1 = min(index0 + 1, uColormapEntryCount - 1);

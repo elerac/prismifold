@@ -72,7 +72,7 @@ Browser-based OpenEXR viewer for graphics/computer-vision workflows, with tev-li
   - RGB Stokes layers with `S0.R/G/B` through `S3.R/G/B` expose grouped `S1/S0.RGB`, `S2/S0.RGB`, `S3/S0.RGB`, `AoLP.RGB`, `DoP.RGB`, `DoLP.RGB`, `DoCP.RGB`, `CoP.RGB`, and `ToP.RGB` entries. In `None`, grouped entries derive the selected Stokes parameter independently for `R`, `G`, and `B`; in `Colormap`, grouped entries keep the Rec.709 mono-derived visualization. `Split RGB` exposes per-component entries such as `S1/S0.R`, `AoLP.G`, and `DoP.B`.
   - Mueller matrix layers with complete `M00` through `M33` channel sets expose a `Mueller Matrix` entry rendered as a row-major 4x4 grayscale grid with no separator pixels. Complete non-RGB suffixed sets such as `M00.Y` through `M33.Y` expose suffixed entries such as `Mueller Matrix.Y`. RGB Mueller sets with `M00.R/G/B` through `M33.R/G/B` expose a grouped `Mueller Matrix.RGB` entry, and `Split RGB` exposes per-component entries such as `Mueller Matrix.R`.
   - When a selected layer does not expose the previous channel mapping, the viewer falls back to bare `R/G/B`, then the first RGB group, then spectral RGB when available, then a complete Mueller matrix grid when available, then the first non-alpha channel as grayscale.
-- Reset button resets view and display state, including exposure.
+- Double-clicking the Display heading resets Palette, exposure, gamma, zero-center, and range without changing channel selection or view.
 
 ## UI Layout
 

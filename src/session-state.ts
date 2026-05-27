@@ -49,6 +49,8 @@ export function cloneViewerSessionState(state: ViewerSessionState): ViewerSessio
     viewerMode: state.viewerMode,
     visualizationMode: state.visualizationMode,
     activeColormapId: state.activeColormapId,
+    colormapExposureEv: state.colormapExposureEv,
+    colormapGamma: state.colormapGamma,
     colormapRange: cloneDisplayLuminanceRange(state.colormapRange),
     colormapRangeMode: state.colormapRangeMode,
     colormapZeroCentered: state.colormapZeroCentered,

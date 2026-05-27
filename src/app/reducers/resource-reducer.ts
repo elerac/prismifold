@@ -7,7 +7,7 @@ import {
   toViewerError
 } from '../../async-resource';
 import type { ViewerAppState, ViewerIntent } from '../viewer-app-types';
-import { patchSessionState, type ViewerReducerContext } from './shared';
+import type { ViewerReducerContext } from './shared';
 
 export function resourceReducer(
   state: ViewerAppState,
@@ -26,11 +26,8 @@ export function resourceReducer(
         isLoading: intent.loading
       };
     case 'colormapRegistryResolved': {
-      const nextState = patchSessionState(state, {
-        activeColormapId: intent.registry.defaultId
-      });
       return {
-        ...nextState,
+        ...state,
         colormapRegistry: intent.registry,
         defaultColormapId: intent.registry.defaultId
       };

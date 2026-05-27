@@ -46,6 +46,9 @@ export interface ProbeVisualizationOptions {
   mode: VisualizationMode;
   colormapRange: DisplayLuminanceRange | null;
   colormapLut?: ColormapLut | null;
+  colormapExposureEv?: number;
+  colormapGamma?: number;
+  colormapZeroCentered?: boolean;
   stokesDegreeModulation?: StokesDegreeModulationState;
   stokesAolpDegreeModulationMode?: StokesAolpDegreeModulationMode;
 }
@@ -103,7 +106,12 @@ export function buildProbeColorPreview(
     bytes = mapValueToColormapRgbBytes(
       monoValue,
       resolvedVisualization.colormapRange,
-      resolvedVisualization.colormapLut ?? null
+      resolvedVisualization.colormapLut ?? null,
+      {
+        exposureEv: resolvedVisualization.colormapExposureEv,
+        gamma: resolvedVisualization.colormapGamma,
+        zeroCentered: resolvedVisualization.colormapZeroCentered
+      }
     );
     displayValues = [{ label: 'Mono', value: formatOverlayValue(monoValue) }];
 

@@ -1,4 +1,3 @@
-import { DEFAULT_COLORMAP_ID } from './colormaps';
 import { DEFAULT_DISPLAY_GAMMA } from './color';
 import { DEFAULT_PANORAMA_HFOV_DEG } from './interaction/panorama-geometry';
 import { resolveDisplaySelectionForLayer, type DisplaySelectionAvailabilityConfig } from './display-selection';
@@ -19,6 +18,8 @@ const SESSION_STATE_KEYS = [
   'viewerMode',
   'visualizationMode',
   'activeColormapId',
+  'colormapExposureEv',
+  'colormapGamma',
   'colormapRange',
   'colormapRangeMode',
   'colormapZeroCentered',
@@ -44,7 +45,9 @@ export function createInitialState(): ViewerSessionState {
     channelThumbnailDisplayGamma: DEFAULT_DISPLAY_GAMMA,
     viewerMode: 'image',
     visualizationMode: 'rgb',
-    activeColormapId: DEFAULT_COLORMAP_ID,
+    activeColormapId: null,
+    colormapExposureEv: 0,
+    colormapGamma: 1,
     colormapRange: null,
     colormapRangeMode: 'alwaysAuto',
     colormapZeroCentered: false,

@@ -400,7 +400,7 @@ test('opens the gallery demo image and keeps core display controls stable', asyn
   const imagePanel = page.locator('#image-panel');
   const rightStack = page.locator('#right-stack');
   const viewer = page.locator('#viewer-container');
-  const resetButton = page.locator('#reset-view-button');
+  const displayHeading = page.locator('#display-control-heading');
   const noneButton = page.locator('#visualization-none-button');
   const colormapButton = page.locator('#colormap-toggle-button');
   const exposureControl = page.locator('#exposure-control');
@@ -474,7 +474,7 @@ test('opens the gallery demo image and keeps core display controls stable', asyn
   await expectVisibleShellGap(page, appMenuBar, mainLayout);
   await expectMainPanelTopsAligned(viewer, imagePanel, rightStack);
 
-  await expect(resetButton).toBeVisible();
+  await expect(displayHeading).toBeVisible();
   await expect(noneButton).toHaveAttribute('aria-pressed', 'true');
   await expect(colormapButton).toHaveAttribute('aria-pressed', 'false');
   await expect(exposureControl).toBeVisible();

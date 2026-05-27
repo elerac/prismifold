@@ -1,4 +1,4 @@
-import { DisplayLuminanceRange } from './types';
+import type { DisplayLuminanceRange } from './types';
 
 export interface ColormapAsset {
   label: string;
@@ -30,6 +30,12 @@ export interface ColormapLut {
 
 export type HsvModulationMode = 'value' | 'saturation';
 
+export interface ColormapTransferOptions {
+  exposureEv?: number;
+  gamma?: number;
+  zeroCentered?: boolean;
+}
+
 interface ParsedNpyHeader {
   descr: string;
   fortranOrder: boolean;
@@ -42,8 +48,12 @@ interface ParsedDtype {
 }
 
 export const DEFAULT_COLORMAP_ID = createColormapId(0);
+export const DEFAULT_COLORMAP_EXPOSURE_EV = 0;
+export const DEFAULT_COLORMAP_GAMMA = 1;
 
 const COLORMAP_MANIFEST_PATH = 'colormaps/manifest.json';
+const COLORMAP_GAMMA_MIN = 0.2;
+const COLORMAP_GAMMA_MAX = 5;
 const NPY_MAGIC = [0x93, 0x4e, 0x55, 0x4d, 0x50, 0x59];
 const cache = new Map<string, Promise<ColormapLut>>();
 
@@ -228,13 +238,59 @@ export function sampleColormapRgbBytes(lut: ColormapLut | null, t: number): [num
 export function mapValueToColormapRgbBytes(
   value: number,
   range: DisplayLuminanceRange | null,
-  lut: ColormapLut | null
+  lut: ColormapLut | null,
+  options: ColormapTransferOptions = {}
 ): [number, number, number] {
-  if (!range || !Number.isFinite(value) || range.max <= range.min) {
+  const coordinate = mapValueToColormapCoordinate(value, range, options);
+  if (coordinate === null) {
     return [0, 0, 0];
   }
 
-  return sampleColormapRgbBytes(lut, (value - range.min) / (range.max - range.min));
+  return sampleColormapRgbBytes(lut, coordinate);
+}
+
+export function mapValueToColormapCoordinate(
+  value: number,
+  range: DisplayLuminanceRange | null,
+  options: ColormapTransferOptions = {}
+): number | null {
+  if (!range || !Number.isFinite(value)) {
+    return null;
+  }
+
+  const exposureScale = Math.pow(2, normalizeColormapExposureEv(options.exposureEv));
+  const gamma = normalizeColormapGamma(options.gamma);
+  const scaledValue = value * exposureScale;
+
+  if (options.zeroCentered) {
+    const magnitude = Math.max(Math.abs(range.min), Math.abs(range.max));
+    if (!Number.isFinite(magnitude) || magnitude <= 0) {
+      return null;
+    }
+
+    const signed = clamp(scaledValue / magnitude, -1, 1);
+    const signedGamma = Math.sign(signed) * Math.pow(Math.abs(signed), 1 / gamma);
+    return clampUnit(0.5 + 0.5 * signedGamma);
+  }
+
+  if (range.max <= range.min) {
+    return null;
+  }
+
+  const coordinate = clampUnit((scaledValue - range.min) / (range.max - range.min));
+  return Math.pow(coordinate, 1 / gamma);
+}
+
+export function normalizeColormapGamma(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_COLORMAP_GAMMA;
+  }
+
+  return clamp(value, COLORMAP_GAMMA_MIN, COLORMAP_GAMMA_MAX);
+}
+
+function normalizeColormapExposureEv(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : DEFAULT_COLORMAP_EXPOSURE_EV;
 }
 
 export function modulateRgbBytesHsv(
@@ -452,6 +508,10 @@ function readColormapComponent(
 
 function clampUnit(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 function clampFiniteUnit(value: number): number {

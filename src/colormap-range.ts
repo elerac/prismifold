@@ -55,7 +55,9 @@ export function resolveColormapAutoRange(
       : cloneDisplayLuminanceRange(stokesDefault.range);
   }
 
-  return buildZeroCenteredColormapRange(imageRange);
+  return zeroCentered
+    ? buildZeroCenteredColormapRange(imageRange)
+    : cloneDisplayLuminanceRange(imageRange);
 }
 
 export function shouldPreserveStokesColormapState(

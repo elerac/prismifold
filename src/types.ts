@@ -157,7 +157,9 @@ export interface ViewerSessionState extends ViewerViewState {
   channelThumbnailDisplayGamma: number;
   viewerMode: ViewerMode;
   visualizationMode: VisualizationMode;
-  activeColormapId: string;
+  activeColormapId: string | null;
+  colormapExposureEv: number;
+  colormapGamma: number;
   colormapRange: DisplayLuminanceRange | null;
   colormapRangeMode: ColormapRangeMode;
   colormapZeroCentered: boolean;

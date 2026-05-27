@@ -262,10 +262,11 @@ export interface UiCallbacks {
   onViewerModeChange: (mode: ViewerMode) => void;
   onLayerChange: (layerIndex: number) => void;
   onRgbGroupChange: (mapping: DisplaySelection) => void;
-  onVisualizationModeChange: (mode: VisualizationMode) => void;
-  onColormapChange: (colormapId: string) => void;
+  onColormapChange: (colormapId: string | null) => void;
+  onColormapExposureChange: (value: number) => void;
+  onColormapGammaChange: (value: number) => void;
   onColormapRangeChange: (range: DisplayLuminanceRange) => void;
-  onColormapAutoRange: () => void;
+  onColormapRangeReset: () => void;
   onColormapZeroCenterToggle: () => void;
   onStokesDegreeModulationToggle: () => void;
   onStokesAolpDegreeModulationModeChange: (mode: StokesAolpDegreeModulationMode) => void;
@@ -428,17 +429,20 @@ export class ViewerUi implements Disposable {
       onDisplayGammaCommit: () => {
         this.callbacks.onDisplayGammaCommit();
       },
-      onVisualizationModeChange: (mode) => {
-        this.callbacks.onVisualizationModeChange(mode);
-      },
       onColormapChange: (colormapId) => {
         this.callbacks.onColormapChange(colormapId);
+      },
+      onColormapExposureChange: (value) => {
+        this.callbacks.onColormapExposureChange(value);
+      },
+      onColormapGammaChange: (value) => {
+        this.callbacks.onColormapGammaChange(value);
       },
       onColormapRangeChange: (range) => {
         this.callbacks.onColormapRangeChange(range);
       },
-      onColormapAutoRange: () => {
-        this.callbacks.onColormapAutoRange();
+      onColormapRangeReset: () => {
+        this.callbacks.onColormapRangeReset();
       },
       onColormapZeroCenterToggle: () => {
         this.callbacks.onColormapZeroCenterToggle();
@@ -757,7 +761,7 @@ export class ViewerUi implements Disposable {
     for (const galleryItem of this.getGalleryMenuItemButtons()) {
       galleryItem.disabled = loading;
     }
-    this.elements.resetViewButton.disabled = viewerBlocked;
+    this.elements.displayControlHeading.setAttribute('aria-disabled', viewerBlocked ? 'true' : 'false');
     this.openedImagesPanel.setLoading(loading, viewerBlocked);
     this.channelThumbnailStrip.setLoading(viewerBlocked);
     this.colormapPanel.setLoading(viewerBlocked);
@@ -1001,6 +1005,22 @@ export class ViewerUi implements Disposable {
     this.colormapPanel.setDisplayGamma(displayGamma);
   }
 
+  setColormapExposure(exposureEv: number): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.colormapPanel.setColormapExposure(exposureEv);
+  }
+
+  setColormapGamma(gamma: number): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.colormapPanel.setColormapGamma(gamma);
+  }
+
   setViewerMode(mode: ViewerMode): void {
     if (this.disposed) {
       return;
@@ -1024,13 +1044,13 @@ export class ViewerUi implements Disposable {
     this.colormapPanel.setVisualizationMode(mode);
   }
 
-  setColormapOptions(items: Array<{ id: string; label: string }>, activeId: string): void {
+  setColormapOptions(items: Array<{ id: string; label: string }>, activeId: string | null): void {
     if (this.disposed) {
       return;
     }
 
     this.colormapPanel.setColormapOptions(items, activeId);
-    this.exportColormapDialog.setOptions(items, activeId);
+    this.exportColormapDialog.setOptions(items, activeId ?? items[0]?.id ?? '');
     this.updateFileMenuItemsDisabled();
   }
 
@@ -1120,13 +1140,13 @@ export class ViewerUi implements Disposable {
     this.elements.appInvalidValueWarningButton.setAttribute('aria-pressed', enabled ? 'true' : 'false');
   }
 
-  setActiveColormap(activeId: string): void {
+  setActiveColormap(activeId: string | null): void {
     if (this.disposed) {
       return;
     }
 
     this.colormapPanel.setActiveColormap(activeId);
-    this.exportColormapDialog.setActiveColormap(activeId);
+    this.exportColormapDialog.setActiveColormap(activeId ?? '');
   }
 
   setColormapGradient(lut: ColormapLut | null): void {
@@ -2682,7 +2702,7 @@ export class ViewerUi implements Disposable {
       input.value = '';
     });
 
-    this.bindResetViewButton(this.elements.resetViewButton);
+    this.bindResetDisplayHeading(this.elements.displayControlHeading);
     for (const group of STOKES_COLORMAP_DEFAULT_GROUPS) {
       this.bindStokesDefaultSettingRow(group);
     }
@@ -2873,9 +2893,12 @@ export class ViewerUi implements Disposable {
     this.topMenuController.closeAll(false);
   }
 
-  private bindResetViewButton(button: HTMLButtonElement): void {
-    this.disposables.addEventListener(button, 'click', () => {
-      if (button.disabled) {
+  private bindResetDisplayHeading(heading: HTMLHeadingElement): void {
+    heading.classList.add('resettable-control-label');
+    heading.title = 'Double-click to reset display';
+    heading.setAttribute('aria-disabled', 'false');
+    this.disposables.addEventListener(heading, 'dblclick', () => {
+      if (heading.getAttribute('aria-disabled') === 'true') {
         return;
       }
 

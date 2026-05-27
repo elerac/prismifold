@@ -265,7 +265,7 @@ export class DisplayController implements Disposable {
   }
 
   async setActiveColormap(
-    colormapId: string,
+    colormapId: string | null,
     options: { applyDivergingDefault?: boolean } = {}
   ): Promise<void> {
     if (this.disposed) {
@@ -275,6 +275,15 @@ export class DisplayController implements Disposable {
     const state = this.core.getState();
     if (state.pendingSelectionTransitionRequestId !== null) {
       this.manualColormapOverrideTransitionIds.add(state.pendingSelectionTransitionRequestId);
+    }
+
+    if (colormapId === null) {
+      this.core.dispatch({
+        type: 'activeColormapSet',
+        colormapId: null,
+        applyDivergingDefault: options.applyDivergingDefault
+      });
+      return;
     }
 
     if (!state.colormapRegistry) {
@@ -557,7 +566,7 @@ export class DisplayController implements Disposable {
     }
 
     const state = this.core.getState();
-    if (!state.colormapRegistry) {
+    if (!state.colormapRegistry || state.sessionState.activeColormapId === null) {
       return;
     }
 
@@ -620,6 +629,48 @@ export class DisplayController implements Disposable {
     });
   }
 
+  setColormapExposure(exposureEv: number): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.core.dispatch({
+      type: 'colormapExposureSet',
+      exposureEv
+    });
+  }
+
+  setColormapGamma(gamma: number): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.core.dispatch({
+      type: 'colormapGammaSet',
+      gamma
+    });
+  }
+
+  resetColormapRange(): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.core.dispatch({
+      type: 'colormapRangeReset'
+    });
+  }
+
+  resetActiveSessionDisplayState(): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.core.dispatch({
+      type: 'activeSessionDisplayReset'
+    });
+  }
+
   applyAutoColormapRange(): void {
     if (this.disposed) {
       return;
@@ -676,8 +727,8 @@ export class DisplayController implements Disposable {
     return this.core.getState().defaultColormapId || DEFAULT_COLORMAP_ID;
   }
 
-  getActiveColormapLutForState(colormapId: string): ColormapLut | null {
-    return selectColormapLutById(this.core.getState(), colormapId);
+  getActiveColormapLutForState(colormapId: string | null): ColormapLut | null {
+    return colormapId ? selectColormapLutById(this.core.getState(), colormapId) : null;
   }
 
   dispose(): void {
@@ -798,7 +849,9 @@ function waitForNextPaint(signal?: AbortSignal): Promise<void> {
 
 function captureRestorableVisualizationState(state: {
   visualizationMode: RestorableVisualizationState['visualizationMode'];
-  activeColormapId: string;
+  activeColormapId: RestorableVisualizationState['activeColormapId'];
+  colormapExposureEv: number;
+  colormapGamma: number;
   colormapRange: RestorableVisualizationState['colormapRange'];
   colormapRangeMode: RestorableVisualizationState['colormapRangeMode'];
   colormapZeroCentered: boolean;
@@ -806,6 +859,8 @@ function captureRestorableVisualizationState(state: {
   return {
     visualizationMode: state.visualizationMode,
     activeColormapId: state.activeColormapId,
+    colormapExposureEv: state.colormapExposureEv,
+    colormapGamma: state.colormapGamma,
     colormapRange: state.colormapRange ? { ...state.colormapRange } : null,
     colormapRangeMode: state.colormapRangeMode,
     colormapZeroCentered: state.colormapZeroCentered

@@ -321,17 +321,20 @@ export function createViewerUi({
       promoteActiveChannelThumbnail(core, getChannelThumbnailService, mapping);
       void getDisplayController().applyDisplaySelection(mapping);
     },
-    onVisualizationModeChange: (mode) => {
-      getDisplayController().setVisualizationMode(mode);
-    },
     onColormapChange: (colormapId) => {
       void getDisplayController().setActiveColormap(colormapId);
     },
     onColormapRangeChange: (range) => {
       getDisplayController().setColormapRange(range);
     },
-    onColormapAutoRange: () => {
-      getDisplayController().applyAutoColormapRange();
+    onColormapExposureChange: (value) => {
+      getDisplayController().setColormapExposure(value);
+    },
+    onColormapGammaChange: (value) => {
+      getDisplayController().setColormapGamma(value);
+    },
+    onColormapRangeReset: () => {
+      getDisplayController().resetColormapRange();
     },
     onColormapZeroCenterToggle: () => {
       getDisplayController().toggleColormapZeroCenter();
@@ -376,7 +379,7 @@ export function createViewerUi({
       getDisplayController().resetInvalidValueWarning();
     },
     onResetView: () => {
-      getSessionController().resetActiveSessionState();
+      getDisplayController().resetActiveSessionDisplayState();
     }
   };
 

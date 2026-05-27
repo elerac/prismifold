@@ -272,7 +272,9 @@ function selectPaneRenderSources(
       activeLayer: visibleRenderState.activeLayer,
       layer,
       renderState: visibleRenderState,
-      colormapLut: selectColormapLutById(state, visibleRenderState.activeColormapId)
+      colormapLut: visibleRenderState.activeColormapId
+        ? selectColormapLutById(state, visibleRenderState.activeColormapId)
+        : null
     });
   }
 
@@ -310,6 +312,8 @@ function createProbeReadoutSelector(): (
   let previousDisplaySelection: ViewerAppState['sessionState']['displaySelection'] = null;
   let previousExposureEv = 0;
   let previousDisplayGamma = DEFAULT_DISPLAY_GAMMA;
+  let previousColormapExposureEv = 0;
+  let previousColormapGamma = 1;
   let previousVisualizationMode: ViewerAppState['sessionState']['visualizationMode'] = 'rgb';
   let previousColormapRange: ViewerAppState['sessionState']['colormapRange'] = null;
   let previousActiveDisplayLuminanceRange: DisplayLuminanceRange | null = null;
@@ -352,6 +356,8 @@ function createProbeReadoutSelector(): (
       sameDisplaySelection(state.sessionState.displaySelection, previousDisplaySelection) &&
       state.sessionState.exposureEv === previousExposureEv &&
       state.sessionState.displayGamma === previousDisplayGamma &&
+      state.sessionState.colormapExposureEv === previousColormapExposureEv &&
+      state.sessionState.colormapGamma === previousColormapGamma &&
       state.sessionState.visualizationMode === previousVisualizationMode &&
       state.maskInvalidStokesVectors === previousMaskInvalidStokesVectors &&
       state.spectralRgbGroupingEnabled === previousSpectralRgbGroupingEnabled &&
@@ -380,6 +386,8 @@ function createProbeReadoutSelector(): (
     previousDisplaySelection = state.sessionState.displaySelection;
     previousExposureEv = state.sessionState.exposureEv;
     previousDisplayGamma = state.sessionState.displayGamma;
+    previousColormapExposureEv = state.sessionState.colormapExposureEv;
+    previousColormapGamma = state.sessionState.colormapGamma;
     previousVisualizationMode = state.sessionState.visualizationMode;
     previousColormapRange = state.sessionState.colormapRange;
     previousActiveDisplayLuminanceRange = activeDisplayLuminanceRange;
@@ -865,6 +873,8 @@ function samePaneImageInput(a: ViewerPaneRenderSource, b: ViewerPaneRenderSource
     previous.viewerMode === next.viewerMode &&
     previous.exposureEv === next.exposureEv &&
     previous.displayGamma === next.displayGamma &&
+    previous.colormapExposureEv === next.colormapExposureEv &&
+    previous.colormapGamma === next.colormapGamma &&
     previous.maskInvalidStokesVectors === next.maskInvalidStokesVectors &&
     previous.invalidValueWarningEnabled === next.invalidValueWarningEnabled &&
     sameDisplaySelection(previous.displaySelection, next.displaySelection) &&
@@ -931,6 +941,8 @@ function sameViewerRenderState(a: ViewerRenderState, b: ViewerRenderState): bool
     a.viewerMode === b.viewerMode &&
     a.visualizationMode === b.visualizationMode &&
     a.activeColormapId === b.activeColormapId &&
+    a.colormapExposureEv === b.colormapExposureEv &&
+    a.colormapGamma === b.colormapGamma &&
     sameDisplayLuminanceRange(a.colormapRange, b.colormapRange) &&
     a.colormapRangeMode === b.colormapRangeMode &&
     a.colormapZeroCentered === b.colormapZeroCentered &&
@@ -960,7 +972,9 @@ function stateLikeSessionState(): ViewerAppState['sessionState'] {
     channelThumbnailDisplayGamma: DEFAULT_DISPLAY_GAMMA,
     viewerMode: 'image',
     visualizationMode: 'rgb',
-    activeColormapId: '0',
+    activeColormapId: null,
+    colormapExposureEv: 0,
+    colormapGamma: 1,
     colormapRange: null,
     colormapRangeMode: 'alwaysAuto',
     colormapZeroCentered: false,

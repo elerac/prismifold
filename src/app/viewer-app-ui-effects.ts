@@ -44,10 +44,12 @@ export function applyUiEffects(ui: ViewerUi, transition: ViewerUiTransition): vo
 
   if (invalidation & ViewerUiInvalidationFlags.Exposure) {
     ui.setExposure(snapshot.exposureEv);
+    ui.setColormapExposure(snapshot.colormapExposureEv);
   }
 
   if (invalidation & ViewerUiInvalidationFlags.DisplayGamma) {
     ui.setDisplayGamma(snapshot.displayGamma);
+    ui.setColormapGamma(snapshot.colormapGamma);
   }
 
   if (invalidation & ViewerUiInvalidationFlags.ViewerMode) {
@@ -72,7 +74,7 @@ export function applyUiEffects(ui: ViewerUi, transition: ViewerUiTransition): vo
   }
 
   if (invalidation & ViewerUiInvalidationFlags.ColormapOptions) {
-    ui.setColormapOptions(snapshot.colormapOptions, snapshot.defaultColormapId);
+    ui.setColormapOptions(snapshot.colormapOptions, snapshot.activeColormapId);
   }
 
   if (invalidation & (

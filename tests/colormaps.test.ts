@@ -4,6 +4,7 @@ import {
   findColormapIdByLabel,
   getColormapAsset,
   getColormapOptions,
+  mapValueToColormapCoordinate,
   mapValueToColormapRgbBytes,
   modulateRgbBytesHsv,
   parseColormapManifest,
@@ -161,6 +162,17 @@ describe('colormap LUT sampling', () => {
   it('maps scalar ranges and renders collapsed ranges as black', () => {
     expect(mapValueToColormapRgbBytes(5, { min: 0, max: 10 }, lut)).toEqual([0, 0, 0]);
     expect(mapValueToColormapRgbBytes(5, { min: 5, max: 5 }, lut)).toEqual([0, 0, 0]);
+  });
+
+  it('applies colormap EV and gamma before LUT sampling', () => {
+    expect(mapValueToColormapCoordinate(0.25, { min: 0, max: 1 }, { exposureEv: 1, gamma: 1 })).toBe(0.5);
+    expect(mapValueToColormapCoordinate(0.25, { min: 0, max: 1 }, { exposureEv: 0, gamma: 2 })).toBe(0.5);
+  });
+
+  it('keeps zero-centered colormap gamma symmetric around the midpoint', () => {
+    expect(mapValueToColormapCoordinate(-0.25, { min: -1, max: 1 }, { gamma: 2, zeroCentered: true })).toBe(0.25);
+    expect(mapValueToColormapCoordinate(0, { min: -1, max: 1 }, { gamma: 2, zeroCentered: true })).toBe(0.5);
+    expect(mapValueToColormapCoordinate(0.25, { min: -1, max: 1 }, { gamma: 2, zeroCentered: true })).toBe(0.75);
   });
 
   it('modulates HSV value by default', () => {

@@ -38,7 +38,9 @@ import type {
 
 export interface RestorableVisualizationState {
   visualizationMode: ViewerSessionState['visualizationMode'];
-  activeColormapId: string;
+  activeColormapId: ViewerSessionState['activeColormapId'];
+  colormapExposureEv: number;
+  colormapGamma: number;
   colormapRange: DisplayLuminanceRange | null;
   colormapRangeMode: ViewerSessionState['colormapRangeMode'];
   colormapZeroCentered: boolean;
@@ -201,6 +203,8 @@ export type ViewerIntent =
   | { type: 'exposureCommitted' }
   | { type: 'displayGammaSet'; displayGamma: number }
   | { type: 'displayGammaCommitted' }
+  | { type: 'colormapExposureSet'; exposureEv: number }
+  | { type: 'colormapGammaSet'; gamma: number }
   | { type: 'viewerModeSet'; viewerMode: ViewerSessionState['viewerMode'] }
   | { type: 'activeLayerSet'; activeLayer: number }
   | {
@@ -209,9 +213,10 @@ export type ViewerIntent =
       restoreState?: RestorableVisualizationState | null;
     }
   | { type: 'visualizationModeRequested'; visualizationMode: ViewerSessionState['visualizationMode'] }
-  | { type: 'activeColormapSet'; colormapId: string; applyDivergingDefault?: boolean }
+  | { type: 'activeColormapSet'; colormapId: ViewerSessionState['activeColormapId']; applyDivergingDefault?: boolean }
   | { type: 'colormapRangeSet'; range: DisplayLuminanceRange }
   | { type: 'colormapAutoRangeToggled' }
+  | { type: 'colormapRangeReset' }
   | { type: 'colormapZeroCenteredToggled' }
   | { type: 'stokesDegreeModulationToggled' }
   | { type: 'stokesAolpDegreeModulationModeSet'; mode: StokesAolpDegreeModulationMode }
@@ -256,6 +261,7 @@ export type ViewerIntent =
   | { type: 'sessionClosed'; sessionId: string }
   | { type: 'allSessionsClosed' }
   | { type: 'activeSessionReset'; viewport: ViewportInfo; fitInsets?: ViewportInsets }
+  | { type: 'activeSessionDisplayReset' }
   | { type: 'activeSessionFitToViewport'; viewport: ViewportInfo; fitInsets?: ViewportInsets }
   | { type: 'thumbnailRequested'; sessionId: string; token: number }
   | { type: 'thumbnailReady'; sessionId: string; token: number; thumbnailDataUrl: string | null }
@@ -332,6 +338,8 @@ export interface ViewerUiSnapshot {
   exportBatchTarget: ExportImageBatchTarget | null;
   exposureEv: number;
   displayGamma: number;
+  colormapExposureEv: number;
+  colormapGamma: number;
   viewerMode: ViewerSessionState['viewerMode'];
   visualizationMode: ViewerSessionState['visualizationMode'];
   stokesDegreeModulationControl: StokesDegreeModulationControlModel | null;
@@ -340,7 +348,7 @@ export interface ViewerUiSnapshot {
   maskInvalidStokesVectors: boolean;
   spectralRgbGroupingEnabled: boolean;
   invalidValueWarningEnabled: boolean;
-  activeColormapId: string;
+  activeColormapId: ViewerSessionState['activeColormapId'];
   defaultColormapId: string;
   activeColormapLut: ColormapLut | null;
   colormapOptions: Array<{ id: string; label: string }>;

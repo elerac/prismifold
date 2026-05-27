@@ -202,7 +202,7 @@ describe('display controller shim', () => {
     await controller.initialize();
 
     expect(core.getState().defaultColormapId).toBe('0');
-    expect(core.getState().sessionState.activeColormapId).toBe('0');
+    expect(core.getState().sessionState.activeColormapId).toBeNull();
     expect(getLoadedColormapLut(core)).toEqual(luts['0']);
   });
 
@@ -260,7 +260,18 @@ describe('display controller shim', () => {
     expect(getLoadedColormapId(core)).toBe('1');
   });
 
-  it('enables zero center for diverging colormaps without disabling it for sequential colormaps', async () => {
+  it('maps Palette None to nullable active colormap state and RGB mode', async () => {
+    const { controller, core } = createController();
+    await controller.initialize();
+
+    await controller.setActiveColormap('1');
+    await controller.setActiveColormap(null);
+
+    expect(core.getState().sessionState.activeColormapId).toBeNull();
+    expect(core.getState().sessionState.visualizationMode).toBe('rgb');
+  });
+
+  it('enables zero center for diverging colormaps and disables it for sequential colormaps', async () => {
     const decoded = createDecodedImage(['R', 'G', 'B']);
     const { controller, core } = createController(createSession(decoded));
 
@@ -281,11 +292,21 @@ describe('display controller shim', () => {
     expect(core.getState().sessionState).toMatchObject({
       activeColormapId: '2',
       colormapRange: { min: -0.75, max: 0.75 },
-      colormapZeroCentered: true
+      colormapRangeMode: 'oneTime',
+      colormapZeroCentered: false
+    });
+
+    controller.setColormapRange({ min: -0.25, max: 0.5 });
+
+    expect(core.getState().sessionState).toMatchObject({
+      activeColormapId: '2',
+      colormapRange: { min: -0.25, max: 0.5 },
+      colormapRangeMode: 'oneTime',
+      colormapZeroCentered: false
     });
   });
 
-  it('applies diverging zero-center defaults from auto ranges for all diverging palettes', async () => {
+  it('applies palette zero-center defaults from auto ranges', async () => {
     const decoded = createDecodedImage(['R', 'G', 'B']);
     const session = createSession(decoded);
     const { controller, core } = createController(session);
@@ -316,6 +337,41 @@ describe('display controller shim', () => {
         colormapZeroCentered: true
       });
     }
+
+    await controller.setActiveColormap('2');
+
+    expect(core.getState().sessionState).toMatchObject({
+      activeColormapId: '2',
+      colormapRange: { min: -0.2, max: 0.6 },
+      colormapRangeMode: 'alwaysAuto',
+      colormapZeroCentered: false
+    });
+  });
+
+  it('resets manual colormap range back to the current auto range', async () => {
+    const decoded = createDecodedImage(['R', 'G', 'B']);
+    const session = createSession(decoded);
+    const { controller, core } = createController(session);
+
+    await controller.initialize();
+    core.dispatch({
+      type: 'displayLuminanceRangeResolved',
+      requestId: null,
+      requestKey: 'range',
+      sessionId: session.id,
+      activeLayer: 0,
+      displaySelection: core.getState().sessionState.displaySelection,
+      displayLuminanceRange: { min: 0, max: 2 }
+    });
+    await controller.setActiveColormap('2');
+    controller.setColormapRange({ min: 0.25, max: 0.75 });
+
+    controller.resetColormapRange();
+
+    expect(core.getState().sessionState).toMatchObject({
+      colormapRange: { min: 0, max: 2 },
+      colormapRangeMode: 'alwaysAuto'
+    });
   });
 
   it('does not duplicate an in-flight active colormap load when ensuring the active lut', async () => {
@@ -351,17 +407,19 @@ describe('display controller shim', () => {
     await controller.applyDisplaySelection(createStokesSelection('aolp'));
     expect(core.getState().sessionState.visualizationMode).toBe('colormap');
     expect(core.getState().sessionState.activeColormapId).toBe('1');
+    expect(core.getState().sessionState.colormapExposureEv).toBe(0);
+    expect(core.getState().sessionState.colormapGamma).toBe(1);
 
     await controller.applyDisplaySelection(createChannelRgbSelection('R', 'G', 'B'));
 
     expect(core.getState().sessionState.visualizationMode).toBe('rgb');
-    expect(core.getState().sessionState.activeColormapId).toBe('0');
-    expect(getLoadedColormapId(core)).toBe('0');
-    expect(getLoadedColormapLut(core)).toEqual(luts['0']);
+    expect(core.getState().sessionState.activeColormapId).toBeNull();
+    expect(getLoadedColormapId(core)).toBe('1');
+    expect(getLoadedColormapLut(core)).toEqual(luts['1']);
     expect(core.getState().sessionState.displaySelection).toEqual(createChannelRgbSelection('R', 'G', 'B'));
   });
 
-  it('loads the default lut after a new active RGB session restores the default colormap id', async () => {
+  it('does not load a new lut after a new active RGB session restores Palette None', async () => {
     const decoded = createDecodedImage(['R', 'G', 'B', 'S0', 'S1', 'S2', 'S3']);
     const { controller, core } = createController(createSession(decoded));
 
@@ -374,15 +432,15 @@ describe('display controller shim', () => {
       type: 'sessionLoaded',
       session: createSession(createDecodedImage(['R', 'G', 'B']), 'session-2')
     });
-    expect(core.getState().sessionState.activeColormapId).toBe('0');
+    expect(core.getState().sessionState.activeColormapId).toBeNull();
     expect(getLoadedColormapId(core)).toBe('1');
 
     colormapMocks.loadColormapLut.mockClear();
     await controller.ensureActiveColormapLutLoaded();
 
     expect(colormapMocks.loadColormapLut.mock.calls.map(([, id]) => id)).toEqual([]);
-    expect(getLoadedColormapId(core)).toBe('0');
-    expect(getLoadedColormapLut(core)).toEqual(luts['0']);
+    expect(getLoadedColormapId(core)).toBe('1');
+    expect(getLoadedColormapLut(core)).toEqual(luts['1']);
   });
 
   it('carries manual colormap state across Stokes degree selections', async () => {
@@ -393,6 +451,8 @@ describe('display controller shim', () => {
     await controller.applyDisplaySelection(createStokesSelection('dolp'));
     await controller.setActiveColormap('2');
     controller.setColormapRange({ min: 0.2, max: 0.8 });
+    controller.setColormapExposure(1.5);
+    controller.setColormapGamma(1.8);
     controller.toggleColormapZeroCenter();
     colormapMocks.loadColormapLut.mockClear();
 
@@ -403,6 +463,8 @@ describe('display controller shim', () => {
       colormapRange: { min: -0.8, max: 0.8 },
       colormapRangeMode: 'oneTime',
       colormapZeroCentered: true,
+      colormapExposureEv: 1.5,
+      colormapGamma: 1.8,
       displaySelection: createStokesSelection('dop')
     });
 
@@ -413,6 +475,8 @@ describe('display controller shim', () => {
       colormapRange: { min: -0.8, max: 0.8 },
       colormapRangeMode: 'oneTime',
       colormapZeroCentered: true,
+      colormapExposureEv: 1.5,
+      colormapGamma: 1.8,
       displaySelection: createStokesSelection('docp')
     });
     expect(colormapMocks.loadColormapLut).not.toHaveBeenCalled();
@@ -425,7 +489,6 @@ describe('display controller shim', () => {
     await controller.initialize();
     await controller.applyDisplaySelection(createStokesSelection('s1_over_s0'));
     await controller.setActiveColormap('2');
-    controller.toggleColormapZeroCenter();
     controller.setColormapRange({ min: -0.25, max: 0.75 });
     colormapMocks.loadColormapLut.mockClear();
 
@@ -757,7 +820,7 @@ describe('display controller shim', () => {
     expect(core.getState().sessionState).toMatchObject({
       activeLayer: 1,
       visualizationMode: 'rgb',
-      activeColormapId: '0',
+      activeColormapId: null,
       displaySelection: createChannelRgbSelection('R', 'G', 'B')
     });
     expect(core.getState().pendingSelectionTransitionRequestId).toBeNull();
@@ -782,7 +845,7 @@ describe('display controller shim', () => {
 
     expect(core.getState().sessionState).toMatchObject({
       visualizationMode: 'rgb',
-      activeColormapId: '0',
+      activeColormapId: null,
       displaySelection: createChannelRgbSelection('R', 'G', 'B')
     });
     expect(core.getState().pendingSelectionTransitionRequestId).toBeNull();

@@ -12,6 +12,9 @@ import type { ExportColormapOrientation, ViewerSessionState } from '../types';
 type ExportVisualizationState = Pick<
   ViewerSessionState,
   | 'colormapRange'
+  | 'colormapExposureEv'
+  | 'colormapGamma'
+  | 'colormapZeroCentered'
   | 'displaySelection'
   | 'displayGamma'
   | 'exposureEv'
@@ -74,7 +77,12 @@ export function buildExportImagePixels({
       rgb = mapValueToColormapRgbBytes(
         computeRec709Luminance(rawR, rawG, rawB),
         state.colormapRange,
-        colormapLut
+        colormapLut,
+        {
+          exposureEv: state.colormapExposureEv,
+          gamma: state.colormapGamma,
+          zeroCentered: state.colormapZeroCentered
+        }
       );
       if (useStokesDegreeModulation) {
         rgb = modulateRgbBytesHsv(rgb, rawAlpha, stokesDegreeModulationMode);

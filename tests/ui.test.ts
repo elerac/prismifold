@@ -1072,82 +1072,82 @@ describe('top bar and display controls', () => {
     expect(document.activeElement).toBe(button);
   });
 
-  it('dispatches reset view from the inspector reset button', () => {
+  it('dispatches display reset from a Display heading double-click', () => {
     installUiFixture();
 
     const onResetView = vi.fn();
     const ui = new ViewerUi(createUiCallbacks({ onResetView }));
-    const inspectorResetButton = document.getElementById('reset-view-button') as HTMLButtonElement;
+    const displayHeading = document.getElementById('display-control-heading') as HTMLHeadingElement;
 
-    inspectorResetButton.click();
+    displayHeading.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     expect(onResetView).toHaveBeenCalledTimes(1);
 
     ui.setLoading(true);
-    expect(inspectorResetButton.disabled).toBe(true);
+    expect(displayHeading.getAttribute('aria-disabled')).toBe('true');
 
-    inspectorResetButton.click();
+    displayHeading.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     expect(onResetView).toHaveBeenCalledTimes(1);
 
     ui.setLoading(false);
-    expect(inspectorResetButton.disabled).toBe(false);
+    expect(displayHeading.getAttribute('aria-disabled')).toBe('false');
   });
 
-  it('dispatches visualization mode changes from inspector buttons', () => {
+  it('dispatches palette changes from the inspector palette select', () => {
     installUiFixture();
 
-    const onVisualizationModeChange = vi.fn();
-    const ui = new ViewerUi(createUiCallbacks({ onVisualizationModeChange }));
-    const inspectorNoneButton = document.getElementById('visualization-none-button') as HTMLButtonElement;
-    const inspectorColormapButton = document.getElementById('colormap-toggle-button') as HTMLButtonElement;
+    const onColormapChange = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onColormapChange }));
+    const paletteSelect = document.getElementById('colormap-select') as HTMLSelectElement;
 
     ui.setOpenedImageOptions([{ id: 'session-1', label: 'image.exr' }], 'session-1');
+    ui.setColormapOptions([{ id: '0', label: 'Viridis' }], null);
 
-    inspectorColormapButton.click();
-    expect(onVisualizationModeChange).toHaveBeenLastCalledWith('colormap');
+    expect(Array.from(paletteSelect.options).map((option) => option.textContent)).toEqual(['None', 'Viridis']);
 
-    inspectorNoneButton.click();
-    expect(onVisualizationModeChange).toHaveBeenLastCalledWith('rgb');
+    paletteSelect.value = '0';
+    paletteSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onColormapChange).toHaveBeenLastCalledWith('0');
+
+    paletteSelect.value = paletteSelect.options[0]?.value ?? '';
+    paletteSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onColormapChange).toHaveBeenLastCalledWith(null);
   });
 
-  it('syncs inspector visualization mode button state', () => {
+  it('syncs palette-driven visualization control visibility', () => {
     installUiFixture();
 
     const ui = new ViewerUi(createUiCallbacks());
-    const inspectorNoneButton = document.getElementById('visualization-none-button') as HTMLButtonElement;
-    const inspectorColormapButton = document.getElementById('colormap-toggle-button') as HTMLButtonElement;
+    const exposureControl = document.getElementById('exposure-control') as HTMLDivElement;
+    const colormapRangeControl = document.getElementById('colormap-range-control') as HTMLDivElement;
 
     ui.setVisualizationMode('rgb');
 
-    expect(inspectorNoneButton.getAttribute('aria-pressed')).toBe('true');
-    expect(inspectorColormapButton.getAttribute('aria-pressed')).toBe('false');
-    expect(inspectorColormapButton.getAttribute('aria-expanded')).toBe('false');
+    expect(exposureControl.classList.contains('hidden')).toBe(false);
+    expect(colormapRangeControl.classList.contains('hidden')).toBe(true);
 
     ui.setVisualizationMode('colormap');
 
-    expect(inspectorNoneButton.getAttribute('aria-pressed')).toBe('false');
-    expect(inspectorColormapButton.getAttribute('aria-pressed')).toBe('true');
-    expect(inspectorColormapButton.getAttribute('aria-expanded')).toBe('true');
+    expect(exposureControl.classList.contains('hidden')).toBe(true);
+    expect(colormapRangeControl.classList.contains('hidden')).toBe(false);
   });
 
-  it('syncs inspector visualization mode disabled state', () => {
+  it('syncs inspector palette disabled state', () => {
     installUiFixture();
 
     const ui = new ViewerUi(createUiCallbacks());
-    const buttons = [
-      document.getElementById('visualization-none-button') as HTMLButtonElement,
-      document.getElementById('colormap-toggle-button') as HTMLButtonElement
-    ];
+    const paletteSelect = document.getElementById('colormap-select') as HTMLSelectElement;
 
-    expect(buttons.map((button) => button.disabled)).toEqual([true, true]);
+    ui.setColormapOptions([{ id: '0', label: 'Viridis' }], null);
+    expect(paletteSelect.disabled).toBe(true);
 
     ui.setOpenedImageOptions([{ id: 'session-1', label: 'image.exr' }], 'session-1');
-    expect(buttons.map((button) => button.disabled)).toEqual([false, false]);
+    expect(paletteSelect.disabled).toBe(false);
 
     ui.setLoading(true);
-    expect(buttons.map((button) => button.disabled)).toEqual([true, true]);
+    expect(paletteSelect.disabled).toBe(true);
 
     ui.setLoading(false);
-    expect(buttons.map((button) => button.disabled)).toEqual([false, false]);
+    expect(paletteSelect.disabled).toBe(false);
   });
 
   it('updates inspector exposure controls through the shared exposure state', () => {
@@ -1236,6 +1236,146 @@ describe('top bar and display controls', () => {
 
     expect(gammaSlider.value).toBe('0.5');
     expect(gammaValue.value).toBe('0.5');
+  });
+
+  it('updates colormap EV and gamma controls separately from RGB exposure', () => {
+    installUiFixture();
+
+    const onColormapExposureChange = vi.fn();
+    const onColormapGammaChange = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onColormapExposureChange, onColormapGammaChange }));
+    const exposureSlider = document.getElementById('colormap-exposure-slider') as HTMLInputElement;
+    const exposureValue = document.getElementById('colormap-exposure-value') as HTMLInputElement;
+    const gammaSlider = document.getElementById('colormap-gamma-slider') as HTMLInputElement;
+    const gammaValue = document.getElementById('colormap-gamma-value') as HTMLInputElement;
+
+    ui.setColormapExposure(1.2);
+    ui.setColormapGamma(1.75);
+
+    expect(exposureSlider.value).toBe('1.2');
+    expect(exposureValue.value).toBe('1.2');
+    expect(gammaSlider.value).toBe('1.75');
+    expect(gammaValue.value).toBe('1.75');
+
+    exposureSlider.value = '-2.3';
+    exposureSlider.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(onColormapExposureChange).toHaveBeenLastCalledWith(-2.3);
+
+    exposureValue.value = '12';
+    exposureValue.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onColormapExposureChange).toHaveBeenLastCalledWith(10);
+
+    gammaSlider.value = '0.1';
+    gammaSlider.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(onColormapGammaChange).toHaveBeenLastCalledWith(0.2);
+
+    gammaValue.value = '9';
+    gammaValue.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onColormapGammaChange).toHaveBeenLastCalledWith(5);
+  });
+
+  it('resets EV and gamma controls when their labels are double-clicked', () => {
+    installUiFixture();
+
+    const onExposureChange = vi.fn();
+    const onExposureCommit = vi.fn();
+    const onDisplayGammaChange = vi.fn();
+    const onDisplayGammaCommit = vi.fn();
+    const onColormapExposureChange = vi.fn();
+    const onColormapGammaChange = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({
+      onExposureChange,
+      onExposureCommit,
+      onDisplayGammaChange,
+      onDisplayGammaCommit,
+      onColormapExposureChange,
+      onColormapGammaChange
+    }));
+    const exposureSlider = document.getElementById('exposure-slider') as HTMLInputElement;
+    const exposureValue = document.getElementById('exposure-value') as HTMLInputElement;
+    const gammaSlider = document.getElementById('gamma-slider') as HTMLInputElement;
+    const gammaValue = document.getElementById('gamma-value') as HTMLInputElement;
+    const colormapExposureSlider = document.getElementById('colormap-exposure-slider') as HTMLInputElement;
+    const colormapExposureValue = document.getElementById('colormap-exposure-value') as HTMLInputElement;
+    const colormapGammaSlider = document.getElementById('colormap-gamma-slider') as HTMLInputElement;
+    const colormapGammaValue = document.getElementById('colormap-gamma-value') as HTMLInputElement;
+    const exposureLabel = document.querySelector('label[for="exposure-slider"]') as HTMLLabelElement;
+    const gammaLabel = document.querySelector('label[for="gamma-slider"]') as HTMLLabelElement;
+    const colormapExposureLabel = document.querySelector('label[for="colormap-exposure-slider"]') as HTMLLabelElement;
+    const colormapGammaLabel = document.querySelector('label[for="colormap-gamma-slider"]') as HTMLLabelElement;
+
+    ui.setOpenedImageOptions([{ id: 'session-1', label: 'image.exr' }], 'session-1');
+    ui.setExposure(1.2);
+    ui.setDisplayGamma(1.75);
+    exposureLabel.click();
+    gammaLabel.click();
+
+    expect(exposureSlider.value).toBe('1.2');
+    expect(exposureValue.value).toBe('1.2');
+    expect(gammaSlider.value).toBe('1.75');
+    expect(gammaValue.value).toBe('1.75');
+    expect(onExposureChange).not.toHaveBeenCalled();
+    expect(onExposureCommit).not.toHaveBeenCalled();
+    expect(onDisplayGammaChange).not.toHaveBeenCalled();
+    expect(onDisplayGammaCommit).not.toHaveBeenCalled();
+
+    exposureLabel.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, button: 0 }));
+    gammaLabel.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, button: 0 }));
+
+    expect(exposureSlider.value).toBe('0.0');
+    expect(exposureValue.value).toBe('0.0');
+    expect(gammaSlider.value).toBe('2.2');
+    expect(gammaValue.value).toBe('2.2');
+    expect(onExposureChange).toHaveBeenLastCalledWith(0);
+    expect(onExposureCommit).toHaveBeenCalledTimes(1);
+    expect(onDisplayGammaChange).toHaveBeenLastCalledWith(2.2);
+    expect(onDisplayGammaCommit).toHaveBeenCalledTimes(1);
+
+    ui.setVisualizationMode('colormap');
+    ui.setColormapExposure(2.4);
+    ui.setColormapGamma(1.8);
+    colormapExposureLabel.click();
+    colormapGammaLabel.click();
+
+    expect(colormapExposureSlider.value).toBe('2.4');
+    expect(colormapExposureValue.value).toBe('2.4');
+    expect(colormapGammaSlider.value).toBe('1.8');
+    expect(colormapGammaValue.value).toBe('1.8');
+    expect(onColormapExposureChange).not.toHaveBeenCalled();
+    expect(onColormapGammaChange).not.toHaveBeenCalled();
+
+    colormapExposureLabel.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, button: 0 }));
+    colormapGammaLabel.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, button: 0 }));
+
+    expect(colormapExposureSlider.value).toBe('0');
+    expect(colormapExposureValue.value).toBe('0');
+    expect(colormapGammaSlider.value).toBe('1');
+    expect(colormapGammaValue.value).toBe('1');
+    expect(onColormapExposureChange).toHaveBeenLastCalledWith(0);
+    expect(onColormapGammaChange).toHaveBeenLastCalledWith(1);
+  });
+
+  it('resets the colormap range when the Range label is double-clicked', () => {
+    installUiFixture();
+
+    const onColormapRangeReset = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onColormapRangeReset }));
+    const rangeLabel = document.getElementById('colormap-range-reset-label') as HTMLSpanElement;
+
+    expect(document.getElementById('colormap-reset-range-button')).toBeNull();
+
+    rangeLabel.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, button: 0 }));
+    expect(onColormapRangeReset).not.toHaveBeenCalled();
+
+    ui.setOpenedImageOptions([{ id: 'session-1', label: 'image.exr' }], 'session-1');
+    ui.setVisualizationMode('colormap');
+    ui.setColormapRange({ min: 0.2, max: 0.8 }, { min: 0, max: 1 }, false, false);
+
+    rangeLabel.click();
+    expect(onColormapRangeReset).not.toHaveBeenCalled();
+
+    rangeLabel.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, button: 0 }));
+    expect(onColormapRangeReset).toHaveBeenCalledTimes(1);
   });
 
   it('hides inspector exposure whenever visualization uses colormap', () => {
@@ -3290,7 +3430,7 @@ describe('view menu', () => {
       'brown-photostudio-02-1k'
     ]);
     expect(galleryItems.every((item) => item.disabled)).toBe(true);
-    expect((document.getElementById('reset-view-button') as HTMLButtonElement).disabled).toBe(false);
+    expect((document.getElementById('display-control-heading') as HTMLHeadingElement).getAttribute('aria-disabled')).toBe('false');
     expect((document.getElementById('image-viewer-menu-item') as HTMLButtonElement).disabled).toBe(false);
     expect((document.getElementById('reload-all-opened-images-button') as HTMLButtonElement).disabled).toBe(true);
     expect((document.getElementById('close-all-opened-images-button') as HTMLButtonElement).disabled).toBe(true);
@@ -5194,7 +5334,7 @@ describe('view menu', () => {
     const appShell = document.getElementById('app') as HTMLElement;
     const screenshotButton = document.getElementById('export-screenshot-button') as HTMLButtonElement;
     const openFileButton = document.getElementById('open-file-button') as HTMLButtonElement;
-    const resetButton = document.getElementById('reset-view-button') as HTMLButtonElement;
+    const displayHeading = document.getElementById('display-control-heading') as HTMLHeadingElement;
     const overlay = document.getElementById('screenshot-selection-overlay') as HTMLDivElement;
     const overlayExportButton = document.getElementById('screenshot-selection-export-button') as HTMLButtonElement;
     const dialogBackdrop = document.getElementById('export-dialog-backdrop') as HTMLDivElement;
@@ -5204,7 +5344,7 @@ describe('view menu', () => {
     expect(appShell.classList.contains('is-screenshot-selecting')).toBe(true);
 
     openFileButton.click();
-    resetButton.click();
+    displayHeading.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
 
     expect(onOpenFileClick).not.toHaveBeenCalled();
     expect(onResetView).not.toHaveBeenCalled();
@@ -10649,10 +10789,11 @@ function createUiCallbacksBase() {
     onViewerModeChange: () => {},
     onLayerChange: () => {},
     onRgbGroupChange: () => {},
-    onVisualizationModeChange: () => {},
     onColormapChange: () => {},
+    onColormapExposureChange: () => {},
+    onColormapGammaChange: () => {},
     onColormapRangeChange: () => {},
-    onColormapAutoRange: () => {},
+    onColormapRangeReset: () => {},
     onColormapZeroCenterToggle: () => {},
     onStokesDegreeModulationToggle: () => {},
     onStokesAolpDegreeModulationModeChange: () => {},

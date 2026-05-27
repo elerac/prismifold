@@ -133,18 +133,20 @@ export interface Elements {
   exportColormapDialogError: HTMLElement;
   exportColormapDialogCancelButton: HTMLButtonElement;
   exportColormapDialogSubmitButton: HTMLButtonElement;
-  resetViewButton: HTMLButtonElement;
-  visualizationNoneButton: HTMLButtonElement;
-  colormapToggleButton: HTMLButtonElement;
+  displayControlHeading: HTMLHeadingElement;
   colormapRangeControl: HTMLDivElement;
   colormapSelect: HTMLSelectElement;
+  colormapExposureSlider: HTMLInputElement;
+  colormapExposureValue: HTMLInputElement;
+  colormapGammaSlider: HTMLInputElement;
+  colormapGammaValue: HTMLInputElement;
   stokesDegreeModulationControl: HTMLDivElement;
   stokesDegreeModulationButton: HTMLButtonElement;
   stokesAolpModulationModeControl: HTMLDivElement;
   stokesAolpModulationValueButton: HTMLButtonElement;
   stokesAolpModulationSaturationButton: HTMLButtonElement;
-  colormapAutoRangeButton: HTMLButtonElement;
-  colormapZeroCenterButton: HTMLButtonElement;
+  colormapRangeResetLabel: HTMLSpanElement;
+  colormapZeroCenterButton: HTMLInputElement;
   colormapRangeSlider: HTMLDivElement;
   colormapVminSlider: HTMLInputElement;
   colormapVmaxSlider: HTMLInputElement;
@@ -257,16 +259,18 @@ export type ChannelThumbnailStripElements = Pick<Elements, 'channelThumbnailStri
 
 export type ColormapPanelElements = Pick<
   Elements,
-  | 'visualizationNoneButton'
-  | 'colormapToggleButton'
   | 'colormapRangeControl'
   | 'colormapSelect'
+  | 'colormapExposureSlider'
+  | 'colormapExposureValue'
+  | 'colormapGammaSlider'
+  | 'colormapGammaValue'
   | 'stokesDegreeModulationControl'
   | 'stokesDegreeModulationButton'
   | 'stokesAolpModulationModeControl'
   | 'stokesAolpModulationValueButton'
   | 'stokesAolpModulationSaturationButton'
-  | 'colormapAutoRangeButton'
+  | 'colormapRangeResetLabel'
   | 'colormapZeroCenterButton'
   | 'colormapRangeSlider'
   | 'colormapVminSlider'
@@ -653,18 +657,20 @@ export function resolveElements(): Elements {
     exportColormapDialogError: requireElement('export-colormap-dialog-error', HTMLElement),
     exportColormapDialogCancelButton: requireElement('export-colormap-dialog-cancel-button', HTMLButtonElement),
     exportColormapDialogSubmitButton: requireElement('export-colormap-dialog-submit-button', HTMLButtonElement),
-    resetViewButton: requireElement('reset-view-button', HTMLButtonElement),
-    visualizationNoneButton: requireElement('visualization-none-button', HTMLButtonElement),
-    colormapToggleButton: requireElement('colormap-toggle-button', HTMLButtonElement),
+    displayControlHeading: requireElement('display-control-heading', HTMLHeadingElement),
     colormapRangeControl: requireElement('colormap-range-control', HTMLDivElement),
     colormapSelect: requireElement('colormap-select', HTMLSelectElement),
+    colormapExposureSlider: requireElement('colormap-exposure-slider', HTMLInputElement),
+    colormapExposureValue: requireElement('colormap-exposure-value', HTMLInputElement),
+    colormapGammaSlider: requireElement('colormap-gamma-slider', HTMLInputElement),
+    colormapGammaValue: requireElement('colormap-gamma-value', HTMLInputElement),
     stokesDegreeModulationControl: requireElement('stokes-degree-modulation-control', HTMLDivElement),
     stokesDegreeModulationButton: requireElement('stokes-degree-modulation-button', HTMLButtonElement),
     stokesAolpModulationModeControl: requireElement('stokes-aolp-modulation-mode-control', HTMLDivElement),
     stokesAolpModulationValueButton: requireElement('stokes-aolp-modulation-value-button', HTMLButtonElement),
     stokesAolpModulationSaturationButton: requireElement('stokes-aolp-modulation-saturation-button', HTMLButtonElement),
-    colormapAutoRangeButton: requireElement('colormap-auto-range-button', HTMLButtonElement),
-    colormapZeroCenterButton: requireElement('colormap-zero-center-button', HTMLButtonElement),
+    colormapRangeResetLabel: requireElement('colormap-range-reset-label', HTMLSpanElement),
+    colormapZeroCenterButton: requireElement('colormap-zero-center-button', HTMLInputElement),
     colormapRangeSlider: requireElement('colormap-range-slider', HTMLDivElement),
     colormapVminSlider: requireElement('colormap-vmin-slider', HTMLInputElement),
     colormapVmaxSlider: requireElement('colormap-vmax-slider', HTMLInputElement),

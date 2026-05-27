@@ -119,7 +119,7 @@ describe('session controller shim', () => {
     const session = controller.getActiveSession();
     expect(decodeBytes).toHaveBeenCalledTimes(1);
     expect(session?.filename).toBe('beauty.exr');
-    expect(core.getState().sessionState.activeColormapId).toBe(core.getState().defaultColormapId);
+    expect(core.getState().sessionState.activeColormapId).toBeNull();
     expect(core.getState().sessionState.displaySelection).toEqual(createChannelRgbSelection('R', 'G', 'B'));
   });
 
@@ -451,7 +451,7 @@ describe('session controller shim', () => {
     expect(controller.getActiveSession()?.filename).toBe('second.exr');
     expect(core.getState().sessionState).toMatchObject({
       visualizationMode: 'rgb',
-      activeColormapId: core.getState().defaultColormapId,
+      activeColormapId: null,
       colormapRange: null,
       colormapRangeMode: 'alwaysAuto',
       colormapZeroCentered: false,

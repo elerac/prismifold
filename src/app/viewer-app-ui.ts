@@ -101,6 +101,8 @@ export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => Vie
       exportBatchTarget: selectExportBatchTarget(state),
       exposureEv: state.sessionState.exposureEv,
       displayGamma: state.sessionState.displayGamma,
+      colormapExposureEv: state.sessionState.colormapExposureEv,
+      colormapGamma: state.sessionState.colormapGamma,
       viewerMode: state.sessionState.viewerMode,
       visualizationMode: state.sessionState.visualizationMode,
       stokesDegreeModulationControl: selectStokesControl(state),
@@ -189,6 +191,14 @@ export function computeViewerUiInvalidation(
   }
 
   if (previous.displayGamma !== next.displayGamma) {
+    flags |= ViewerUiInvalidationFlags.DisplayGamma;
+  }
+
+  if (previous.colormapExposureEv !== next.colormapExposureEv) {
+    flags |= ViewerUiInvalidationFlags.Exposure;
+  }
+
+  if (previous.colormapGamma !== next.colormapGamma) {
     flags |= ViewerUiInvalidationFlags.DisplayGamma;
   }
 
@@ -460,6 +470,8 @@ function sameViewerUiSnapshot(a: ViewerUiSnapshot, b: ViewerUiSnapshot): boolean
     sameExportBatchTarget(a.exportBatchTarget, b.exportBatchTarget) &&
     a.exposureEv === b.exposureEv &&
     a.displayGamma === b.displayGamma &&
+    a.colormapExposureEv === b.colormapExposureEv &&
+    a.colormapGamma === b.colormapGamma &&
     a.viewerMode === b.viewerMode &&
     a.visualizationMode === b.visualizationMode &&
     sameStokesControl(a.stokesDegreeModulationControl, b.stokesDegreeModulationControl) &&

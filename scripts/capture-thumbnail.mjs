@@ -129,7 +129,7 @@ async function openGallerySample(page) {
 }
 
 async function resetView(page) {
-  await page.getByRole('button', { name: 'Reset', exact: true }).click();
+  await page.locator('#display-control-heading').dblclick();
   await waitForNextPaint(page);
 }
 

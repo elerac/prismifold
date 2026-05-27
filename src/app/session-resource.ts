@@ -125,7 +125,7 @@ export function buildReloadedSession(
   };
 }
 
-export function createClearedViewerState(defaultColormapId: string): ViewerSessionState {
+export function createClearedViewerState(_defaultColormapId: string): ViewerSessionState {
   return {
     exposureEv: 0,
     channelThumbnailExposureEv: 0,
@@ -133,7 +133,9 @@ export function createClearedViewerState(defaultColormapId: string): ViewerSessi
     channelThumbnailDisplayGamma: DEFAULT_DISPLAY_GAMMA,
     viewerMode: 'image',
     visualizationMode: 'rgb',
-    activeColormapId: defaultColormapId,
+    activeColormapId: null,
+    colormapExposureEv: 0,
+    colormapGamma: 1,
     colormapRange: null,
     colormapRangeMode: 'alwaysAuto',
     colormapZeroCentered: false,
@@ -284,6 +286,8 @@ export function buildSwitchedSessionState(
     ...nextState,
     visualizationMode: currentState.visualizationMode,
     activeColormapId: currentState.activeColormapId,
+    colormapExposureEv: currentState.colormapExposureEv,
+    colormapGamma: currentState.colormapGamma,
     colormapRange: cloneDisplayLuminanceRange(currentState.colormapRange),
     colormapRangeMode: currentState.colormapRangeMode,
     colormapZeroCentered: currentState.colormapZeroCentered
@@ -340,6 +344,36 @@ export function buildResetSessionState(
   fitInsets?: ViewportInsets,
   options: Pick<BuildSwitchedSessionStateOptions, 'stokesParameterVisibility' | 'spectralRgbGroupingEnabled'> = {}
 ): ViewerSessionState {
+  const resetBaseState = buildResetSessionBaseState(
+    activeSession,
+    currentState,
+    defaultColormapId,
+    options
+  );
+  if (!activeSession) {
+    return resetBaseState;
+  }
+
+  const displaySize = resolveDisplayImageSize(
+    activeSession.decoded.width,
+    activeSession.decoded.height,
+    resetBaseState.displaySelection
+  );
+  const fitView = computeFitView(viewport, displaySize.width, displaySize.height, fitInsets);
+  return {
+    ...resetBaseState,
+    zoom: fitView.zoom,
+    panX: fitView.panX,
+    panY: fitView.panY
+  };
+}
+
+export function buildResetSessionBaseState(
+  activeSession: OpenedImageSession | null,
+  currentState: ViewerSessionState,
+  defaultColormapId: string,
+  options: Pick<BuildSwitchedSessionStateOptions, 'stokesParameterVisibility' | 'spectralRgbGroupingEnabled'> = {}
+): ViewerSessionState {
   if (!activeSession) {
     return createClearedViewerState(defaultColormapId);
   }
@@ -356,18 +390,7 @@ export function buildResetSessionState(
       spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled
     }
   );
-  const displaySize = resolveDisplayImageSize(
-    activeSession.decoded.width,
-    activeSession.decoded.height,
-    resetBaseState.displaySelection
-  );
-  const fitView = computeFitView(viewport, displaySize.width, displaySize.height, fitInsets);
-  return {
-    ...resetBaseState,
-    zoom: fitView.zoom,
-    panX: fitView.panX,
-    panY: fitView.panY
-  };
+  return resetBaseState;
 }
 
 function remapPanToImageCenterAnchor(

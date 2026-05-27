@@ -54,7 +54,13 @@ type BatchPreviewRangeStrategy = 'exact' | 'sampledPreview';
 
 type BatchEntryVisualizationState = Pick<
   ViewerSessionState,
-  'visualizationMode' | 'activeColormapId' | 'colormapRange' | 'colormapRangeMode' | 'colormapZeroCentered'
+  | 'visualizationMode'
+  | 'activeColormapId'
+  | 'colormapExposureEv'
+  | 'colormapGamma'
+  | 'colormapRange'
+  | 'colormapRangeMode'
+  | 'colormapZeroCentered'
 >;
 
 interface ColormapExportResolverOptions {
@@ -215,7 +221,10 @@ export function createImageExportPixelsResolver({
 
     if (
       state.sessionState.visualizationMode === 'colormap' &&
-      !getDisplayController().getActiveColormapLutForState(state.sessionState.activeColormapId)
+      (
+        !state.sessionState.activeColormapId ||
+        !getDisplayController().getActiveColormapLutForState(state.sessionState.activeColormapId)
+      )
     ) {
       throw new Error('The active colormap is not ready for export.');
     }
@@ -238,6 +247,9 @@ export function createImageExportPixelsResolver({
           visualizationMode: state.sessionState.visualizationMode,
           colormapRange: state.sessionState.colormapRange,
           colormapLut: selectActiveColormapLut(state),
+          colormapExposureEv: state.sessionState.colormapExposureEv,
+          colormapGamma: state.sessionState.colormapGamma,
+          colormapZeroCentered: state.sessionState.colormapZeroCentered,
           stokesDegreeModulation: state.sessionState.stokesDegreeModulation,
           stokesAolpDegreeModulationMode: state.sessionState.stokesAolpDegreeModulationMode,
           maskInvalidStokesVectors: state.maskInvalidStokesVectors,
@@ -1019,6 +1031,9 @@ async function resolveBatchEntryPreviewPixels({
       visualizationMode: exportState.state.visualizationMode,
       colormapRange: exportState.state.colormapRange,
       colormapLut: exportState.lut,
+      colormapExposureEv: exportState.state.colormapExposureEv,
+      colormapGamma: exportState.state.colormapGamma,
+      colormapZeroCentered: exportState.state.colormapZeroCentered,
       stokesDegreeModulation: exportState.state.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: exportState.state.stokesAolpDegreeModulationMode,
       maskInvalidStokesVectors: appState.maskInvalidStokesVectors,
@@ -1066,6 +1081,8 @@ async function resolveBatchEntryExportState({
 
   let visualizationMode = entryVisualization.visualizationMode;
   let activeColormapId = entryVisualization.activeColormapId;
+  let colormapExposureEv = entryVisualization.colormapExposureEv;
+  let colormapGamma = entryVisualization.colormapGamma;
   let colormapRange = cloneDisplayLuminanceRange(entryVisualization.colormapRange);
   let colormapRangeMode = entryVisualization.colormapRangeMode;
   let colormapZeroCentered = entryVisualization.colormapZeroCentered;
@@ -1084,6 +1101,8 @@ async function resolveBatchEntryExportState({
 
     visualizationMode = 'colormap';
     activeColormapId = stokesColormapId;
+    colormapExposureEv = 0;
+    colormapGamma = 1;
     colormapRange = cloneDisplayLuminanceRange(stokesDefault.range);
     colormapRangeMode = 'oneTime';
     colormapZeroCentered = stokesDefault.zeroCentered;
@@ -1116,6 +1135,8 @@ async function resolveBatchEntryExportState({
     viewerMode: 'image',
     visualizationMode,
     activeColormapId,
+    colormapExposureEv,
+    colormapGamma,
     colormapRange,
     colormapRangeMode,
     colormapZeroCentered,
@@ -1125,7 +1146,11 @@ async function resolveBatchEntryExportState({
     roi: null
   };
 
-  const lut = visualizationMode === 'colormap'
+  if (visualizationMode === 'colormap' && !activeColormapId) {
+    throw new Error('No colormap palette is selected.');
+  }
+
+  const lut = visualizationMode === 'colormap' && activeColormapId
     ? await resolveBatchExportColormapLut(appState, activeColormapId, lutCache, signal)
     : null;
 
@@ -1215,7 +1240,9 @@ function resolveBatchEntryVisualizationState(
   if (!source) {
     return {
       visualizationMode: 'rgb',
-      activeColormapId: appState.defaultColormapId,
+      activeColormapId: null,
+      colormapExposureEv: 0,
+      colormapGamma: 1,
       colormapRange: null,
       colormapRangeMode: 'alwaysAuto',
       colormapZeroCentered: false
@@ -1225,6 +1252,8 @@ function resolveBatchEntryVisualizationState(
   return {
     visualizationMode: source.visualizationMode,
     activeColormapId: source.activeColormapId,
+    colormapExposureEv: source.colormapExposureEv,
+    colormapGamma: source.colormapGamma,
     colormapRange: cloneDisplayLuminanceRange(source.colormapRange),
     colormapRangeMode: source.colormapRangeMode,
     colormapZeroCentered: source.colormapZeroCentered

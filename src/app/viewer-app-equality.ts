@@ -27,6 +27,8 @@ export function sameViewerSessionState(a: ViewerSessionState, b: ViewerSessionSt
     a.viewerMode === b.viewerMode &&
     a.visualizationMode === b.visualizationMode &&
     a.activeColormapId === b.activeColormapId &&
+    a.colormapExposureEv === b.colormapExposureEv &&
+    a.colormapGamma === b.colormapGamma &&
     sameDisplayLuminanceRange(a.colormapRange, b.colormapRange) &&
     a.colormapRangeMode === b.colormapRangeMode &&
     a.colormapZeroCentered === b.colormapZeroCentered &&

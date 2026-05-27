@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DISPLAY_GAMMA } from '../src/color';
-import { DEFAULT_COLORMAP_ID } from '../src/colormaps';
 import {
   clampZoom,
   computeFitView,
@@ -32,7 +31,9 @@ const state: ViewerState = {
   channelThumbnailDisplayGamma: DEFAULT_DISPLAY_GAMMA,
   viewerMode: 'image',
   visualizationMode: 'rgb',
-  activeColormapId: DEFAULT_COLORMAP_ID,
+  activeColormapId: null,
+  colormapExposureEv: 0,
+  colormapGamma: 1,
   colormapRange: null,
   colormapRangeMode: 'alwaysAuto',
   colormapZeroCentered: false,

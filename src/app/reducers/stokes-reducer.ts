@@ -99,6 +99,8 @@ export function stokesReducer(
         colormapRange: cloneDisplayLuminanceRange(intent.setting.range),
         colormapRangeMode: 'oneTime',
         colormapZeroCentered: intent.setting.zeroCentered,
+        colormapExposureEv: 0,
+        colormapGamma: 1,
         ...buildStokesDefaultModulationPatch(
           state.sessionState.displaySelection,
           intent.setting,
@@ -190,6 +192,8 @@ function reduceDisplaySelectionSet(
       colormapRange: stokesDefaults.range,
       colormapRangeMode: 'oneTime',
       colormapZeroCentered: stokesDefaults.zeroCentered,
+      colormapExposureEv: 0,
+      colormapGamma: 1,
       ...buildStokesDefaultModulationPatch(selection, stokesDefaults, currentState, {
         preserveAolpMode: isStokesSelection(currentState.displaySelection)
       })
@@ -301,7 +305,9 @@ function resolveStokesDisplayRestoreState(
 
   return {
     visualizationMode: 'rgb',
-    activeColormapId: state.defaultColormapId,
+    activeColormapId: null,
+    colormapExposureEv: 0,
+    colormapGamma: 1,
     colormapRange: null,
     colormapRangeMode: 'alwaysAuto',
     colormapZeroCentered: false
@@ -312,6 +318,8 @@ function captureRestorableVisualizationState(state: ViewerSessionState): Restora
   return {
     visualizationMode: state.visualizationMode,
     activeColormapId: state.activeColormapId,
+    colormapExposureEv: state.colormapExposureEv,
+    colormapGamma: state.colormapGamma,
     colormapRange: cloneDisplayLuminanceRange(state.colormapRange),
     colormapRangeMode: state.colormapRangeMode,
     colormapZeroCentered: state.colormapZeroCentered

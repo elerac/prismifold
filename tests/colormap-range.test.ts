@@ -17,11 +17,11 @@ import {
 } from './helpers/state-fixtures';
 
 describe('colormap range', () => {
-  it('uses predefined Stokes ranges for auto colormap ranges', () => {
+  it('uses actual image ranges unless zero center or Stokes defaults request symmetric bounds', () => {
     const imageRange = { min: 0.2, max: 0.4 };
     const channelSelection: DisplaySelection = createChannelRgbSelection('R', 'G', 'B');
 
-    expect(resolveColormapAutoRange(channelSelection, imageRange, false)).toEqual({ min: -0.4, max: 0.4 });
+    expect(resolveColormapAutoRange(channelSelection, imageRange, false)).toEqual({ min: 0.2, max: 0.4 });
     expect(resolveColormapAutoRange(channelSelection, imageRange, true)).toEqual({ min: -0.4, max: 0.4 });
     expect(resolveColormapAutoRange(createStokesSelection('aolp'), imageRange, false)).toEqual({
       min: 0,

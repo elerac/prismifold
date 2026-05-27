@@ -14,11 +14,17 @@ describe('shader source regressions', () => {
     expect(source).not.toMatch(/\bDisplaySample\s+sample\b/);
     expect(source).not.toMatch(/\bsample\./);
     expect(source).toContain('uniform float uDisplayGamma;');
+    expect(source).toContain('uniform float uColormapExposure;');
+    expect(source).toContain('uniform float uColormapGamma;');
+    expect(source).toContain('uniform bool uColormapZeroCentered;');
     expect(source).toContain('uniform bool uMaskInvalidStokesVectors;');
     expect(source).toContain('uniform bool uWarnInvalidValues;');
     expect(source).toContain('uniform float uInvalidValueWarningPhase;');
     expect(source).toContain('linearToDisplayGamma');
     expect(source).toContain('sign(linear) * pow(abs(linear)');
+    expect(source).toContain('float scaledValue = value * exp2(uColormapExposure);');
+    expect(source).toContain('pow(clamp((scaledValue - vmin) / (vmax - vmin), 0.0, 1.0), 1.0 / gamma)');
+    expect(source).toContain('float signedGamma = sign(signedValue) * pow(abs(signedValue), 1.0 / gamma);');
     expect(source).toContain('const float STOKES_VECTOR_VALIDITY_RTOL = 1.0e-8;');
     expect(source).not.toContain('STOKES_VECTOR_VALIDITY_ATOL');
     expect(source).toContain(

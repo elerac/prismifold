@@ -56,6 +56,9 @@ export interface ThumbnailPreviewOptions {
   visualizationMode: VisualizationMode;
   colormapRange: DisplayLuminanceRange | null;
   colormapLut: ColormapLut | null;
+  colormapExposureEv?: number;
+  colormapGamma?: number;
+  colormapZeroCentered?: boolean;
   stokesDegreeModulation: StokesDegreeModulationState;
   stokesAolpDegreeModulationMode?: StokesAolpDegreeModulationMode;
   maskInvalidStokesVectors?: boolean;
@@ -228,7 +231,12 @@ export function buildDisplaySelectionThumbnailPixels(
         let rgb = mapValueToColormapRgbBytes(
           computeRec709Luminance(sample.r, sample.g, sample.b),
           colormapPreview.colormapRange,
-          colormapPreview.colormapLut
+          colormapPreview.colormapLut,
+          {
+            exposureEv: colormapPreview.colormapExposureEv,
+            gamma: colormapPreview.colormapGamma,
+            zeroCentered: colormapPreview.colormapZeroCentered
+          }
         );
         if (useStokesDegreeModulation) {
           rgb = modulateRgbBytesHsv(rgb, sample.a, stokesDegreeModulationMode);

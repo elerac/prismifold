@@ -14,7 +14,7 @@ import {
 } from '../../display-model';
 import { resolveDisplayImageSize } from '../../display-size';
 import { getSuccessValue } from '../../async-resource';
-import { normalizeDisplayGamma } from '../../color';
+import { DEFAULT_DISPLAY_GAMMA, normalizeDisplayGamma } from '../../color';
 import { computeFitView } from '../../interaction/image-geometry';
 import { cloneImageRoi } from '../../roi';
 import { samePixel } from '../../view-state';
@@ -37,6 +37,8 @@ import {
 } from './shared';
 
 const COLORMAP_ZERO_CENTER_MANUAL_MIN_MAGNITUDE = 1e-16;
+const COLORMAP_GAMMA_MIN = 0.2;
+const COLORMAP_GAMMA_MAX = 5.0;
 
 export function displayReducer(
   state: ViewerAppState,
@@ -70,6 +72,41 @@ export function displayReducer(
       return patchSessionState(state, { displayGamma: normalizeDisplayGamma(intent.displayGamma) });
     case 'displayGammaCommitted':
       return patchSessionState(state, { channelThumbnailDisplayGamma: state.sessionState.displayGamma });
+    case 'colormapExposureSet':
+      return patchSessionState(state, { colormapExposureEv: clampFinite(intent.exposureEv, -10, 10, 0) });
+    case 'colormapGammaSet':
+      return patchSessionState(state, { colormapGamma: clampFinite(intent.gamma, COLORMAP_GAMMA_MIN, COLORMAP_GAMMA_MAX, 1) });
+    case 'activeSessionDisplayReset': {
+      if (!selectActiveSession(state)) {
+        return state;
+      }
+
+      const nextRange = resolveColormapAutoRange(
+        state.sessionState.displaySelection,
+        getSuccessValue(state.displayRangeResource) ?? null,
+        false
+      );
+      const nextState = patchSessionState(state, {
+        ...state.interactionState.view,
+        exposureEv: 0,
+        channelThumbnailExposureEv: 0,
+        displayGamma: DEFAULT_DISPLAY_GAMMA,
+        channelThumbnailDisplayGamma: DEFAULT_DISPLAY_GAMMA,
+        visualizationMode: 'rgb',
+        activeColormapId: null,
+        colormapExposureEv: 0,
+        colormapGamma: 1,
+        colormapRange: nextRange,
+        colormapRangeMode: 'alwaysAuto',
+        colormapZeroCentered: false
+      });
+      return nextState === state
+        ? state
+        : {
+            ...nextState,
+            pendingColormapActivation: null
+          };
+    }
     case 'viewerModeSet':
       if (!selectActiveSession(state) || state.sessionState.viewerMode === intent.viewerMode) {
         return state;
@@ -123,7 +160,7 @@ export function displayReducer(
 
       if (intent.visualizationMode === 'rgb') {
         return {
-          ...patchSessionState(state, { visualizationMode: 'rgb' }),
+          ...patchSessionState(state, { visualizationMode: 'rgb', activeColormapId: null }),
           pendingColormapActivation: null
         };
       }
@@ -138,11 +175,13 @@ export function displayReducer(
           pendingColormapActivation: null,
           sessionState: {
             ...state.sessionState,
-            visualizationMode: 'colormap'
+            visualizationMode: 'colormap',
+            activeColormapId: state.sessionState.activeColormapId ?? state.defaultColormapId
           },
           sessions: updateActiveSessionStoredState(state.sessions, state.activeSessionId, {
             ...state.sessionState,
-            visualizationMode: 'colormap'
+            visualizationMode: 'colormap',
+            activeColormapId: state.sessionState.activeColormapId ?? state.defaultColormapId
           })
         };
       }
@@ -156,6 +195,7 @@ export function displayReducer(
         );
         return patchSessionState(state, {
           visualizationMode: 'colormap',
+          activeColormapId: state.sessionState.activeColormapId ?? state.defaultColormapId,
           colormapRange: nextRange
         });
       }
@@ -169,8 +209,15 @@ export function displayReducer(
         }
       };
     }
-    case 'activeColormapSet':
-      return patchSessionState(state, buildActiveColormapPatch(state, intent));
+    case 'activeColormapSet': {
+      const nextState = patchSessionState(state, buildActiveColormapPatch(state, intent));
+      return intent.colormapId === null
+        ? {
+            ...nextState,
+            pendingColormapActivation: null
+          }
+        : nextState;
+    }
     case 'colormapRangeSet': {
       const activeSession = selectActiveSession(state);
       if (!activeSession || !Number.isFinite(intent.range.min) || !Number.isFinite(intent.range.max)) {
@@ -203,6 +250,22 @@ export function displayReducer(
 
       if (state.sessionState.colormapRangeMode === 'alwaysAuto') {
         return patchSessionState(state, { colormapRangeMode: 'oneTime' });
+      }
+
+      const nextRange = resolveColormapAutoRange(
+        state.sessionState.displaySelection,
+        getSuccessValue(state.displayRangeResource) ?? null,
+        state.sessionState.colormapZeroCentered
+      );
+      return patchSessionState(state, {
+        colormapRange: nextRange ?? cloneDisplayLuminanceRange(state.sessionState.colormapRange),
+        colormapRangeMode: 'alwaysAuto'
+      });
+    }
+    case 'colormapRangeReset': {
+      const activeSession = selectActiveSession(state);
+      if (!activeSession) {
+        return state;
       }
 
       const nextRange = resolveColormapAutoRange(
@@ -309,11 +372,32 @@ function buildActiveColormapPatch(
   state: ViewerAppState,
   intent: Extract<ViewerIntent, { type: 'activeColormapSet' }>
 ): Partial<ViewerAppState['sessionState']> {
+  if (intent.colormapId === null) {
+    return {
+      activeColormapId: null,
+      visualizationMode: 'rgb'
+    };
+  }
+
   const patch: Partial<ViewerAppState['sessionState']> = {
-    activeColormapId: intent.colormapId
+    activeColormapId: intent.colormapId,
+    visualizationMode: 'colormap'
   };
   const asset = getActiveColormapAssetForDefault(state, intent);
-  if (!asset?.diverging) {
+  if (!asset) {
+    return patch;
+  }
+
+  if (!asset.diverging) {
+    patch.colormapZeroCentered = false;
+    patch.colormapRange = state.sessionState.colormapRangeMode === 'alwaysAuto'
+      ? resolveColormapAutoRange(
+          state.sessionState.displaySelection,
+          getSuccessValue(state.displayRangeResource) ?? null,
+          false
+        ) ?? cloneDisplayLuminanceRange(state.sessionState.colormapRange)
+      : cloneDisplayLuminanceRange(state.sessionState.colormapRange);
+
     return patch;
   }
 
@@ -335,9 +419,17 @@ function getActiveColormapAssetForDefault(
   state: ViewerAppState,
   intent: Extract<ViewerIntent, { type: 'activeColormapSet' }>
 ): ColormapAsset | null {
-  if (intent.applyDivergingDefault === false || !state.colormapRegistry) {
+  if (intent.applyDivergingDefault === false || !state.colormapRegistry || intent.colormapId === null) {
     return null;
   }
 
   return getColormapAsset(state.colormapRegistry, intent.colormapId);
+}
+
+function clampFinite(value: number, min: number, max: number, fallback: number): number {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, value));
 }

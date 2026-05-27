@@ -48,7 +48,9 @@ export function selectColormapLutById(state: ViewerAppState, colormapId: string)
 }
 
 export function selectActiveColormapLut(state: ViewerAppState): ColormapLut | null {
-  return selectColormapLutById(state, state.sessionState.activeColormapId);
+  return state.sessionState.activeColormapId
+    ? selectColormapLutById(state, state.sessionState.activeColormapId)
+    : null;
 }
 
 export function selectActiveDisplayLuminanceRange(state: ViewerAppState): DisplayLuminanceRange | null {

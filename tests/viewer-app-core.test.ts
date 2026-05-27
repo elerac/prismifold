@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AUTO_EXPOSURE_PERCENTILE } from '../src/auto-exposure';
 import { getSuccessValue } from '../src/async-resource';
+import { DEFAULT_DISPLAY_GAMMA } from '../src/color';
 import { ViewerAppCore } from '../src/app/viewer-app-core';
 import { createInteractionState } from '../src/view-state';
 import { collectViewerPaneLeaves } from '../src/viewer-pane-layout';
@@ -668,7 +669,7 @@ describe('viewer app core', () => {
 
     expect(core.getState().sessionState).toMatchObject({
       visualizationMode: 'rgb',
-      activeColormapId: '0',
+      activeColormapId: null,
       colormapRange: null,
       colormapRangeMode: 'alwaysAuto',
       colormapZeroCentered: false,
@@ -734,6 +735,8 @@ describe('viewer app core', () => {
     const restoreState = {
       visualizationMode: core.getState().sessionState.visualizationMode,
       activeColormapId: core.getState().sessionState.activeColormapId,
+      colormapExposureEv: core.getState().sessionState.colormapExposureEv,
+      colormapGamma: core.getState().sessionState.colormapGamma,
       colormapRange: core.getState().sessionState.colormapRange,
       colormapRangeMode: core.getState().sessionState.colormapRangeMode,
       colormapZeroCentered: core.getState().sessionState.colormapZeroCentered
@@ -756,7 +759,7 @@ describe('viewer app core', () => {
     });
 
     expect(core.getState().sessionState.visualizationMode).toBe('rgb');
-    expect(core.getState().sessionState.activeColormapId).toBe('0');
+    expect(core.getState().sessionState.activeColormapId).toBeNull();
   });
 
   it('resets all session state when every session closes', () => {
@@ -811,6 +814,72 @@ describe('viewer app core', () => {
     });
 
     expect(core.getState().sessionState.roi).toBeNull();
+  });
+
+  it('resets Display controls without changing channel selection or view state', () => {
+    const core = new ViewerAppCore();
+    const session = createSession('session-1', createDecodedImage());
+    const currentView = {
+      zoom: 3,
+      panX: 20,
+      panY: 30,
+      panoramaYawDeg: 21,
+      panoramaPitchDeg: -3,
+      panoramaHfovDeg: 80
+    };
+
+    core.dispatch({ type: 'sessionLoaded', session });
+    core.dispatch({ type: 'exposureSet', exposureEv: 2 });
+    core.dispatch({ type: 'exposureCommitted' });
+    core.dispatch({ type: 'displayGammaSet', displayGamma: 1.5 });
+    core.dispatch({ type: 'displayGammaCommitted' });
+    core.dispatch({ type: 'displaySelectionSet', displaySelection: createChannelMonoSelection('R') });
+    core.dispatch({ type: 'activeColormapSet', colormapId: '2' });
+    core.dispatch({ type: 'colormapExposureSet', exposureEv: 3 });
+    core.dispatch({ type: 'colormapGammaSet', gamma: 1.8 });
+    core.dispatch({ type: 'colormapRangeSet', range: { min: 0.25, max: 0.75 } });
+    core.dispatch({ type: 'colormapZeroCenteredToggled' });
+    core.dispatch({ type: 'lockedPixelToggled', pixel: { ix: 1, iy: 0 } });
+    core.dispatch({ type: 'roiSet', roi: { x0: 0, y0: 0, x1: 1, y1: 0 } });
+    core.dispatch({ type: 'viewStateCommitted', view: currentView });
+    core.dispatch({
+      type: 'interactionStatePublished',
+      interactionState: {
+        ...createInteractionState(core.getState().sessionState),
+        view: currentView,
+        hoveredPixel: { ix: 1, iy: 0 }
+      }
+    });
+
+    core.dispatch({ type: 'activeSessionDisplayReset' });
+
+    expect(core.getState().sessionState).toMatchObject({
+      ...currentView,
+      exposureEv: 0,
+      channelThumbnailExposureEv: 0,
+      displayGamma: DEFAULT_DISPLAY_GAMMA,
+      channelThumbnailDisplayGamma: DEFAULT_DISPLAY_GAMMA,
+      visualizationMode: 'rgb',
+      activeColormapId: null,
+      colormapExposureEv: 0,
+      colormapGamma: 1,
+      colormapRange: null,
+      colormapRangeMode: 'alwaysAuto',
+      colormapZeroCentered: false,
+      displaySelection: createChannelMonoSelection('R'),
+      lockedPixel: { ix: 1, iy: 0 },
+      roi: { x0: 0, y0: 0, x1: 1, y1: 0 }
+    });
+    expect(core.getState().interactionState.view).toEqual(currentView);
+    expect(core.getState().interactionState.hoveredPixel).toEqual({ ix: 1, iy: 0 });
+    expect(core.getState().sessions[0]?.state).toMatchObject({
+      ...currentView,
+      exposureEv: 0,
+      activeColormapId: null,
+      displaySelection: createChannelMonoSelection('R'),
+      lockedPixel: { ix: 1, iy: 0 },
+      roi: { x0: 0, y0: 0, x1: 1, y1: 0 }
+    });
   });
 
   it('resets the active image to a fit view inside supplied insets', () => {

@@ -83,6 +83,9 @@ export function buildProbeReadoutModel(args: BuildProbePresentationArgs): ProbeR
         mode: args.sessionState.visualizationMode,
         colormapRange: args.sessionState.colormapRange ?? args.activeDisplayLuminanceRange,
         colormapLut: args.activeColormapLut,
+        colormapExposureEv: args.sessionState.colormapExposureEv,
+        colormapGamma: args.sessionState.colormapGamma,
+        colormapZeroCentered: args.sessionState.colormapZeroCentered,
         stokesDegreeModulation: args.sessionState.stokesDegreeModulation,
         stokesAolpDegreeModulationMode: args.sessionState.stokesAolpDegreeModulationMode
       }
