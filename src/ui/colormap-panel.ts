@@ -18,6 +18,10 @@ const DEFAULT_COLORMAP_EXPOSURE_EV = 0;
 const DEFAULT_COLORMAP_GAMMA = 1;
 const COLORMAP_GAMMA_MIN = 0.2;
 const COLORMAP_GAMMA_MAX = 5;
+const COLORMAP_INPUT_MIN_SIGNIFICANT_DIGITS = 4;
+const COLORMAP_INPUT_MAX_SIGNIFICANT_DIGITS = 7;
+const COLORMAP_INPUT_FALLBACK_CHARACTER_BUDGET = 9;
+const COLORMAP_INPUT_RESERVED_INLINE_PX = 16;
 
 interface ColormapPanelCallbacks {
   onExposureChange: (value: number) => void;
@@ -100,9 +104,15 @@ export class ColormapPanel implements Disposable {
     this.disposables.addEventListener(this.elements.colormapVminInput, 'change', () => {
       this.commitColormapMin(Number(this.elements.colormapVminInput.value));
     });
+    this.disposables.addEventListener(this.elements.colormapVminInput, 'blur', () => {
+      this.syncColormapRangeInputValues();
+    });
 
     this.disposables.addEventListener(this.elements.colormapVmaxInput, 'change', () => {
       this.commitColormapMax(Number(this.elements.colormapVmaxInput.value));
+    });
+    this.disposables.addEventListener(this.elements.colormapVmaxInput, 'blur', () => {
+      this.syncColormapRangeInputValues();
     });
 
     this.bindExposureControl(this.elements.exposureSlider, this.elements.exposureValue);
@@ -528,11 +538,25 @@ export class ColormapPanel implements Disposable {
     this.elements.colormapRangeSlider.style.setProperty('--colormap-vmax-pct', `${maxPct}%`);
 
     if (document.activeElement !== this.elements.colormapVminInput) {
-      this.elements.colormapVminInput.value = formatColormapInputValue(range.min);
+      this.elements.colormapVminInput.value = formatColormapInputDisplayValue(
+        range.min,
+        this.elements.colormapVminInput
+      );
     }
     if (document.activeElement !== this.elements.colormapVmaxInput) {
-      this.elements.colormapVmaxInput.value = formatColormapInputValue(range.max);
+      this.elements.colormapVmaxInput.value = formatColormapInputDisplayValue(
+        range.max,
+        this.elements.colormapVmaxInput
+      );
     }
+  }
+
+  private syncColormapRangeInputValues(): void {
+    if (!this.currentColormapRange || !this.currentAutoColormapRange) {
+      return;
+    }
+
+    this.setColormapRangeValues(this.currentColormapRange, this.currentAutoColormapRange);
   }
 
   private commitColormapMin(value: number): void {
@@ -629,12 +653,80 @@ function buildColormapSliderBounds(
   return { min, max };
 }
 
-function formatColormapInputValue(value: number): string {
+function formatColormapInputValue(
+  value: number,
+  maxSignificantDigits = COLORMAP_INPUT_MAX_SIGNIFICANT_DIGITS,
+  maxCharacters = Number.POSITIVE_INFINITY
+): string {
   if (!Number.isFinite(value)) {
     return '0';
   }
 
-  return Number(value.toPrecision(7)).toString();
+  const significantDigits = Math.max(
+    COLORMAP_INPUT_MIN_SIGNIFICANT_DIGITS,
+    Math.min(COLORMAP_INPUT_MAX_SIGNIFICANT_DIGITS, Math.floor(maxSignificantDigits))
+  );
+
+  for (let digits = significantDigits; digits >= COLORMAP_INPUT_MIN_SIGNIFICANT_DIGITS; digits -= 1) {
+    const candidate = formatSignificantNumber(value, digits);
+    if (candidate.length <= maxCharacters || digits === COLORMAP_INPUT_MIN_SIGNIFICANT_DIGITS) {
+      if (candidate.length <= maxCharacters || !Number.isFinite(maxCharacters)) {
+        return candidate;
+      }
+      break;
+    }
+  }
+
+  for (let fractionDigits = significantDigits - 1; fractionDigits >= 0; fractionDigits -= 1) {
+    const candidate = formatExponentialNumber(value, fractionDigits);
+    if (candidate.length <= maxCharacters || fractionDigits === 0) {
+      return candidate;
+    }
+  }
+
+  return formatExponentialNumber(value, 0);
+}
+
+function formatColormapInputDisplayValue(value: number, input: HTMLInputElement): string {
+  return formatColormapInputValue(
+    value,
+    COLORMAP_INPUT_MAX_SIGNIFICANT_DIGITS,
+    getColormapInputCharacterBudget(input)
+  );
+}
+
+function getColormapInputCharacterBudget(input: HTMLInputElement): number {
+  const width = input.clientWidth;
+  if (!Number.isFinite(width) || width <= 0) {
+    return COLORMAP_INPUT_FALLBACK_CHARACTER_BUDGET;
+  }
+
+  const style = window.getComputedStyle(input);
+  const fontSize = Number.parseFloat(style.fontSize);
+  const paddingLeft = Number.parseFloat(style.paddingLeft);
+  const paddingRight = Number.parseFloat(style.paddingRight);
+  const averageCharacterWidth = Number.isFinite(fontSize) && fontSize > 0 ? fontSize * 0.58 : 7;
+  const padding =
+    (Number.isFinite(paddingLeft) ? paddingLeft : 0) +
+    (Number.isFinite(paddingRight) ? paddingRight : 0);
+  const availableWidth = Math.max(0, width - padding - COLORMAP_INPUT_RESERVED_INLINE_PX);
+
+  return Math.max(
+    7,
+    Math.min(12, Math.floor(availableWidth / averageCharacterWidth))
+  );
+}
+
+function formatSignificantNumber(value: number, significantDigits: number): string {
+  return Number(value.toPrecision(significantDigits)).toString();
+}
+
+function formatExponentialNumber(value: number, fractionDigits: number): string {
+  return value
+    .toExponential(Math.max(0, fractionDigits))
+    .replace(/(\.\d*?)0+e/, '$1e')
+    .replace(/\.e/, 'e')
+    .replace('e+', 'e');
 }
 
 function formatDisplayGammaInputValue(value: number): string {

@@ -1378,6 +1378,31 @@ describe('top bar and display controls', () => {
     expect(onColormapRangeReset).toHaveBeenCalledTimes(1);
   });
 
+  it('compacts displayed colormap range values to the input width', () => {
+    installUiFixture();
+
+    const ui = new ViewerUi(createUiCallbacks());
+    const vminInput = document.getElementById('colormap-vmin-input') as HTMLInputElement;
+    const vmaxInput = document.getElementById('colormap-vmax-input') as HTMLInputElement;
+
+    Object.defineProperty(vminInput, 'clientWidth', { configurable: true, value: 72 });
+    Object.defineProperty(vmaxInput, 'clientWidth', { configurable: true, value: 72 });
+
+    ui.setOpenedImageOptions([{ id: 'session-1', label: 'image.exr' }], 'session-1');
+    ui.setVisualizationMode('colormap');
+    ui.setColormapRange(
+      { min: 0.000123456789, max: Math.PI },
+      { min: 0.000123456789, max: Math.PI },
+      false,
+      false
+    );
+
+    expect(vminInput.value.length).toBeLessThanOrEqual(8);
+    expect(vmaxInput.value.length).toBeLessThanOrEqual(8);
+    expect(Number(vminInput.value)).toBeCloseTo(0.000123456789, 6);
+    expect(Number(vmaxInput.value)).toBeCloseTo(Math.PI, 6);
+  });
+
   it('hides inspector exposure whenever visualization uses colormap', () => {
     installUiFixture();
 

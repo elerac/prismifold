@@ -3116,13 +3116,16 @@ body.is-resizing-panel-rows * {
 
 .colormap-range-input-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: repeat(2, 6.5rem);
   gap: 0.4rem;
   align-items: center;
+  justify-content: space-between;
 }
 
 .colormap-range-input-row input[type='number'] {
   width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .panel-section {
