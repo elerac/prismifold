@@ -691,6 +691,16 @@ export class DisplayController implements Disposable {
     });
   }
 
+  toggleColormapReverse(): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.core.dispatch({
+      type: 'colormapReverseToggled'
+    });
+  }
+
   toggleStokesDegreeModulation(): void {
     if (this.disposed) {
       return;
@@ -855,6 +865,7 @@ function captureRestorableVisualizationState(state: {
   colormapRange: RestorableVisualizationState['colormapRange'];
   colormapRangeMode: RestorableVisualizationState['colormapRangeMode'];
   colormapZeroCentered: boolean;
+  colormapReversed: boolean;
 }): RestorableVisualizationState {
   return {
     visualizationMode: state.visualizationMode,
@@ -863,7 +874,8 @@ function captureRestorableVisualizationState(state: {
     colormapGamma: state.colormapGamma,
     colormapRange: state.colormapRange ? { ...state.colormapRange } : null,
     colormapRangeMode: state.colormapRangeMode,
-    colormapZeroCentered: state.colormapZeroCentered
+    colormapZeroCentered: state.colormapZeroCentered,
+    colormapReversed: state.colormapReversed
   };
 }
 

@@ -17,6 +17,7 @@ describe('shader source regressions', () => {
     expect(source).toContain('uniform float uColormapExposure;');
     expect(source).toContain('uniform float uColormapGamma;');
     expect(source).toContain('uniform bool uColormapZeroCentered;');
+    expect(source).toContain('uniform bool uColormapReversed;');
     expect(source).toContain('uniform bool uMaskInvalidStokesVectors;');
     expect(source).toContain('uniform bool uWarnInvalidValues;');
     expect(source).toContain('uniform float uInvalidValueWarningPhase;');
@@ -25,6 +26,7 @@ describe('shader source regressions', () => {
     expect(source).toContain('float scaledValue = value * exp2(uColormapExposure);');
     expect(source).toContain('pow(clamp((scaledValue - vmin) / (vmax - vmin), 0.0, 1.0), 1.0 / gamma)');
     expect(source).toContain('float signedGamma = sign(signedValue) * pow(abs(signedValue), 1.0 / gamma);');
+    expect(source).toContain('t = 1.0 - t;');
     expect(source).toContain('const float STOKES_VECTOR_VALIDITY_RTOL = 1.0e-8;');
     expect(source).not.toContain('STOKES_VECTOR_VALIDITY_ATOL');
     expect(source).toContain(

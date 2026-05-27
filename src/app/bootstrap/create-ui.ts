@@ -339,6 +339,9 @@ export function createViewerUi({
     onColormapZeroCenterToggle: () => {
       getDisplayController().toggleColormapZeroCenter();
     },
+    onColormapReverseToggle: () => {
+      getDisplayController().toggleColormapReverse();
+    },
     onStokesDegreeModulationToggle: () => {
       getDisplayController().toggleStokesDegreeModulation();
     },

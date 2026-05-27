@@ -268,6 +268,7 @@ export interface UiCallbacks {
   onColormapRangeChange: (range: DisplayLuminanceRange) => void;
   onColormapRangeReset: () => void;
   onColormapZeroCenterToggle: () => void;
+  onColormapReverseToggle: () => void;
   onStokesDegreeModulationToggle: () => void;
   onStokesAolpDegreeModulationModeChange: (mode: StokesAolpDegreeModulationMode) => void;
   onStokesDefaultSettingChange: (group: StokesColormapDefaultGroup, setting: StokesColormapDefaultSetting) => void;
@@ -446,6 +447,9 @@ export class ViewerUi implements Disposable {
       },
       onColormapZeroCenterToggle: () => {
         this.callbacks.onColormapZeroCenterToggle();
+      },
+      onColormapReverseToggle: () => {
+        this.callbacks.onColormapReverseToggle();
       },
       onStokesDegreeModulationToggle: () => {
         this.callbacks.onStokesDegreeModulationToggle();
@@ -1149,12 +1153,20 @@ export class ViewerUi implements Disposable {
     this.exportColormapDialog.setActiveColormap(activeId ?? '');
   }
 
-  setColormapGradient(lut: ColormapLut | null): void {
+  setColormapGradient(lut: ColormapLut | null, reversed = false): void {
     if (this.disposed) {
       return;
     }
 
-    this.colormapPanel.setColormapGradient(lut);
+    this.colormapPanel.setColormapGradient(lut, reversed);
+  }
+
+  setColormapReversed(reversed: boolean): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.colormapPanel.setColormapReversed(reversed);
   }
 
   setColormapRange(

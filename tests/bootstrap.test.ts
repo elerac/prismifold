@@ -56,6 +56,7 @@ const mocks = vi.hoisted(() => {
       colormapRange: null,
       colormapRangeMode: 'alwaysAuto',
       colormapZeroCentered: false,
+      colormapReversed: false,
       stokesDegreeModulation: { aolp: false, cop: true, top: true },
       stokesAolpDegreeModulationMode: 'value',
       zoom: 1,
@@ -2024,7 +2025,8 @@ describe('bootstrap app lifecycle', () => {
         colormapGamma: 1,
         colormapRange: null,
         colormapRangeMode: 'alwaysAuto',
-        colormapZeroCentered: false
+        colormapZeroCentered: false,
+        colormapReversed: false
       }
     };
 
@@ -2837,6 +2839,7 @@ describe('bootstrap app lifecycle', () => {
       colormapRange: { min: 0, max: Math.PI },
       colormapRangeMode: 'oneTime',
       colormapZeroCentered: false,
+      colormapReversed: false,
       displaySelection: stokesSelection
     });
     mutableCoreState.stokesDisplayRestoreStates = {
@@ -2847,7 +2850,8 @@ describe('bootstrap app lifecycle', () => {
         colormapGamma: 1,
         colormapRange: null,
         colormapRangeMode: 'alwaysAuto',
-        colormapZeroCentered: false
+        colormapZeroCentered: false,
+        colormapReversed: false
       }
     };
 
@@ -2906,7 +2910,8 @@ describe('bootstrap app lifecycle', () => {
       activeColormapId: null,
       colormapRange: null,
       colormapRangeMode: 'alwaysAuto',
-      colormapZeroCentered: false
+      colormapZeroCentered: false,
+      colormapReversed: false
     });
     expect(preparedStates[1]).toMatchObject({
       displaySelection: rgbSelection,
@@ -2914,7 +2919,8 @@ describe('bootstrap app lifecycle', () => {
       activeColormapId: '2',
       colormapRange: { min: 0.2, max: 0.8 },
       colormapRangeMode: 'oneTime',
-      colormapZeroCentered: false
+      colormapZeroCentered: false,
+      colormapReversed: false
     });
     expect(preparedStates[2]).toMatchObject({
       displaySelection: stokesSelection,
@@ -2922,7 +2928,8 @@ describe('bootstrap app lifecycle', () => {
       activeColormapId: '1',
       colormapRange: { min: 0, max: Math.PI },
       colormapRangeMode: 'oneTime',
-      colormapZeroCentered: false
+      colormapZeroCentered: false,
+      colormapReversed: false
     });
 
     app.dispose();

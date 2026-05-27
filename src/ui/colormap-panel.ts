@@ -10,6 +10,7 @@ const COLORMAP_ZERO_CENTER_SLIDER_MIN_MAGNITUDE = 1e-16;
 const COLORMAP_GRADIENT_STOP_COUNT = 16;
 const NONE_COLORMAP_OPTION_VALUE = '__openexr-viewer-none__';
 const DEFAULT_COLORMAP_GRADIENT = 'linear-gradient(90deg, #d95656 0%, #05070a 50%, #59d884 100%)';
+const DEFAULT_COLORMAP_GRADIENT_REVERSED = 'linear-gradient(90deg, #59d884 0%, #05070a 50%, #d95656 100%)';
 const DISPLAY_GAMMA_MAGNET_TARGET = DEFAULT_DISPLAY_GAMMA;
 const DISPLAY_GAMMA_MAGNET_RADIUS = 0.05;
 const DISPLAY_GAMMA_MAGNET_EPSILON = 1e-12;
@@ -34,6 +35,7 @@ interface ColormapPanelCallbacks {
   onColormapRangeChange: (range: DisplayLuminanceRange) => void;
   onColormapRangeReset: () => void;
   onColormapZeroCenterToggle: () => void;
+  onColormapReverseToggle: () => void;
   onStokesDegreeModulationToggle: () => void;
   onStokesAolpDegreeModulationModeChange: (mode: StokesAolpDegreeModulationMode) => void;
 }
@@ -44,7 +46,9 @@ export class ColormapPanel implements Disposable {
   private openedImageCount = 0;
   private currentColormapRange: DisplayLuminanceRange | null = null;
   private currentAutoColormapRange: DisplayLuminanceRange | null = null;
+  private currentColormapLut: ColormapLut | null = null;
   private currentColormapZeroCentered = false;
+  private currentColormapReversed = false;
   private isColormapEnabled = false;
   private hasColormapOptions = false;
   private disposed = false;
@@ -81,6 +85,14 @@ export class ColormapPanel implements Disposable {
       }
 
       this.callbacks.onColormapZeroCenterToggle();
+    });
+
+    this.disposables.addEventListener(this.elements.colormapReverseButton, 'change', () => {
+      if (this.elements.colormapReverseButton.disabled) {
+        return;
+      }
+
+      this.callbacks.onColormapReverseToggle();
     });
 
     this.disposables.addEventListener(this.elements.stokesDegreeModulationButton, 'click', () => {
@@ -267,15 +279,28 @@ export class ColormapPanel implements Disposable {
     this.elements.colormapSelect.value = hasOption ? optionValue : this.elements.colormapSelect.options[0]?.value ?? '';
   }
 
-  setColormapGradient(lut: ColormapLut | null): void {
+  setColormapGradient(lut: ColormapLut | null, reversed = this.currentColormapReversed): void {
     if (this.disposed) {
       return;
     }
 
+    this.currentColormapLut = lut;
     this.elements.colormapRangeSlider.style.setProperty(
       '--colormap-gradient',
-      lut ? buildColormapCssGradient(lut) : DEFAULT_COLORMAP_GRADIENT
+      lut
+        ? buildColormapCssGradient(lut, reversed)
+        : (reversed ? DEFAULT_COLORMAP_GRADIENT_REVERSED : DEFAULT_COLORMAP_GRADIENT)
     );
+  }
+
+  setColormapReversed(reversed: boolean): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.currentColormapReversed = reversed;
+    this.elements.colormapReverseButton.checked = reversed;
+    this.setColormapGradient(this.currentColormapLut, reversed);
   }
 
   setColormapRange(
@@ -488,6 +513,7 @@ export class ColormapPanel implements Disposable {
       advancedDisabled || !this.currentAutoColormapRange ? 'true' : 'false'
     );
     this.elements.colormapZeroCenterButton.disabled = advancedDisabled;
+    this.elements.colormapReverseButton.disabled = colormapDisabled;
     this.elements.colormapVminSlider.disabled = advancedDisabled;
     this.elements.colormapVmaxSlider.disabled = advancedDisabled;
     this.elements.colormapVminInput.disabled = advancedDisabled;
@@ -616,13 +642,13 @@ function cloneRange(range: DisplayLuminanceRange | null): DisplayLuminanceRange 
   return range ? { min: range.min, max: range.max } : null;
 }
 
-function buildColormapCssGradient(lut: ColormapLut): string {
+function buildColormapCssGradient(lut: ColormapLut, reversed = false): string {
   const stopCount = Math.min(COLORMAP_GRADIENT_STOP_COUNT, Math.max(2, lut.entryCount));
   const stops: string[] = [];
 
   for (let index = 0; index < stopCount; index += 1) {
     const t = stopCount === 1 ? 0 : index / (stopCount - 1);
-    const [r, g, b] = sampleColormapRgbBytes(lut, t);
+    const [r, g, b] = sampleColormapRgbBytes(lut, t, { reverse: reversed });
     stops.push(`rgb(${r}, ${g}, ${b}) ${(t * 100).toFixed(2)}%`);
   }
 

@@ -15,6 +15,7 @@ type ExportVisualizationState = Pick<
   | 'colormapExposureEv'
   | 'colormapGamma'
   | 'colormapZeroCentered'
+  | 'colormapReversed'
   | 'displaySelection'
   | 'displayGamma'
   | 'exposureEv'
@@ -81,7 +82,8 @@ export function buildExportImagePixels({
         {
           exposureEv: state.colormapExposureEv,
           gamma: state.colormapGamma,
-          zeroCentered: state.colormapZeroCentered
+          zeroCentered: state.colormapZeroCentered,
+          reverse: state.colormapReversed
         }
       );
       if (useStokesDegreeModulation) {

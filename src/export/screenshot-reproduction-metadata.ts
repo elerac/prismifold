@@ -93,6 +93,7 @@ export interface ScreenshotReproductionMetadataV2 {
     colormapRange: ViewerState['colormapRange'];
     colormapRangeMode: ViewerState['colormapRangeMode'];
     colormapZeroCentered: boolean;
+    colormapReversed: boolean;
     stokesDegreeModulation: ViewerState['stokesDegreeModulation'];
     stokesAolpDegreeModulationMode: ViewerState['stokesAolpDegreeModulationMode'];
   };
@@ -163,6 +164,7 @@ export function buildScreenshotReproductionMetadata({
       colormapRange: cloneDisplayLuminanceRange(renderState.colormapRange),
       colormapRangeMode: renderState.colormapRangeMode,
       colormapZeroCentered: renderState.colormapZeroCentered,
+      colormapReversed: renderState.colormapReversed,
       stokesDegreeModulation: { ...renderState.stokesDegreeModulation },
       stokesAolpDegreeModulationMode: renderState.stokesAolpDegreeModulationMode
     }

@@ -163,6 +163,7 @@ export interface ViewerSessionState extends ViewerViewState {
   colormapRange: DisplayLuminanceRange | null;
   colormapRangeMode: ColormapRangeMode;
   colormapZeroCentered: boolean;
+  colormapReversed: boolean;
   stokesDegreeModulation: StokesDegreeModulationState;
   stokesAolpDegreeModulationMode: StokesAolpDegreeModulationMode;
   activeLayer: number;

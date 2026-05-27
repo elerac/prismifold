@@ -37,6 +37,7 @@ const state: ViewerState = {
   colormapRange: null,
   colormapRangeMode: 'alwaysAuto',
   colormapZeroCentered: false,
+  colormapReversed: false,
   stokesDegreeModulation: { aolp: false, cop: true, top: true },
   stokesAolpDegreeModulationMode: 'value',
   maskInvalidStokesVectors: true,

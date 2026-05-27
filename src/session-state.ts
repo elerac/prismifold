@@ -54,6 +54,7 @@ export function cloneViewerSessionState(state: ViewerSessionState): ViewerSessio
     colormapRange: cloneDisplayLuminanceRange(state.colormapRange),
     colormapRangeMode: state.colormapRangeMode,
     colormapZeroCentered: state.colormapZeroCentered,
+    colormapReversed: state.colormapReversed,
     stokesDegreeModulation: { ...state.stokesDegreeModulation },
     stokesAolpDegreeModulationMode: state.stokesAolpDegreeModulationMode,
     zoom: state.zoom,

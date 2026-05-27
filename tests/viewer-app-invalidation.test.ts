@@ -545,7 +545,13 @@ describe('viewer app lanes', () => {
   });
 
   it('marks colormap-load completion as UI gradient and render texture invalidation', () => {
-    const previous = createActiveState();
+    const previous = {
+      ...createActiveState(),
+      sessionState: {
+        ...createActiveState().sessionState,
+        activeColormapId: '0'
+      }
+    };
     const next = {
       ...previous,
       colormapLutResource: successResource('0', {

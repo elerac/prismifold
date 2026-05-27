@@ -34,6 +34,11 @@ export interface ColormapTransferOptions {
   exposureEv?: number;
   gamma?: number;
   zeroCentered?: boolean;
+  reverse?: boolean;
+}
+
+export interface ColormapSamplingOptions {
+  reverse?: boolean;
 }
 
 interface ParsedNpyHeader {
@@ -215,13 +220,18 @@ export function parseNpyColormap(
   };
 }
 
-export function sampleColormapRgbBytes(lut: ColormapLut | null, t: number): [number, number, number] {
+export function sampleColormapRgbBytes(
+  lut: ColormapLut | null,
+  t: number,
+  options: ColormapSamplingOptions = {}
+): [number, number, number] {
   if (!lut || lut.entryCount < 2 || !Number.isFinite(t)) {
     return [0, 0, 0];
   }
 
   const clampedT = clampUnit(t);
-  const scaledIndex = clampedT * (lut.entryCount - 1);
+  const sampleT = options.reverse ? 1 - clampedT : clampedT;
+  const scaledIndex = sampleT * (lut.entryCount - 1);
   const index0 = Math.floor(scaledIndex);
   const index1 = Math.min(index0 + 1, lut.entryCount - 1);
   const fraction = scaledIndex - index0;
@@ -246,7 +256,7 @@ export function mapValueToColormapRgbBytes(
     return [0, 0, 0];
   }
 
-  return sampleColormapRgbBytes(lut, coordinate);
+  return sampleColormapRgbBytes(lut, coordinate, { reverse: options.reverse });
 }
 
 export function mapValueToColormapCoordinate(

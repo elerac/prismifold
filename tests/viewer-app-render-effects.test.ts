@@ -76,6 +76,10 @@ function createRenderCacheMock() {
       textureDirty: true
     })),
     getCachedLuminanceRange: vi.fn(() => null),
+    requestDisplayLuminanceRange: vi.fn(() => ({
+      displayLuminanceRange: null,
+      pending: false
+    })),
     requestImageStats: vi.fn(() => ({
       imageStats: null,
       pending: false

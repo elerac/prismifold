@@ -673,6 +673,7 @@ describe('viewer app core', () => {
       colormapRange: null,
       colormapRangeMode: 'alwaysAuto',
       colormapZeroCentered: false,
+      colormapReversed: false,
       displaySelection: createChannelRgbSelection('R', 'G', 'B')
     });
   });
@@ -739,7 +740,8 @@ describe('viewer app core', () => {
       colormapGamma: core.getState().sessionState.colormapGamma,
       colormapRange: core.getState().sessionState.colormapRange,
       colormapRangeMode: core.getState().sessionState.colormapRangeMode,
-      colormapZeroCentered: core.getState().sessionState.colormapZeroCentered
+      colormapZeroCentered: core.getState().sessionState.colormapZeroCentered,
+      colormapReversed: true
     };
 
     core.dispatch({
@@ -760,6 +762,7 @@ describe('viewer app core', () => {
 
     expect(core.getState().sessionState.visualizationMode).toBe('rgb');
     expect(core.getState().sessionState.activeColormapId).toBeNull();
+    expect(core.getState().sessionState.colormapReversed).toBe(true);
   });
 
   it('resets all session state when every session closes', () => {
@@ -839,6 +842,7 @@ describe('viewer app core', () => {
     core.dispatch({ type: 'colormapGammaSet', gamma: 1.8 });
     core.dispatch({ type: 'colormapRangeSet', range: { min: 0.25, max: 0.75 } });
     core.dispatch({ type: 'colormapZeroCenteredToggled' });
+    core.dispatch({ type: 'colormapReverseToggled' });
     core.dispatch({ type: 'lockedPixelToggled', pixel: { ix: 1, iy: 0 } });
     core.dispatch({ type: 'roiSet', roi: { x0: 0, y0: 0, x1: 1, y1: 0 } });
     core.dispatch({ type: 'viewStateCommitted', view: currentView });
@@ -866,6 +870,7 @@ describe('viewer app core', () => {
       colormapRange: null,
       colormapRangeMode: 'alwaysAuto',
       colormapZeroCentered: false,
+      colormapReversed: false,
       displaySelection: createChannelMonoSelection('R'),
       lockedPixel: { ix: 1, iy: 0 },
       roi: { x0: 0, y0: 0, x1: 1, y1: 0 }

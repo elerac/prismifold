@@ -99,6 +99,7 @@ export function stokesReducer(
         colormapRange: cloneDisplayLuminanceRange(intent.setting.range),
         colormapRangeMode: 'oneTime',
         colormapZeroCentered: intent.setting.zeroCentered,
+        colormapReversed: false,
         colormapExposureEv: 0,
         colormapGamma: 1,
         ...buildStokesDefaultModulationPatch(
@@ -192,6 +193,7 @@ function reduceDisplaySelectionSet(
       colormapRange: stokesDefaults.range,
       colormapRangeMode: 'oneTime',
       colormapZeroCentered: stokesDefaults.zeroCentered,
+      colormapReversed: false,
       colormapExposureEv: 0,
       colormapGamma: 1,
       ...buildStokesDefaultModulationPatch(selection, stokesDefaults, currentState, {
@@ -310,7 +312,8 @@ function resolveStokesDisplayRestoreState(
     colormapGamma: 1,
     colormapRange: null,
     colormapRangeMode: 'alwaysAuto',
-    colormapZeroCentered: false
+    colormapZeroCentered: false,
+    colormapReversed: false
   };
 }
 
@@ -322,7 +325,8 @@ function captureRestorableVisualizationState(state: ViewerSessionState): Restora
     colormapGamma: state.colormapGamma,
     colormapRange: cloneDisplayLuminanceRange(state.colormapRange),
     colormapRangeMode: state.colormapRangeMode,
-    colormapZeroCentered: state.colormapZeroCentered
+    colormapZeroCentered: state.colormapZeroCentered,
+    colormapReversed: state.colormapReversed
   };
 }
 

@@ -471,6 +471,7 @@ async function resolveChannelThumbnailPreview(args: {
     visualizationMode: 'colormap',
     colormapRange: cloneDisplayLuminanceRange(stokesDefaults.range),
     colormapLut,
+    colormapReversed: false,
     stokesDegreeModulation: { ...args.stateSnapshot.stokesDegreeModulation },
     stokesAolpDegreeModulationMode: args.stateSnapshot.stokesAolpDegreeModulationMode,
     maskInvalidStokesVectors: args.maskInvalidStokesVectors,

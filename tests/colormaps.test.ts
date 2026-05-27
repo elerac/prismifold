@@ -154,6 +154,13 @@ describe('colormap LUT sampling', () => {
     expect(sampleColormapRgbBytes(lut, 2)).toEqual([255, 255, 0]);
   });
 
+  it('samples reversed LUT coordinates without changing coordinate math', () => {
+    expect(sampleColormapRgbBytes(lut, 0, { reverse: true })).toEqual([255, 255, 0]);
+    expect(sampleColormapRgbBytes(lut, 1, { reverse: true })).toEqual([0, 0, 255]);
+    expect(mapValueToColormapCoordinate(0.25, { min: 0, max: 1 }, { reverse: true })).toBe(0.25);
+    expect(mapValueToColormapRgbBytes(0.25, { min: 0, max: 1 }, lut, { reverse: true })).toEqual([128, 128, 0]);
+  });
+
   it('linearly interpolates neighboring LUT entries', () => {
     expect(sampleColormapRgbBytes(lut, 0.25)).toEqual([0, 0, 128]);
     expect(sampleColormapRgbBytes(lut, 0.75)).toEqual([128, 128, 0]);

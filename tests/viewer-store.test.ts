@@ -20,6 +20,7 @@ describe('viewer store', () => {
     expect(createInitialState().colormapRange).toBeNull();
     expect(createInitialState().colormapRangeMode).toBe('alwaysAuto');
     expect(createInitialState().colormapZeroCentered).toBe(false);
+    expect(createInitialState().colormapReversed).toBe(false);
     expect(createInitialState().displaySelection).toBeNull();
     expect(createInitialState().stokesDegreeModulation).toEqual({
       aolp: false,

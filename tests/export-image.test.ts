@@ -37,6 +37,7 @@ describe('export image pixels', () => {
         colormapExposureEv: 0,
         colormapGamma: 1,
         colormapZeroCentered: false,
+        colormapReversed: false,
         colormapRange: null,
         displaySelection: {
           kind: 'channelRgb',
@@ -71,6 +72,7 @@ describe('export image pixels', () => {
         colormapExposureEv: 0,
         colormapGamma: 1,
         colormapZeroCentered: false,
+        colormapReversed: false,
         colormapRange: { min: 0, max: 1 },
         displaySelection: {
           kind: 'channelMono',
@@ -91,6 +93,58 @@ describe('export image pixels', () => {
     expect(Array.from(pixels.data)).toEqual([64, 0, 191, 255]);
   });
 
+  it('maps luminance through a reversed colormap range', () => {
+    const pixels = buildExportImagePixels({
+      displayTexture: new Float32Array([0.25, 0.25, 0.25, 1]),
+      width: 1,
+      height: 1,
+      state: {
+        exposureEv: 0,
+        displayGamma: DEFAULT_DISPLAY_GAMMA,
+        visualizationMode: 'colormap',
+        colormapExposureEv: 0,
+        colormapGamma: 1,
+        colormapZeroCentered: false,
+        colormapReversed: true,
+        colormapRange: { min: 0, max: 1 },
+        displaySelection: {
+          kind: 'channelMono',
+          channel: 'Y',
+          alpha: null
+        },
+        stokesDegreeModulation: createDefaultStokesDegreeModulation(),
+        stokesAolpDegreeModulationMode: 'value'
+      },
+      colormapLut: {
+        id: '0',
+        label: 'Test',
+        entryCount: 2,
+        rgba8: new Uint8Array([0, 0, 255, 255, 255, 0, 0, 255])
+      }
+    });
+
+    expect(Array.from(pixels.data)).toEqual([191, 0, 64, 255]);
+  });
+
+  it('keeps standalone colormap exports in raw palette order', () => {
+    const pixels = buildColormapExportPixels({
+      lut: {
+        id: '0',
+        label: 'Test',
+        entryCount: 2,
+        rgba8: new Uint8Array([0, 0, 255, 255, 255, 0, 0, 255])
+      },
+      width: 2,
+      height: 1,
+      orientation: 'horizontal'
+    });
+
+    expect(Array.from(pixels.data)).toEqual([
+      0, 0, 255, 255,
+      255, 0, 0, 255
+    ]);
+  });
+
   it('preserves source alpha instead of compositing against the checkerboard', () => {
     const pixels = buildExportImagePixels({
       displayTexture: new Float32Array([1, 0, 0, 0.25]),
@@ -103,6 +157,7 @@ describe('export image pixels', () => {
         colormapExposureEv: 0,
         colormapGamma: 1,
         colormapZeroCentered: false,
+        colormapReversed: false,
         colormapRange: null,
         displaySelection: {
           kind: 'channelRgb',
@@ -132,6 +187,7 @@ describe('export image pixels', () => {
         colormapExposureEv: 0,
         colormapGamma: 1,
         colormapZeroCentered: false,
+        colormapReversed: false,
         colormapRange: { min: 0, max: 1 },
         displaySelection: {
           kind: 'stokesAngle',
@@ -170,6 +226,7 @@ describe('export image pixels', () => {
         colormapExposureEv: 0,
         colormapGamma: 1,
         colormapZeroCentered: false,
+        colormapReversed: false,
         colormapRange: null,
         displaySelection: selection,
         stokesDegreeModulation: createDefaultStokesDegreeModulation(),

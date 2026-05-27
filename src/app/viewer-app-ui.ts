@@ -56,7 +56,8 @@ export const enum ViewerUiInvalidationFlags {
   StokesParameterVisibility = 1 << 23,
   MaskInvalidStokesVectors = 1 << 24,
   InvalidValueWarning = 1 << 25,
-  SpectralRgbGrouping = 1 << 26
+  SpectralRgbGrouping = 1 << 26,
+  ColormapReverse = 1 << 27
 }
 
 export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => ViewerUiSnapshot {
@@ -119,6 +120,7 @@ export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => Vie
       activeDisplayLuminanceRange,
       isColormapAutoRange: state.sessionState.colormapRangeMode === 'alwaysAuto',
       colormapZeroCentered: state.sessionState.colormapZeroCentered,
+      colormapReversed: state.sessionState.colormapReversed,
       layerOptions: selectLayerOptions(activeSession),
       activeLayer: state.sessionState.activeLayer,
       metadata: selectMetadata(activeSession, state.sessionState.activeLayer),
@@ -254,6 +256,10 @@ export function computeViewerUiInvalidation(
 
   if (previous.activeColormapLut !== next.activeColormapLut) {
     flags |= ViewerUiInvalidationFlags.ColormapGradient;
+  }
+
+  if (previous.colormapReversed !== next.colormapReversed) {
+    flags |= ViewerUiInvalidationFlags.ColormapReverse | ViewerUiInvalidationFlags.ColormapGradient;
   }
 
   if (
@@ -488,6 +494,7 @@ function sameViewerUiSnapshot(a: ViewerUiSnapshot, b: ViewerUiSnapshot): boolean
     sameDisplayLuminanceRange(a.activeDisplayLuminanceRange, b.activeDisplayLuminanceRange) &&
     a.isColormapAutoRange === b.isColormapAutoRange &&
     a.colormapZeroCentered === b.colormapZeroCentered &&
+    a.colormapReversed === b.colormapReversed &&
     sameLayerOptions(a.layerOptions, b.layerOptions) &&
     a.activeLayer === b.activeLayer &&
     sameMetadata(a.metadata, b.metadata) &&

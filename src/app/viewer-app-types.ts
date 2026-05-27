@@ -44,6 +44,7 @@ export interface RestorableVisualizationState {
   colormapRange: DisplayLuminanceRange | null;
   colormapRangeMode: ViewerSessionState['colormapRangeMode'];
   colormapZeroCentered: boolean;
+  colormapReversed: boolean;
 }
 
 export interface PendingColormapActivation {
@@ -218,6 +219,7 @@ export type ViewerIntent =
   | { type: 'colormapAutoRangeToggled' }
   | { type: 'colormapRangeReset' }
   | { type: 'colormapZeroCenteredToggled' }
+  | { type: 'colormapReverseToggled' }
   | { type: 'stokesDegreeModulationToggled' }
   | { type: 'stokesAolpDegreeModulationModeSet'; mode: StokesAolpDegreeModulationMode }
   | { type: 'stokesColormapDefaultsSet'; settings: StokesColormapDefaultSettings }
@@ -356,6 +358,7 @@ export interface ViewerUiSnapshot {
   activeDisplayLuminanceRange: DisplayLuminanceRange | null;
   isColormapAutoRange: boolean;
   colormapZeroCentered: boolean;
+  colormapReversed: boolean;
   layerOptions: ViewerLayerOption[];
   activeLayer: number;
   metadata: ExrMetadataEntry[] | null;

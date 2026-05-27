@@ -1150,6 +1150,32 @@ describe('top bar and display controls', () => {
     expect(paletteSelect.disabled).toBe(false);
   });
 
+  it('syncs and dispatches the colormap reverse control', () => {
+    installUiFixture();
+
+    const onColormapReverseToggle = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onColormapReverseToggle }));
+    const reverseButton = document.getElementById('colormap-reverse-button') as HTMLInputElement;
+
+    expect(reverseButton.disabled).toBe(true);
+
+    ui.setOpenedImageOptions([{ id: 'session-1', label: 'image.exr' }], 'session-1');
+    ui.setVisualizationMode('rgb');
+    expect(reverseButton.disabled).toBe(true);
+
+    ui.setVisualizationMode('colormap');
+    expect(reverseButton.disabled).toBe(false);
+
+    ui.setColormapReversed(true);
+    expect(reverseButton.checked).toBe(true);
+
+    reverseButton.click();
+    expect(onColormapReverseToggle).toHaveBeenCalledTimes(1);
+
+    ui.setLoading(true);
+    expect(reverseButton.disabled).toBe(true);
+  });
+
   it('updates inspector exposure controls through the shared exposure state', () => {
     installUiFixture();
 
@@ -10820,6 +10846,7 @@ function createUiCallbacksBase() {
     onColormapRangeChange: () => {},
     onColormapRangeReset: () => {},
     onColormapZeroCenterToggle: () => {},
+    onColormapReverseToggle: () => {},
     onStokesDegreeModulationToggle: () => {},
     onStokesAolpDegreeModulationModeChange: () => {},
     onStokesDefaultSettingChange: () => {},

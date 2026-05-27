@@ -61,6 +61,7 @@ type BatchEntryVisualizationState = Pick<
   | 'colormapRange'
   | 'colormapRangeMode'
   | 'colormapZeroCentered'
+  | 'colormapReversed'
 >;
 
 interface ColormapExportResolverOptions {
@@ -250,6 +251,7 @@ export function createImageExportPixelsResolver({
           colormapExposureEv: state.sessionState.colormapExposureEv,
           colormapGamma: state.sessionState.colormapGamma,
           colormapZeroCentered: state.sessionState.colormapZeroCentered,
+          colormapReversed: state.sessionState.colormapReversed,
           stokesDegreeModulation: state.sessionState.stokesDegreeModulation,
           stokesAolpDegreeModulationMode: state.sessionState.stokesAolpDegreeModulationMode,
           maskInvalidStokesVectors: state.maskInvalidStokesVectors,
@@ -1034,6 +1036,7 @@ async function resolveBatchEntryPreviewPixels({
       colormapExposureEv: exportState.state.colormapExposureEv,
       colormapGamma: exportState.state.colormapGamma,
       colormapZeroCentered: exportState.state.colormapZeroCentered,
+      colormapReversed: exportState.state.colormapReversed,
       stokesDegreeModulation: exportState.state.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: exportState.state.stokesAolpDegreeModulationMode,
       maskInvalidStokesVectors: appState.maskInvalidStokesVectors,
@@ -1086,6 +1089,7 @@ async function resolveBatchEntryExportState({
   let colormapRange = cloneDisplayLuminanceRange(entryVisualization.colormapRange);
   let colormapRangeMode = entryVisualization.colormapRangeMode;
   let colormapZeroCentered = entryVisualization.colormapZeroCentered;
+  let colormapReversed = entryVisualization.colormapReversed;
   const stokesDegreeModulation = { ...currentState.stokesDegreeModulation };
   let stokesAolpDegreeModulationMode = currentState.stokesAolpDegreeModulationMode;
 
@@ -1106,6 +1110,7 @@ async function resolveBatchEntryExportState({
     colormapRange = cloneDisplayLuminanceRange(stokesDefault.range);
     colormapRangeMode = 'oneTime';
     colormapZeroCentered = stokesDefault.zeroCentered;
+    colormapReversed = false;
     if (isStokesSelection(selection) && isStokesDegreeModulationParameter(selection.parameter) && stokesDefault.modulation) {
       stokesDegreeModulation[selection.parameter] = stokesDefault.modulation.enabled;
       if (selection.parameter === 'aolp') {
@@ -1140,6 +1145,7 @@ async function resolveBatchEntryExportState({
     colormapRange,
     colormapRangeMode,
     colormapZeroCentered,
+    colormapReversed,
     stokesDegreeModulation,
     stokesAolpDegreeModulationMode,
     lockedPixel: null,
@@ -1245,7 +1251,8 @@ function resolveBatchEntryVisualizationState(
       colormapGamma: 1,
       colormapRange: null,
       colormapRangeMode: 'alwaysAuto',
-      colormapZeroCentered: false
+      colormapZeroCentered: false,
+      colormapReversed: false
     };
   }
 
@@ -1256,7 +1263,8 @@ function resolveBatchEntryVisualizationState(
     colormapGamma: source.colormapGamma,
     colormapRange: cloneDisplayLuminanceRange(source.colormapRange),
     colormapRangeMode: source.colormapRangeMode,
-    colormapZeroCentered: source.colormapZeroCentered
+    colormapZeroCentered: source.colormapZeroCentered,
+    colormapReversed: source.colormapReversed
   };
 }
 

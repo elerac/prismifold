@@ -13,10 +13,11 @@ describe('viewer app ui effects', () => {
     applyUiEffects(ui, {
       invalidation: ViewerUiInvalidationFlags.ColormapGradient,
       snapshot: {
-        activeColormapLut: null
+        activeColormapLut: null,
+        colormapReversed: false
       }
     } as ViewerUiTransition);
 
-    expect(ui.setColormapGradient).toHaveBeenCalledWith(null);
+    expect(ui.setColormapGradient).toHaveBeenCalledWith(null, false);
   });
 });

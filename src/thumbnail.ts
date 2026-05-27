@@ -59,6 +59,7 @@ export interface ThumbnailPreviewOptions {
   colormapExposureEv?: number;
   colormapGamma?: number;
   colormapZeroCentered?: boolean;
+  colormapReversed?: boolean;
   stokesDegreeModulation: StokesDegreeModulationState;
   stokesAolpDegreeModulationMode?: StokesAolpDegreeModulationMode;
   maskInvalidStokesVectors?: boolean;
@@ -235,7 +236,8 @@ export function buildDisplaySelectionThumbnailPixels(
           {
             exposureEv: colormapPreview.colormapExposureEv,
             gamma: colormapPreview.colormapGamma,
-            zeroCentered: colormapPreview.colormapZeroCentered
+            zeroCentered: colormapPreview.colormapZeroCentered,
+            reverse: colormapPreview.colormapReversed
           }
         );
         if (useStokesDegreeModulation) {

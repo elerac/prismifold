@@ -98,7 +98,8 @@ export function displayReducer(
         colormapGamma: 1,
         colormapRange: nextRange,
         colormapRangeMode: 'alwaysAuto',
-        colormapZeroCentered: false
+        colormapZeroCentered: false,
+        colormapReversed: false
       });
       return nextState === state
         ? state
@@ -300,6 +301,16 @@ export function displayReducer(
       return patchSessionState(state, {
         colormapRange: nextRange,
         colormapZeroCentered: nextZeroCentered
+      });
+    }
+    case 'colormapReverseToggled': {
+      const activeSession = selectActiveSession(state);
+      if (!activeSession) {
+        return state;
+      }
+
+      return patchSessionState(state, {
+        colormapReversed: !state.sessionState.colormapReversed
       });
     }
     case 'lockedPixelToggled': {

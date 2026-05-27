@@ -102,7 +102,11 @@ export function applyUiEffects(ui: ViewerUi, transition: ViewerUiTransition): vo
   }
 
   if (invalidation & ViewerUiInvalidationFlags.ColormapGradient) {
-    ui.setColormapGradient(snapshot.activeColormapLut);
+    ui.setColormapGradient(snapshot.activeColormapLut, snapshot.colormapReversed);
+  }
+
+  if (invalidation & ViewerUiInvalidationFlags.ColormapReverse) {
+    ui.setColormapReversed(snapshot.colormapReversed);
   }
 
   if (invalidation & ViewerUiInvalidationFlags.ColormapRange) {

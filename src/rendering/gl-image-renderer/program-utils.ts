@@ -27,6 +27,7 @@ export function getCommonUniforms(gl: WebGL2RenderingContext, program: WebGLProg
     colormapExposure: getRequiredUniformLocation(gl, program, 'uColormapExposure'),
     colormapGamma: getRequiredUniformLocation(gl, program, 'uColormapGamma'),
     colormapZeroCentered: getRequiredUniformLocation(gl, program, 'uColormapZeroCentered'),
+    colormapReversed: getRequiredUniformLocation(gl, program, 'uColormapReversed'),
     colormapMin: getRequiredUniformLocation(gl, program, 'uColormapMin'),
     colormapMax: getRequiredUniformLocation(gl, program, 'uColormapMax'),
     colormapTextureSize: getRequiredUniformLocation(gl, program, 'uColormapTextureSize'),

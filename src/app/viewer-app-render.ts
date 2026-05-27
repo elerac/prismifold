@@ -314,6 +314,7 @@ function createProbeReadoutSelector(): (
   let previousDisplayGamma = DEFAULT_DISPLAY_GAMMA;
   let previousColormapExposureEv = 0;
   let previousColormapGamma = 1;
+  let previousColormapReversed = false;
   let previousVisualizationMode: ViewerAppState['sessionState']['visualizationMode'] = 'rgb';
   let previousColormapRange: ViewerAppState['sessionState']['colormapRange'] = null;
   let previousActiveDisplayLuminanceRange: DisplayLuminanceRange | null = null;
@@ -358,6 +359,7 @@ function createProbeReadoutSelector(): (
       state.sessionState.displayGamma === previousDisplayGamma &&
       state.sessionState.colormapExposureEv === previousColormapExposureEv &&
       state.sessionState.colormapGamma === previousColormapGamma &&
+      state.sessionState.colormapReversed === previousColormapReversed &&
       state.sessionState.visualizationMode === previousVisualizationMode &&
       state.maskInvalidStokesVectors === previousMaskInvalidStokesVectors &&
       state.spectralRgbGroupingEnabled === previousSpectralRgbGroupingEnabled &&
@@ -388,6 +390,7 @@ function createProbeReadoutSelector(): (
     previousDisplayGamma = state.sessionState.displayGamma;
     previousColormapExposureEv = state.sessionState.colormapExposureEv;
     previousColormapGamma = state.sessionState.colormapGamma;
+    previousColormapReversed = state.sessionState.colormapReversed;
     previousVisualizationMode = state.sessionState.visualizationMode;
     previousColormapRange = state.sessionState.colormapRange;
     previousActiveDisplayLuminanceRange = activeDisplayLuminanceRange;
@@ -894,6 +897,7 @@ function samePaneImageInput(a: ViewerPaneRenderSource, b: ViewerPaneRenderSource
     sameDisplayLuminanceRange(previous.colormapRange, next.colormapRange) &&
     previous.colormapRangeMode === next.colormapRangeMode &&
     previous.colormapZeroCentered === next.colormapZeroCentered &&
+    previous.colormapReversed === next.colormapReversed &&
     previous.stokesDegreeModulation.aolp === next.stokesDegreeModulation.aolp &&
     previous.stokesDegreeModulation.cop === next.stokesDegreeModulation.cop &&
     previous.stokesDegreeModulation.top === next.stokesDegreeModulation.top &&
@@ -946,6 +950,7 @@ function sameViewerRenderState(a: ViewerRenderState, b: ViewerRenderState): bool
     sameDisplayLuminanceRange(a.colormapRange, b.colormapRange) &&
     a.colormapRangeMode === b.colormapRangeMode &&
     a.colormapZeroCentered === b.colormapZeroCentered &&
+    a.colormapReversed === b.colormapReversed &&
     a.stokesDegreeModulation.aolp === b.stokesDegreeModulation.aolp &&
     a.stokesDegreeModulation.cop === b.stokesDegreeModulation.cop &&
     a.stokesDegreeModulation.top === b.stokesDegreeModulation.top &&
@@ -978,6 +983,7 @@ function stateLikeSessionState(): ViewerAppState['sessionState'] {
     colormapRange: null,
     colormapRangeMode: 'alwaysAuto',
     colormapZeroCentered: false,
+    colormapReversed: false,
     stokesDegreeModulation: { aolp: false, cop: false, top: false },
     stokesAolpDegreeModulationMode: 'value',
     zoom: 1,

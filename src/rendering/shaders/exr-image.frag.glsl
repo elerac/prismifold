@@ -16,6 +16,7 @@ uniform bool uUseColormap;
 uniform float uColormapExposure;
 uniform float uColormapGamma;
 uniform bool uColormapZeroCentered;
+uniform bool uColormapReversed;
 uniform float uColormapMin;
 uniform float uColormapMax;
 uniform ivec2 uColormapTextureSize;
@@ -216,6 +217,10 @@ vec3 sampleColormap(float value, float vmin, float vmax) {
     }
 
     t = pow(clamp((scaledValue - vmin) / (vmax - vmin), 0.0, 1.0), 1.0 / gamma);
+  }
+
+  if (uColormapReversed) {
+    t = 1.0 - t;
   }
 
   float lutIndex = t * float(uColormapEntryCount - 1);

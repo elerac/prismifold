@@ -147,6 +147,7 @@ export interface Elements {
   stokesAolpModulationSaturationButton: HTMLButtonElement;
   colormapRangeResetLabel: HTMLSpanElement;
   colormapZeroCenterButton: HTMLInputElement;
+  colormapReverseButton: HTMLInputElement;
   colormapRangeSlider: HTMLDivElement;
   colormapVminSlider: HTMLInputElement;
   colormapVmaxSlider: HTMLInputElement;
@@ -272,6 +273,7 @@ export type ColormapPanelElements = Pick<
   | 'stokesAolpModulationSaturationButton'
   | 'colormapRangeResetLabel'
   | 'colormapZeroCenterButton'
+  | 'colormapReverseButton'
   | 'colormapRangeSlider'
   | 'colormapVminSlider'
   | 'colormapVmaxSlider'
@@ -671,6 +673,7 @@ export function resolveElements(): Elements {
     stokesAolpModulationSaturationButton: requireElement('stokes-aolp-modulation-saturation-button', HTMLButtonElement),
     colormapRangeResetLabel: requireElement('colormap-range-reset-label', HTMLSpanElement),
     colormapZeroCenterButton: requireElement('colormap-zero-center-button', HTMLInputElement),
+    colormapReverseButton: requireElement('colormap-reverse-button', HTMLInputElement),
     colormapRangeSlider: requireElement('colormap-range-slider', HTMLDivElement),
     colormapVminSlider: requireElement('colormap-vmin-slider', HTMLInputElement),
     colormapVmaxSlider: requireElement('colormap-vmax-slider', HTMLInputElement),

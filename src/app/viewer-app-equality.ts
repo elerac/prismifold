@@ -32,6 +32,7 @@ export function sameViewerSessionState(a: ViewerSessionState, b: ViewerSessionSt
     sameDisplayLuminanceRange(a.colormapRange, b.colormapRange) &&
     a.colormapRangeMode === b.colormapRangeMode &&
     a.colormapZeroCentered === b.colormapZeroCentered &&
+    a.colormapReversed === b.colormapReversed &&
     a.stokesDegreeModulation.aolp === b.stokesDegreeModulation.aolp &&
     a.stokesDegreeModulation.cop === b.stokesDegreeModulation.cop &&
     a.stokesDegreeModulation.top === b.stokesDegreeModulation.top &&

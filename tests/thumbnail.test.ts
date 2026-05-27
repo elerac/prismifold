@@ -33,6 +33,7 @@ function createThumbnailState(
     colormapRange: null,
     colormapRangeMode: 'alwaysAuto',
     colormapZeroCentered: false,
+    colormapReversed: false,
     stokesDegreeModulation: createDefaultStokesDegreeModulation(),
     stokesAolpDegreeModulationMode: 'value',
     zoom: 1,

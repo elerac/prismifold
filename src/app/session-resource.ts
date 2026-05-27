@@ -139,6 +139,7 @@ export function createClearedViewerState(_defaultColormapId: string): ViewerSess
     colormapRange: null,
     colormapRangeMode: 'alwaysAuto',
     colormapZeroCentered: false,
+    colormapReversed: false,
     stokesDegreeModulation: createDefaultStokesDegreeModulation(),
     stokesAolpDegreeModulationMode: DEFAULT_STOKES_AOLP_DEGREE_MODULATION_MODE,
     zoom: 1,
@@ -290,7 +291,8 @@ export function buildSwitchedSessionState(
     colormapGamma: currentState.colormapGamma,
     colormapRange: cloneDisplayLuminanceRange(currentState.colormapRange),
     colormapRangeMode: currentState.colormapRangeMode,
-    colormapZeroCentered: currentState.colormapZeroCentered
+    colormapZeroCentered: currentState.colormapZeroCentered,
+    colormapReversed: currentState.colormapReversed
   };
 }
 

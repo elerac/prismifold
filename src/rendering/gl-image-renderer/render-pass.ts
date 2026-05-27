@@ -145,6 +145,7 @@ function setCommonUniforms(
   gl.uniform1f(uniforms.colormapExposure, viewerState.colormapExposureEv);
   gl.uniform1f(uniforms.colormapGamma, viewerState.colormapGamma);
   gl.uniform1i(uniforms.colormapZeroCentered, viewerState.colormapZeroCentered ? 1 : 0);
+  gl.uniform1i(uniforms.colormapReversed, viewerState.colormapReversed ? 1 : 0);
   gl.uniform1f(uniforms.colormapMin, viewerState.colormapRange?.min ?? 0);
   gl.uniform1f(uniforms.colormapMax, viewerState.colormapRange?.max ?? 0);
   gl.uniform2i(

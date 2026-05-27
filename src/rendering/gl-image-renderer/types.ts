@@ -14,6 +14,7 @@ export interface CommonUniforms {
   colormapExposure: WebGLUniformLocation;
   colormapGamma: WebGLUniformLocation;
   colormapZeroCentered: WebGLUniformLocation;
+  colormapReversed: WebGLUniformLocation;
   colormapMin: WebGLUniformLocation;
   colormapMax: WebGLUniformLocation;
   colormapTextureSize: WebGLUniformLocation;
