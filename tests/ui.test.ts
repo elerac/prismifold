@@ -353,6 +353,8 @@ describe('spectral inspector', () => {
     const spectralPanel = document.getElementById('spectral-panel') as HTMLElement;
     const spectralEmptyState = document.getElementById('spectral-empty-state') as HTMLElement;
     const spectralPlot = document.getElementById('spectral-plot') as HTMLElement;
+    const spectralClipRect = document.querySelector<SVGRectElement>('#spectral-plot .spectral-plot-clip-rect');
+    const spectralPlotArea = document.querySelector<SVGRectElement>('#spectral-plot .spectral-plot-area');
     const points = Array.from(document.querySelectorAll<SVGCircleElement>('#spectral-plot .spectral-point'));
     const wavelengthTickLabels = Array.from(
       document.querySelectorAll<SVGTextElement>('#spectral-plot .spectral-tick-label--x')
@@ -365,6 +367,10 @@ describe('spectral inspector', () => {
     expect(spectralEmptyState.classList.contains('hidden')).toBe(true);
     expect(spectralPlot.classList.contains('hidden')).toBe(false);
     expect(document.querySelector('#spectral-plot svg')).not.toBeNull();
+    expect(spectralClipRect).not.toBeNull();
+    expect(spectralPlotArea).not.toBeNull();
+    expect(spectralClipRect!.getAttribute('rx')).toBeNull();
+    expect(spectralPlotArea!.getAttribute('rx')).toBeNull();
     expect(Array.from(document.querySelectorAll('#spectral-plot text')).map((text) => text.textContent)).not.toEqual(
       expect.arrayContaining(['Spectral intensity plot', 'Intensity', 'Wavelength (nm)'])
     );

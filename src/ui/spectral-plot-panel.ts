@@ -236,11 +236,11 @@ function renderSpectralChart(readout: SpectralPlotReadoutModel, measuredWidth: n
   setSvgAttributes(clipPath, { id: 'spectral-plot-clip' });
   const clipRect = createSvgElement('rect');
   setSvgAttributes(clipRect, {
+    class: 'spectral-plot-clip-rect',
     x: margin.left,
     y: margin.top,
     width: plotWidth,
-    height: plotHeight,
-    rx: 8
+    height: plotHeight
   });
   clipPath.append(clipRect);
   defs.append(gradient, clipPath);
@@ -259,11 +259,11 @@ function renderSpectralChart(readout: SpectralPlotReadoutModel, measuredWidth: n
 
   const plotArea = createSvgElement('rect');
   setSvgAttributes(plotArea, {
+    class: 'spectral-plot-area',
     x: margin.left,
     y: margin.top,
     width: plotWidth,
     height: plotHeight,
-    rx: 8,
     fill: 'rgba(255, 255, 255, 0.035)',
     stroke: 'rgba(255, 255, 255, 0.12)'
   });
