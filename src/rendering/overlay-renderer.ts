@@ -107,7 +107,7 @@ export class OverlayRenderer implements Disposable {
   }
 
   renderPaneValues(state: ViewerState, pane: ViewerPaneRenderInfo): void {
-    if (this.disposed || !this.imageSize || state.viewerMode === 'panorama') {
+    if (this.disposed || !this.imageSize || state.viewerMode !== 'image') {
       return;
     }
 

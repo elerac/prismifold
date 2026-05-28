@@ -1,4 +1,8 @@
 import {
+  DepthProbeProjectionCache,
+  resolveDepthChannelForLayer
+} from '../../depth';
+import {
   computeFitView,
   isFitViewForViewport,
   preserveImagePanOnViewportChange,
@@ -34,6 +38,7 @@ export function createViewerInteraction({
   ui,
   interactionCoordinator
 }: CreateViewerInteractionArgs): ViewerInteraction {
+  const depthProbeProjectionCache = new DepthProbeProjectionCache();
   return new ViewerInteraction(ui.viewerContainer, {
     getState: () => {
       const state = core.getState();
@@ -63,6 +68,35 @@ export function createViewerInteraction({
         activeSession.decoded.height,
         core.getState().sessionState.displaySelection
       );
+    },
+    resolveDepthProbePixel: (point, state, viewport) => {
+      if (state.viewerMode !== 'depth') {
+        return null;
+      }
+
+      const activeSession = selectActiveSession(core.getState());
+      const activeLayer = activeSession?.decoded.layers[state.activeLayer] ?? null;
+      if (!activeSession || !activeLayer) {
+        return null;
+      }
+
+      const depthChannel = resolveDepthChannelForLayer(
+        activeLayer.channelNames,
+        state.depthChannel,
+        { allowArbitraryZSuffix: true }
+      );
+      return depthProbeProjectionCache.pick(point, {
+        layer: activeLayer,
+        width: activeSession.decoded.width,
+        height: activeSession.decoded.height,
+        channelName: depthChannel,
+        viewport,
+        depthFocalLengthPx: state.depthFocalLengthPx,
+        depthYawDeg: state.depthYawDeg,
+        depthPitchDeg: state.depthPitchDeg,
+        depthZoom: state.depthZoom,
+        depthPointSizePx: state.depthPointSizePx
+      });
     },
     onViewChange: (next) => {
       interactionCoordinator.enqueueViewPatch(next);

@@ -5,6 +5,7 @@ import { screenToImage } from '../src/interaction/image-geometry';
 import { getPanoramaVerticalFovDeg, screenToPanoramaPixel } from '../src/interaction/panorama-geometry';
 import { ViewerInteraction } from '../src/interaction/viewer-interaction';
 import { createChannelRgbSelection, createViewerState } from './helpers/state-fixtures';
+import type { ImagePixel, ViewerState, ViewportInfo } from '../src/types';
 import type { ViewerPaneRenderInfo } from '../src/viewer-pane-layout';
 
 afterEach(() => {
@@ -713,6 +714,115 @@ describe('viewer interaction roi gestures', () => {
   });
 });
 
+describe('viewer interaction depth probe', () => {
+  it('resolves depth hover pixels from the depth probe resolver', () => {
+    const resolveDepthProbePixel = vi.fn(() => ({ ix: 1, iy: 0 }));
+    const harness = createHarness({
+      viewerMode: 'depth'
+    }, {
+      resolveDepthProbePixel
+    });
+
+    dispatchPointer(harness.element, 'pointermove', { pointerId: 1, clientX: 50, clientY: 50 });
+
+    expect(resolveDepthProbePixel).toHaveBeenCalledWith(
+      { x: 50, y: 50 },
+      expect.objectContaining({ viewerMode: 'depth' }),
+      { width: 100, height: 100 }
+    );
+    expect(harness.onHoverPixel).toHaveBeenCalledWith({ ix: 1, iy: 0 });
+  });
+
+  it('locks picked depth probe pixels on plain click', () => {
+    const harness = createHarness({
+      viewerMode: 'depth'
+    }, {
+      resolveDepthProbePixel: () => ({ ix: 2, iy: 1 })
+    });
+
+    dispatchPointer(harness.element, 'pointerdown', { pointerId: 1, clientX: 50, clientY: 50 });
+    dispatchPointer(harness.element, 'pointerup', { pointerId: 1, clientX: 50, clientY: 50 });
+
+    expect(harness.onToggleLockPixel).toHaveBeenCalledWith({ ix: 2, iy: 1 });
+  });
+
+  it('does not resolve depth probe pixels during mouse orbit drag', () => {
+    const resolveDepthProbePixel = vi.fn(() => ({ ix: 1, iy: 1 }));
+    const harness = createHarness({
+      viewerMode: 'depth'
+    }, {
+      resolveDepthProbePixel
+    });
+
+    dispatchPointer(harness.element, 'pointerdown', { pointerId: 1, clientX: 50, clientY: 50 });
+    dispatchPointer(harness.element, 'pointermove', { pointerId: 1, clientX: 60, clientY: 50 });
+
+    expect(harness.onViewChange).toHaveBeenCalledWith(expect.objectContaining({
+      depthYawDeg: 18,
+      depthPitchDeg: 0
+    }));
+    expect(resolveDepthProbePixel).not.toHaveBeenCalled();
+    expect(harness.onHoverPixel).not.toHaveBeenCalled();
+  });
+
+  it('recomputes depth hover once after mouse orbit drag ends', () => {
+    const resolveDepthProbePixel = vi.fn((_point, state) => ({
+      ix: Math.round(state.depthYawDeg),
+      iy: Math.round(state.depthPitchDeg)
+    }));
+    const harness = createHarness({
+      viewerMode: 'depth'
+    }, {
+      resolveDepthProbePixel
+    });
+
+    dispatchPointer(harness.element, 'pointerdown', { pointerId: 1, clientX: 50, clientY: 50 });
+    dispatchPointer(harness.element, 'pointermove', { pointerId: 1, clientX: 60, clientY: 45 });
+    expect(resolveDepthProbePixel).not.toHaveBeenCalled();
+
+    dispatchPointer(harness.element, 'pointerup', { pointerId: 1, clientX: 60, clientY: 45 });
+
+    expect(resolveDepthProbePixel).toHaveBeenCalledTimes(1);
+    expect(resolveDepthProbePixel).toHaveBeenCalledWith(
+      { x: 60, y: 45 },
+      expect.objectContaining({
+        viewerMode: 'depth',
+        depthYawDeg: 18,
+        depthPitchDeg: -9
+      }),
+      { width: 100, height: 100 }
+    );
+    expect(harness.onHoverPixel).toHaveBeenLastCalledWith({ ix: 18, iy: -9 });
+    expect(harness.onToggleLockPixel).not.toHaveBeenCalled();
+  });
+
+  it('recomputes depth hover after depth view changes', () => {
+    const resolveDepthProbePixel = vi.fn(() => ({ ix: 3, iy: 1 }));
+    const harness = createHarness({
+      viewerMode: 'depth'
+    }, {
+      resolveDepthProbePixel
+    });
+
+    dispatchPointer(harness.element, 'pointermove', { pointerId: 1, clientX: 50, clientY: 50 });
+    harness.onHoverPixel.mockClear();
+    resolveDepthProbePixel.mockClear();
+
+    dispatchWheel(harness.element, { clientX: 50, clientY: 50, deltaY: -100 });
+    expect(harness.onHoverPixel).toHaveBeenLastCalledWith({ ix: 3, iy: 1 });
+
+    harness.onHoverPixel.mockClear();
+    resolveDepthProbePixel.mockClear();
+    harness.interaction.handleViewerKeyboardZoom('in');
+    expect(harness.onHoverPixel).toHaveBeenLastCalledWith({ ix: 3, iy: 1 });
+
+    harness.onHoverPixel.mockClear();
+    resolveDepthProbePixel.mockClear();
+    harness.interaction.handleViewerKeyboardNavigation('right');
+    expect(harness.onHoverPixel).toHaveBeenLastCalledWith({ ix: 3, iy: 1 });
+  });
+});
+
 describe('viewer interaction image keyboard panning', () => {
   it('pans image horizontally with left and right keyboard input', () => {
     const harness = createHarness();
@@ -1151,6 +1261,7 @@ function createHarness(
     screenshotRect?: { x: number; y: number; width: number; height: number } | null;
     screenshotRegions?: Array<{ id: string; rect: { x: number; y: number; width: number; height: number } }>;
     activeScreenshotRegionId?: string;
+    resolveDepthProbePixel?: (point: { x: number; y: number }, state: ViewerState, viewport: ViewportInfo) => ImagePixel | null;
   } = {}
 ) {
   const element = document.createElement('div');
@@ -1253,6 +1364,7 @@ function createHarness(
       : undefined,
     onActivePaneChange: paneInfos ? onActivePaneChange : undefined,
     getImageSize: () => imageSize,
+    resolveDepthProbePixel: options.resolveDepthProbePixel,
     onViewChange,
     onHoverPixel,
     onToggleLockPixel,

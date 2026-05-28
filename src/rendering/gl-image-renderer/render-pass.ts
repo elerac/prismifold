@@ -5,10 +5,19 @@ import {
   resolveStokesParameterUniformValue
 } from '../../display/gpu-bindings';
 import { clampPanoramaProjectionPitch } from '../../interaction/panorama-geometry';
+import {
+  clampDepthPitch,
+  clampDepthYaw,
+  clampDepthZoom,
+  normalizeDepthPointSize,
+  resolveDepthFocalLengthPx,
+  resolveDepthPointSampling
+} from '../../depth';
 import type { ViewerState } from '../../types';
 import type { ViewerPaneRenderInfo } from '../../viewer-pane-layout';
 import {
   COLORMAP_TEXTURE_UNIT,
+  DEPTH_TEXTURE_UNIT,
   DEFAULT_RENDER_PASS_OPTIONS
 } from './constants';
 import type {
@@ -54,10 +63,14 @@ export function render(
         outputWidth: rect.width,
         outputHeight: rect.height,
         screenOriginX: -rect.x,
-        screenOriginY: glY
+        screenOriginY: glY,
+        depthOutputOriginX: 0,
+        depthOutputOriginY: 0
       };
       if (viewerState.viewerMode === 'panorama') {
         renderPanoramaPass(state, viewerState, options);
+      } else if (viewerState.viewerMode === 'depth') {
+        renderDepthPass(state, viewerState, options);
       } else {
         renderImagePass(state, viewerState, options);
       }
@@ -108,6 +121,64 @@ export function renderPanoramaPass(
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 
+export function renderDepthPass(
+  state: GlImageRendererState,
+  viewerState: ViewerState,
+  options: RenderPassOptions
+): void {
+  const gl = state.gl;
+  const sourceSize = state.depthSourceSize ?? state.imageSize;
+  const depthRange = state.activeDepthRange;
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (!sourceSize || !depthRange || sourceSize.width <= 0 || sourceSize.height <= 0 || !state.activeDepthChannel) {
+    return;
+  }
+
+  const sampling = resolveDepthPointSampling(sourceSize.width, sourceSize.height);
+  if (sampling.pointCount <= 0) {
+    return;
+  }
+
+  const program = state.depthProgram;
+  gl.useProgram(program.program);
+  gl.bindVertexArray(state.vao);
+  gl.activeTexture(gl.TEXTURE0 + COLORMAP_TEXTURE_UNIT);
+  gl.bindTexture(gl.TEXTURE_2D, state.colormapTexture);
+  gl.activeTexture(gl.TEXTURE0 + DEPTH_TEXTURE_UNIT);
+  gl.bindTexture(gl.TEXTURE_2D, state.activeDepthTexture ?? state.zeroTexture);
+
+  setCommonUniforms(state, program.uniforms, viewerState, {
+    ...options,
+    imageWidth: sourceSize.width,
+    imageHeight: sourceSize.height,
+    compositeCheckerboard: false
+  });
+  gl.uniform1f(
+    program.uniforms.depthFocalLengthPx,
+    resolveDepthFocalLengthPx(sourceSize.width, sourceSize.height, viewerState.depthFocalLengthPx)
+  );
+  gl.uniform1f(program.uniforms.depthYawDeg, clampDepthYaw(viewerState.depthYawDeg));
+  gl.uniform1f(program.uniforms.depthPitchDeg, clampDepthPitch(viewerState.depthPitchDeg));
+  gl.uniform1f(program.uniforms.depthZoom, clampDepthZoom(viewerState.depthZoom));
+  gl.uniform1f(program.uniforms.depthPointSizePx, normalizeDepthPointSize(viewerState.depthPointSizePx));
+  gl.uniform2f(
+    program.uniforms.depthOutputOrigin,
+    options.depthOutputOriginX ?? options.screenOriginX ?? 0,
+    options.depthOutputOriginY ?? options.screenOriginY ?? 0
+  );
+  gl.uniform2i(program.uniforms.depthGridSize, sampling.gridWidth, sampling.gridHeight);
+  gl.uniform1i(program.uniforms.depthSampleStep, sampling.step);
+  gl.uniform2f(program.uniforms.depthRange, depthRange.min, depthRange.max);
+
+  gl.enable(gl.DEPTH_TEST);
+  try {
+    gl.drawArrays(gl.POINTS, 0, sampling.pointCount);
+  } finally {
+    gl.disable(gl.DEPTH_TEST);
+  }
+}
+
 function setCommonUniforms(
   state: GlImageRendererState,
   uniforms: CommonUniforms,
@@ -136,8 +207,8 @@ function setCommonUniforms(
     options.screenOriginY ?? 0
   );
 
-  const width = state.imageSize?.width ?? 0;
-  const height = state.imageSize?.height ?? 0;
+  const width = options.imageWidth ?? state.imageSize?.width ?? 0;
+  const height = options.imageHeight ?? state.imageSize?.height ?? 0;
   gl.uniform2f(uniforms.imageSize, width, height);
   gl.uniform1f(uniforms.exposure, viewerState.exposureEv);
   gl.uniform1f(uniforms.displayGamma, viewerState.displayGamma);

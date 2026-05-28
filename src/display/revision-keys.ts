@@ -55,12 +55,16 @@ export function serializeDisplaySelectionLuminanceKey(
 
 export function buildDisplayTextureRevisionKey(
   state: Pick<ViewerState, 'activeLayer' | 'displaySelection'> &
-    Partial<Pick<ViewerState, 'visualizationMode' | 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>>
+    Partial<Pick<ViewerState, 'visualizationMode' | 'viewerMode' | 'depthChannel' | 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>>
 ): string {
-  return [
+  const parts = [
     state.activeLayer,
     serializeDisplaySelectionRevisionKey(state.displaySelection, state.visualizationMode ?? 'rgb', state)
-  ].join(':');
+  ];
+  if (state.viewerMode === 'depth') {
+    parts.push(`depth:${state.depthChannel ?? ''}`);
+  }
+  return parts.join(':');
 }
 
 export function buildDisplayLuminanceRevisionKey(

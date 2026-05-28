@@ -47,6 +47,7 @@ export interface Elements {
   resetSettingsButton: HTMLButtonElement;
   imageViewerMenuItem: HTMLButtonElement;
   panoramaViewerMenuItem: HTMLButtonElement;
+  depthViewerMenuItem: HTMLButtonElement;
   rulersMenuItem: HTMLButtonElement;
   windowNormalMenuItem: HTMLButtonElement;
   windowFullScreenPreviewMenuItem: HTMLButtonElement;
@@ -208,12 +209,19 @@ export interface Elements {
   viewerStateEmptyState: HTMLElement;
   viewerStateImageFields: HTMLDivElement;
   viewerStatePanoramaFields: HTMLDivElement;
+  viewerStateDepthFields: HTMLDivElement;
   viewerStateZoomInput: HTMLInputElement;
   viewerStatePanXInput: HTMLInputElement;
   viewerStatePanYInput: HTMLInputElement;
   viewerStateYawInput: HTMLInputElement;
   viewerStatePitchInput: HTMLInputElement;
   viewerStateHfovInput: HTMLInputElement;
+  viewerStateDepthChannelSelect: HTMLSelectElement;
+  viewerStateDepthFocalInput: HTMLInputElement;
+  viewerStateDepthYawInput: HTMLInputElement;
+  viewerStateDepthPitchInput: HTMLInputElement;
+  viewerStateDepthZoomInput: HTMLInputElement;
+  viewerStateDepthPointSizeInput: HTMLInputElement;
   spectrumLatticeCanvas: HTMLCanvasElement;
   glCanvas: HTMLCanvasElement;
   overlayCanvas: HTMLCanvasElement;
@@ -481,12 +489,19 @@ export type ViewerStatePanelElements = Pick<
   | 'viewerStateEmptyState'
   | 'viewerStateImageFields'
   | 'viewerStatePanoramaFields'
+  | 'viewerStateDepthFields'
   | 'viewerStateZoomInput'
   | 'viewerStatePanXInput'
   | 'viewerStatePanYInput'
   | 'viewerStateYawInput'
   | 'viewerStatePitchInput'
   | 'viewerStateHfovInput'
+  | 'viewerStateDepthChannelSelect'
+  | 'viewerStateDepthFocalInput'
+  | 'viewerStateDepthYawInput'
+  | 'viewerStateDepthPitchInput'
+  | 'viewerStateDepthZoomInput'
+  | 'viewerStateDepthPointSizeInput'
 >;
 
 export type GlobalKeyboardControllerElements = Pick<
@@ -567,6 +582,7 @@ export function resolveElements(): Elements {
     resetSettingsButton: requireElement('reset-settings-button', HTMLButtonElement),
     imageViewerMenuItem: requireElement('image-viewer-menu-item', HTMLButtonElement),
     panoramaViewerMenuItem: requireElement('panorama-viewer-menu-item', HTMLButtonElement),
+    depthViewerMenuItem: requireElement('depth-viewer-menu-item', HTMLButtonElement),
     rulersMenuItem: requireElement('rulers-menu-item', HTMLButtonElement),
     windowNormalMenuItem: requireElement('window-normal-menu-item', HTMLButtonElement),
     windowFullScreenPreviewMenuItem: requireElement('window-full-screen-preview-menu-item', HTMLButtonElement),
@@ -734,12 +750,19 @@ export function resolveElements(): Elements {
     viewerStateEmptyState: requireElement('viewer-state-empty-state', HTMLElement),
     viewerStateImageFields: requireElement('viewer-state-image-fields', HTMLDivElement),
     viewerStatePanoramaFields: requireElement('viewer-state-panorama-fields', HTMLDivElement),
+    viewerStateDepthFields: requireElement('viewer-state-depth-fields', HTMLDivElement),
     viewerStateZoomInput: requireElement('viewer-state-zoom-input', HTMLInputElement),
     viewerStatePanXInput: requireElement('viewer-state-pan-x-input', HTMLInputElement),
     viewerStatePanYInput: requireElement('viewer-state-pan-y-input', HTMLInputElement),
     viewerStateYawInput: requireElement('viewer-state-yaw-input', HTMLInputElement),
     viewerStatePitchInput: requireElement('viewer-state-pitch-input', HTMLInputElement),
     viewerStateHfovInput: requireElement('viewer-state-hfov-input', HTMLInputElement),
+    viewerStateDepthChannelSelect: requireElement('viewer-state-depth-channel-select', HTMLSelectElement),
+    viewerStateDepthFocalInput: requireElement('viewer-state-depth-focal-input', HTMLInputElement),
+    viewerStateDepthYawInput: requireElement('viewer-state-depth-yaw-input', HTMLInputElement),
+    viewerStateDepthPitchInput: requireElement('viewer-state-depth-pitch-input', HTMLInputElement),
+    viewerStateDepthZoomInput: requireElement('viewer-state-depth-zoom-input', HTMLInputElement),
+    viewerStateDepthPointSizeInput: requireElement('viewer-state-depth-point-size-input', HTMLInputElement),
     spectrumLatticeCanvas: requireElement('spectrum-lattice-canvas', HTMLCanvasElement),
     glCanvas: requireElement('gl-canvas', HTMLCanvasElement),
     overlayCanvas: requireElement('overlay-canvas', HTMLCanvasElement),

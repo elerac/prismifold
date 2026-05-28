@@ -16,7 +16,7 @@ export interface BuildRoiPresentationArgs {
 
 export function buildRoiReadoutModel(args: BuildRoiPresentationArgs): RoiReadoutModel {
   const roi = args.sessionState.roi;
-  if (!args.activeSession || !args.activeLayer || !roi) {
+  if (!args.activeSession || !args.activeLayer || !roi || args.sessionState.viewerMode !== 'image') {
     return {
       roi: null,
       stats: null

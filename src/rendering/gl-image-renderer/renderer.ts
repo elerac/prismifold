@@ -14,6 +14,7 @@ import {
   discardLayerSourceTextures,
   discardSessionTextures,
   ensureLayerChannelsResident,
+  setDepthSourceBinding,
   setDisplaySelectionBindings
 } from './texture-store';
 import type { GlImageRendererState, ReadExportPixelsArgs } from './types';
@@ -90,6 +91,21 @@ export class GlImageRenderer implements Disposable {
     setDisplaySelectionBindings(this.state, sessionId, layerIndex, width, height, binding);
   }
 
+  setDepthSourceBinding(
+    sessionId: string,
+    layerIndex: number,
+    width: number,
+    height: number,
+    channelName: string | null,
+    depthRange: { min: number; max: number } | null
+  ): void {
+    if (this.state.disposed) {
+      return;
+    }
+
+    setDepthSourceBinding(this.state, sessionId, layerIndex, width, height, channelName, depthRange);
+  }
+
   setColormapTexture(entryCount: number, rgba8: Uint8Array): void {
     if (this.state.disposed) {
       return;
@@ -144,6 +160,10 @@ export class GlImageRenderer implements Disposable {
     }
 
     this.state.imageSize = null;
+    this.state.depthSourceSize = null;
+    this.state.activeDepthChannel = null;
+    this.state.activeDepthTexture = null;
+    this.state.activeDepthRange = null;
     this.state.activeBinding = createEmptyDisplaySourceBinding();
     this.clearFramebuffer();
   }
@@ -194,6 +214,10 @@ export class GlImageRenderer implements Disposable {
     }
     this.state.layerTexturesBySession.clear();
     this.state.imageSize = null;
+    this.state.depthSourceSize = null;
+    this.state.activeDepthChannel = null;
+    this.state.activeDepthTexture = null;
+    this.state.activeDepthRange = null;
     this.state.colormapEntryCount = 0;
     this.state.activeBinding = createEmptyDisplaySourceBinding();
     deleteExportSurface(this.state.gl, this.state.exportSourceSurface);
@@ -209,6 +233,7 @@ export class GlImageRenderer implements Disposable {
     this.state.gl.deleteVertexArray(this.state.vao);
     this.state.gl.deleteProgram(this.state.imageProgram.program);
     this.state.gl.deleteProgram(this.state.panoramaProgram.program);
+    this.state.gl.deleteProgram(this.state.depthProgram.program);
   }
 }
 

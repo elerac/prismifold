@@ -222,6 +222,12 @@ export function createViewerUi({
         patch
       });
     },
+    onDepthSettingsChange: (patch) => {
+      core.dispatch({
+        type: 'depthSettingsEdited',
+        patch
+      });
+    },
     onAutoFitImageOnSelectChange: (enabled) => {
       core.dispatch({ type: 'autoFitImageOnSelectSet', enabled });
     },
@@ -265,7 +271,10 @@ export function createViewerUi({
           panY: renderState.panY,
           panoramaYawDeg: renderState.panoramaYawDeg,
           panoramaPitchDeg: renderState.panoramaPitchDeg,
-          panoramaHfovDeg: renderState.panoramaHfovDeg
+          panoramaHfovDeg: renderState.panoramaHfovDeg,
+          depthYawDeg: renderState.depthYawDeg,
+          depthPitchDeg: renderState.depthPitchDeg,
+          depthZoom: renderState.depthZoom
         },
         imageSize: activeSession
           ? resolveDisplayImageSize(
@@ -291,6 +300,15 @@ export function createViewerUi({
       });
       if (renderState.viewerMode === 'panorama') {
         return resolveVisiblePanoramaRect(renderState.panoramaHfovDeg, viewport);
+      }
+
+      if (renderState.viewerMode === 'depth') {
+        return {
+          x: 0,
+          y: 0,
+          width: viewport.width,
+          height: viewport.height
+        };
       }
 
       if (renderState.viewerMode !== 'image') {

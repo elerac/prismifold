@@ -104,7 +104,31 @@ export class WebGlExrRenderer implements Disposable {
       spectralRgbGroupingEnabled
     });
     this.probeOverlayRenderer.setImagePresent(true);
+    this.probeOverlayRenderer.setSourceContext(width, height, layer);
     this.rulerOverlayRenderer.setImageSize(displaySize.width, displaySize.height);
+  }
+
+  setDepthSourceBinding(
+    sessionId: string,
+    layerIndex: number,
+    width: number,
+    height: number,
+    channelName: string | null,
+    depthRange: { min: number; max: number } | null
+  ): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.imageRenderer.setDepthSourceBinding(
+      sessionId,
+      layerIndex,
+      width,
+      height,
+      channelName,
+      depthRange
+    );
+    this.probeOverlayRenderer.setDepthSourceContext(channelName, depthRange);
   }
 
   setColormapTexture(entryCount: number, rgba8: Uint8Array): void {

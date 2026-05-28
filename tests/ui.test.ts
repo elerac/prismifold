@@ -1647,6 +1647,210 @@ describe('viewer state inspector', () => {
     ]);
   });
 
+  it('renders auto depth focal as a full numeric value without committing manual state on unchanged blur', () => {
+    installUiFixture();
+
+    const onDepthSettingsChange = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onDepthSettingsChange }));
+    ui.setViewerStateReadout({
+      hasActiveImage: true,
+      viewerMode: 'depth',
+      view: {
+        zoom: 2,
+        panX: 10,
+        panY: 12.5,
+        panoramaYawDeg: 30,
+        panoramaPitchDeg: 5,
+        panoramaHfovDeg: 80,
+        depthYawDeg: 0,
+        depthPitchDeg: 0,
+        depthZoom: 1
+      },
+      depth: {
+        channel: 'Z',
+        channelOptions: [{ value: 'Z', label: 'Z' }],
+        focalLengthPx: null,
+        resolvedFocalLengthPx: 1920,
+        pointSizePx: 2
+      }
+    });
+
+    const focalInput = document.getElementById('viewer-state-depth-focal-input') as HTMLInputElement;
+
+    expect((document.getElementById('viewer-state-depth-fields') as HTMLElement).classList.contains('hidden')).toBe(false);
+    expect(focalInput.type).toBe('text');
+    expect(focalInput.inputMode).toBe('decimal');
+    expect(focalInput.value).toBe('1920');
+    expect(focalInput.placeholder).toBe('');
+    expect(focalInput.title).toBe('1920');
+    expect(focalInput.className).toBe('viewer-state-input');
+
+    focalInput.dispatchEvent(new Event('blur'));
+
+    expect(onDepthSettingsChange).not.toHaveBeenCalled();
+  });
+
+  it('renders depth view fields and clamps typed orbit values to the front-facing range', () => {
+    installUiFixture();
+
+    const onViewerViewStateChange = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onViewerViewStateChange }));
+    ui.setViewerStateReadout({
+      hasActiveImage: true,
+      viewerMode: 'depth',
+      view: {
+        zoom: 2,
+        panX: 10,
+        panY: 12.5,
+        panoramaYawDeg: 30,
+        panoramaPitchDeg: 5,
+        panoramaHfovDeg: 80,
+        depthYawDeg: 30,
+        depthPitchDeg: 5,
+        depthZoom: 1
+      },
+      depth: {
+        channel: 'Z',
+        channelOptions: [{ value: 'Z', label: 'Z' }],
+        focalLengthPx: null,
+        resolvedFocalLengthPx: 1920,
+        pointSizePx: 2
+      }
+    });
+
+    const yawInput = document.getElementById('viewer-state-depth-yaw-input') as HTMLInputElement;
+    const pitchInput = document.getElementById('viewer-state-depth-pitch-input') as HTMLInputElement;
+
+    expect(yawInput.value).toBe('30');
+    expect(pitchInput.value).toBe('5');
+
+    yawInput.value = '120';
+    yawInput.dispatchEvent(new Event('blur'));
+    pitchInput.value = '-120';
+    pitchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+    expect(yawInput.value).toBe('89.9');
+    expect(pitchInput.value).toBe('-89.9');
+    expect(onViewerViewStateChange.mock.calls).toEqual([
+      [{ depthYawDeg: 89.9 }],
+      [{ depthPitchDeg: -89.9 }]
+    ]);
+  });
+
+  it('commits manual depth focal edits and clears back to auto focal', () => {
+    installUiFixture();
+
+    const onDepthSettingsChange = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onDepthSettingsChange }));
+    ui.setViewerStateReadout({
+      hasActiveImage: true,
+      viewerMode: 'depth',
+      view: {
+        zoom: 2,
+        panX: 10,
+        panY: 12.5,
+        panoramaYawDeg: 30,
+        panoramaPitchDeg: 5,
+        panoramaHfovDeg: 80,
+        depthYawDeg: 0,
+        depthPitchDeg: 0,
+        depthZoom: 1
+      },
+      depth: {
+        channel: 'Z',
+        channelOptions: [{ value: 'Z', label: 'Z' }],
+        focalLengthPx: null,
+        resolvedFocalLengthPx: 1920,
+        pointSizePx: 2
+      }
+    });
+
+    const focalInput = document.getElementById('viewer-state-depth-focal-input') as HTMLInputElement;
+    focalInput.value = '2048';
+    focalInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+    expect(focalInput.value).toBe('2048');
+    expect(focalInput.title).toBe('2048');
+    expect(onDepthSettingsChange.mock.calls).toEqual([
+      [{ depthFocalLengthPx: 2048 }]
+    ]);
+
+    ui.setViewerStateReadout({
+      hasActiveImage: true,
+      viewerMode: 'depth',
+      view: {
+        zoom: 2,
+        panX: 10,
+        panY: 12.5,
+        panoramaYawDeg: 30,
+        panoramaPitchDeg: 5,
+        panoramaHfovDeg: 80,
+        depthYawDeg: 0,
+        depthPitchDeg: 0,
+        depthZoom: 1
+      },
+      depth: {
+        channel: 'Z',
+        channelOptions: [{ value: 'Z', label: 'Z' }],
+        focalLengthPx: 2048,
+        resolvedFocalLengthPx: 1920,
+        pointSizePx: 2
+      }
+    });
+
+    focalInput.value = '';
+    focalInput.dispatchEvent(new Event('blur'));
+
+    expect(focalInput.value).toBe('');
+    expect(focalInput.title).toBe('');
+    expect(onDepthSettingsChange.mock.calls).toEqual([
+      [{ depthFocalLengthPx: 2048 }],
+      [{ depthFocalLengthPx: null }]
+    ]);
+  });
+
+  it('rejects invalid depth focal values without dispatching edits', () => {
+    installUiFixture();
+
+    const onDepthSettingsChange = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onDepthSettingsChange }));
+    ui.setViewerStateReadout({
+      hasActiveImage: true,
+      viewerMode: 'depth',
+      view: {
+        zoom: 2,
+        panX: 10,
+        panY: 12.5,
+        panoramaYawDeg: 30,
+        panoramaPitchDeg: 5,
+        panoramaHfovDeg: 80,
+        depthYawDeg: 0,
+        depthPitchDeg: 0,
+        depthZoom: 1
+      },
+      depth: {
+        channel: 'Z',
+        channelOptions: [{ value: 'Z', label: 'Z' }],
+        focalLengthPx: null,
+        resolvedFocalLengthPx: 1920,
+        pointSizePx: 2
+      }
+    });
+
+    const focalInput = document.getElementById('viewer-state-depth-focal-input') as HTMLInputElement;
+    focalInput.value = '0';
+    focalInput.dispatchEvent(new Event('blur'));
+
+    expect(focalInput.getAttribute('aria-invalid')).toBe('true');
+    expect(onDepthSettingsChange).not.toHaveBeenCalled();
+
+    focalInput.value = '-1';
+    focalInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+    expect(focalInput.getAttribute('aria-invalid')).toBe('true');
+    expect(onDepthSettingsChange).not.toHaveBeenCalled();
+  });
+
   it('rejects invalid typed values without dispatching edits', () => {
     installUiFixture();
 
@@ -10815,6 +11019,7 @@ function createUiCallbacksBase() {
     onViewerKeyboardNavigationInputChange: () => {},
     onViewerKeyboardZoomInputChange: () => {},
     onViewerViewStateChange: () => {},
+    onDepthSettingsChange: () => {},
     onAutoFitImageOnSelectChange: () => {},
     onAutoFitImage: () => {},
     onAutoExposureChange: () => {},

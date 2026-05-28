@@ -33,6 +33,7 @@ import {
 } from '../../mueller';
 import type { ResidentChannelUpload } from '../../display-cache';
 import type { DecodedLayer } from '../../types';
+import { DEPTH_TEXTURE_UNIT } from './constants';
 import type { GlImageRendererState, LayerSourceTextures } from './types';
 
 export function createZeroTexture(gl: WebGL2RenderingContext): WebGLTexture {
@@ -413,6 +414,28 @@ export function setDisplaySelectionBindings(
   }
 }
 
+export function setDepthSourceBinding(
+  state: GlImageRendererState,
+  sessionId: string,
+  layerIndex: number,
+  width: number,
+  height: number,
+  channelName: string | null,
+  depthRange: { min: number; max: number } | null
+): void {
+  state.depthSourceSize = { width, height };
+  state.activeDepthChannel = channelName;
+  state.activeDepthRange = depthRange;
+
+  const layerTextures = state.layerTexturesBySession.get(sessionId)?.get(layerIndex) ?? null;
+  const texture = channelName
+    ? layerTextures?.textureByChannel.get(channelName) ?? state.zeroTexture
+    : state.zeroTexture;
+  state.activeDepthTexture = texture;
+  state.gl.activeTexture(state.gl.TEXTURE0 + DEPTH_TEXTURE_UNIT);
+  state.gl.bindTexture(state.gl.TEXTURE_2D, texture);
+}
+
 export function discardSessionTextures(state: GlImageRendererState, sessionId: string): void {
   const sessionLayers = state.layerTexturesBySession.get(sessionId);
   if (!sessionLayers) {
@@ -463,6 +486,13 @@ export function discardChannelSourceTexture(
   const texture = layerTextures.textureByChannel.get(channelName);
   if (!texture) {
     return;
+  }
+
+  if (state.activeDepthTexture === texture) {
+    state.activeDepthChannel = null;
+    state.activeDepthTexture = null;
+    state.activeDepthRange = null;
+    state.depthSourceSize = null;
   }
 
   state.gl.deleteTexture(texture);

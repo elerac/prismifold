@@ -60,7 +60,7 @@ export function buildSpectralPlotReadoutModel(args: BuildSpectralPresentationArg
       }
     : null;
 
-  if (!args.activeSession || !args.activeLayer) {
+  if (!args.activeSession || !args.activeLayer || args.sessionState.viewerMode === 'depth') {
     return hiddenReadout;
   }
 

@@ -7,7 +7,7 @@ import type { ChannelStorage, FiniteValueRange } from './channel-storage';
 
 export type VisualizationMode = 'rgb' | 'colormap';
 export type ColormapRangeMode = 'alwaysAuto' | 'oneTime';
-export type ViewerMode = 'image' | 'panorama';
+export type ViewerMode = 'image' | 'panorama' | 'depth';
 export type OpenedImageDropPlacement = 'before' | 'after';
 export type ViewerKeyboardNavigationDirection = 'up' | 'left' | 'down' | 'right';
 export type ViewerKeyboardZoomDirection = 'in' | 'out';
@@ -26,6 +26,8 @@ export interface ViewerKeyboardZoomInput {
 
 export type PanoramaKeyboardOrbitDirection = ViewerKeyboardNavigationDirection;
 export type PanoramaKeyboardOrbitInput = ViewerKeyboardNavigationInput;
+export type DepthKeyboardOrbitDirection = ViewerKeyboardNavigationDirection;
+export type DepthKeyboardOrbitInput = ViewerKeyboardNavigationInput;
 
 export type {
   ChannelMonoSelection,
@@ -148,6 +150,9 @@ export interface ViewerViewState {
   panoramaYawDeg: number;
   panoramaPitchDeg: number;
   panoramaHfovDeg: number;
+  depthYawDeg: number;
+  depthPitchDeg: number;
+  depthZoom: number;
 }
 
 export interface ViewerSessionState extends ViewerViewState {
@@ -168,6 +173,9 @@ export interface ViewerSessionState extends ViewerViewState {
   stokesAolpDegreeModulationMode: StokesAolpDegreeModulationMode;
   activeLayer: number;
   displaySelection: DisplaySelectionModel | null;
+  depthChannel: string | null;
+  depthFocalLengthPx: number | null;
+  depthPointSizePx: number;
   lockedPixel: ImagePixel | null;
   roi: ImageRoi | null;
 }

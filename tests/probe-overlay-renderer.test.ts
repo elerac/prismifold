@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ProbeOverlayRenderer } from '../src/rendering/probe-overlay-renderer';
-import { createViewerState } from './helpers/state-fixtures';
+import { createLayerFromChannels, createViewerState } from './helpers/state-fixtures';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -57,6 +57,58 @@ describe('probe overlay renderer', () => {
     renderer.setImagePresent(true);
     renderer.render(createViewerState({
       viewerMode: 'panorama',
+      roi: { x0: 0, y0: 0, x1: 1, y1: 1 }
+    }));
+
+    expect(context.strokeRect).not.toHaveBeenCalled();
+  });
+
+  it('renders the probe marker in depth mode using depth projection', () => {
+    const { renderer, context } = createProbeOverlayHarness();
+    const layer = createLayerFromChannels({
+      Z: [2]
+    });
+
+    renderer.resize(128, 64);
+    renderer.setImagePresent(true);
+    renderer.setSourceContext(1, 1, layer);
+    renderer.setDepthSourceContext('Z', { min: 2, max: 2 });
+    renderer.render(createViewerState({
+      viewerMode: 'depth',
+      depthChannel: 'Z',
+      hoveredPixel: { ix: 0, iy: 0 }
+    }));
+
+    expect(context.clearRect).toHaveBeenCalled();
+    expect(context.strokeRect).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render a depth probe marker for invalid depth', () => {
+    const { renderer, context } = createProbeOverlayHarness();
+    const layer = createLayerFromChannels({
+      Z: [0]
+    });
+
+    renderer.resize(128, 64);
+    renderer.setImagePresent(true);
+    renderer.setSourceContext(1, 1, layer);
+    renderer.setDepthSourceContext('Z', { min: 1, max: 1 });
+    renderer.render(createViewerState({
+      viewerMode: 'depth',
+      depthChannel: 'Z',
+      hoveredPixel: { ix: 0, iy: 0 }
+    }));
+
+    expect(context.strokeRect).not.toHaveBeenCalled();
+  });
+
+  it('keeps ROI drawing suppressed in depth mode', () => {
+    const { renderer, context } = createProbeOverlayHarness();
+
+    renderer.resize(128, 64);
+    renderer.setImagePresent(true);
+    renderer.render(createViewerState({
+      viewerMode: 'depth',
       roi: { x0: 0, y0: 0, x1: 1, y1: 1 }
     }));
 

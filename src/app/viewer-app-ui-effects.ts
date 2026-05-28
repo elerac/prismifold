@@ -54,6 +54,11 @@ export function applyUiEffects(ui: ViewerUi, transition: ViewerUiTransition): vo
 
   if (invalidation & ViewerUiInvalidationFlags.ViewerMode) {
     ui.setViewerMode(snapshot.viewerMode);
+    ui.setDepthModeAvailable(Boolean(snapshot.depthModeAvailable));
+  }
+
+  if (invalidation & ViewerUiInvalidationFlags.DepthModeAvailability) {
+    ui.setDepthModeAvailable(Boolean(snapshot.depthModeAvailable));
   }
 
   if (invalidation & ViewerUiInvalidationFlags.VisualizationMode) {

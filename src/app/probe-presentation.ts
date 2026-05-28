@@ -1,6 +1,10 @@
 import { samplePixelValuesForDisplay } from '../sampling/probe';
 import { resolveDisplayImageSize } from '../display-size';
 import {
+  isValidDepthProbePixel,
+  resolveDepthChannelForLayer
+} from '../depth';
+import {
   buildProbeColorPreview,
   resolveActiveProbePixel,
   resolveProbeMode
@@ -29,11 +33,16 @@ export interface BuildProbePresentationArgs {
 export function buildProbeReadoutModel(args: BuildProbePresentationArgs): ProbeReadoutModel {
   const mode = resolveProbeMode(args.sessionState.lockedPixel);
   const imageSize = args.activeSession
-    ? resolveDisplayImageSize(
-        args.activeSession.decoded.width,
-        args.activeSession.decoded.height,
-        args.sessionState.displaySelection
-      )
+    ? args.sessionState.viewerMode === 'depth'
+      ? {
+          width: args.activeSession.decoded.width,
+          height: args.activeSession.decoded.height
+        }
+      : resolveDisplayImageSize(
+          args.activeSession.decoded.width,
+          args.activeSession.decoded.height,
+          args.sessionState.displaySelection
+        )
     : null;
 
   if (!args.activeSession || !args.activeLayer) {
@@ -56,6 +65,27 @@ export function buildProbeReadoutModel(args: BuildProbePresentationArgs): ProbeR
       colorPreview: null,
       imageSize
     };
+  }
+
+  if (args.sessionState.viewerMode === 'depth') {
+    const depthChannel = resolveDepthChannelForLayer(
+      args.activeLayer.channelNames,
+      args.sessionState.depthChannel,
+      { allowArbitraryZSuffix: true }
+    );
+    if (!isValidDepthProbePixel(targetPixel, {
+      layer: args.activeLayer,
+      width: args.activeSession.decoded.width,
+      height: args.activeSession.decoded.height,
+      channelName: depthChannel
+    })) {
+      return {
+        mode,
+        sample: null,
+        colorPreview: null,
+        imageSize
+      };
+    }
   }
 
   const sample = samplePixelValuesForDisplay(

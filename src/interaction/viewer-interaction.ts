@@ -19,6 +19,13 @@ import {
 } from '../viewer-pane-layout';
 import { imageToScreen } from './image-geometry';
 import {
+  DepthKeyboardOrbitController,
+  orbitDepthFromDrag,
+  zoomDepthByKeyboardStep,
+  zoomDepthFromKeyboard,
+  zoomDepthFromWheel
+} from './depth-mode';
+import {
   ImageKeyboardPanController,
   panImageFromDrag,
   zoomImageByKeyboardStep,
@@ -76,6 +83,7 @@ export class ViewerInteraction {
   private readonly callbacks: InteractionCallbacks;
   private readonly imageKeyboardPan: ImageKeyboardPanController;
   private readonly panoramaKeyboardOrbit: PanoramaKeyboardOrbitController;
+  private readonly depthKeyboardOrbit: DepthKeyboardOrbitController;
   private readonly keyboardZoom: ViewerKeyboardZoomController;
   private dragging = false;
   private movedDuringDrag = false;
@@ -84,6 +92,7 @@ export class ViewerInteraction {
   private lastPointerInElement: PointerPosition | null = null;
   private lastRequestedActivePanePath: ViewerPanePath | null = null;
   private dragPane: ViewerPaneRenderInfo | null = null;
+  private pendingDepthDragProbeState: ViewerState | null = null;
   private roiAnchorPixel: ImagePixel | null = null;
   private roiAdjustmentDrag: RoiAdjustmentDrag | null = null;
   private screenshotDrag: ScreenshotSelectionDrag | null = null;
@@ -111,10 +120,20 @@ export class ViewerInteraction {
       onHoverPixel: callbacks.onHoverPixel,
       getLastPointerInElement: () => this.lastPointerInElement
     }, dependencies);
+    this.depthKeyboardOrbit = new DepthKeyboardOrbitController({
+      getState: callbacks.getState,
+      getViewport: () => this.getActiveViewport(),
+      getImageSize: callbacks.getImageSize,
+      resolveDepthProbePixel: callbacks.resolveDepthProbePixel,
+      onViewChange: callbacks.onViewChange,
+      onHoverPixel: callbacks.onHoverPixel,
+      getLastPointerInElement: () => this.lastPointerInElement
+    }, dependencies);
     this.keyboardZoom = new ViewerKeyboardZoomController({
       getState: callbacks.getState,
       getViewport: () => this.getActiveViewport(),
       getImageSize: callbacks.getImageSize,
+      resolveDepthProbePixel: callbacks.resolveDepthProbePixel,
       onViewChange: callbacks.onViewChange,
       onHoverPixel: callbacks.onHoverPixel,
       getLastPointerInElement: () => this.lastPointerInElement,
@@ -138,6 +157,7 @@ export class ViewerInteraction {
     this.element.removeEventListener('contextmenu', this.onContextMenu);
     this.imageKeyboardPan.destroy();
     this.panoramaKeyboardOrbit.destroy();
+    this.depthKeyboardOrbit.destroy();
     this.keyboardZoom.destroy();
   }
 
@@ -158,6 +178,11 @@ export class ViewerInteraction {
 
     if (state.viewerMode === 'panorama') {
       this.panoramaKeyboardOrbit.handle(direction);
+      return;
+    }
+
+    if (state.viewerMode === 'depth') {
+      this.depthKeyboardOrbit.handle(direction);
     }
   }
 
@@ -182,7 +207,29 @@ export class ViewerInteraction {
       const nextState = { ...state, ...nextView };
       this.callbacks.onViewChange(nextView);
       this.callbacks.onHoverPixel(
-        resolveHoverPixel(this.lastPointerInElement, nextState, viewport, imageSize)
+        resolveHoverPixel(
+          this.lastPointerInElement,
+          nextState,
+          viewport,
+          imageSize,
+          this.callbacks.resolveDepthProbePixel
+        )
+      );
+      return;
+    }
+
+    if (state.viewerMode === 'depth') {
+      const nextView = zoomDepthFromKeyboard(state, direction);
+      const nextState = { ...state, ...nextView };
+      this.callbacks.onViewChange(nextView);
+      this.callbacks.onHoverPixel(
+        resolveHoverPixel(
+          this.lastPointerInElement,
+          nextState,
+          viewport,
+          imageSize,
+          this.callbacks.resolveDepthProbePixel
+        )
       );
       return;
     }
@@ -198,7 +245,9 @@ export class ViewerInteraction {
     const nextView = zoomImageFromKeyboard(state, viewport, point, direction);
     const nextState = { ...state, ...nextView };
     this.callbacks.onViewChange(nextView);
-    this.callbacks.onHoverPixel(resolveProbePixel(point, nextState, viewport, imageSize));
+    this.callbacks.onHoverPixel(
+      resolveProbePixel(point, nextState, viewport, imageSize, this.callbacks.resolveDepthProbePixel)
+    );
   }
 
   setViewerKeyboardZoomInput(input: ViewerKeyboardZoomInput): void {
@@ -209,18 +258,28 @@ export class ViewerInteraction {
     const state = this.callbacks.getState();
     if (state.viewerMode === 'image') {
       this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
+      this.depthKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.imageKeyboardPan.setInput(input);
       return;
     }
 
     if (state.viewerMode === 'panorama') {
       this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
+      this.depthKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.panoramaKeyboardOrbit.setInput(input);
+      return;
+    }
+
+    if (state.viewerMode === 'depth') {
+      this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
+      this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
+      this.depthKeyboardOrbit.setInput(input);
       return;
     }
 
     this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
     this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
+    this.depthKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
   }
 
   private readonly onWheel = (event: WheelEvent): void => {
@@ -250,14 +309,28 @@ export class ViewerInteraction {
       const nextView = zoomPanoramaFromWheel(state, event.deltaY);
       const nextState = { ...state, ...nextView };
       this.callbacks.onViewChange(nextView);
-      this.callbacks.onHoverPixel(resolveProbePixel(point, nextState, viewport, imageSize));
+      this.callbacks.onHoverPixel(
+        resolveProbePixel(point, nextState, viewport, imageSize, this.callbacks.resolveDepthProbePixel)
+      );
+      return;
+    }
+
+    if (state.viewerMode === 'depth') {
+      const nextView = zoomDepthFromWheel(state, event.deltaY);
+      const nextState = { ...state, ...nextView };
+      this.callbacks.onViewChange(nextView);
+      this.callbacks.onHoverPixel(
+        resolveProbePixel(point, nextState, viewport, imageSize, this.callbacks.resolveDepthProbePixel)
+      );
       return;
     }
 
     const nextView = zoomImageFromWheel(state, viewport, point, event.deltaY);
     const nextState = { ...state, ...nextView };
     this.callbacks.onViewChange(nextView);
-    this.callbacks.onHoverPixel(resolveProbePixel(point, nextState, viewport, imageSize));
+    this.callbacks.onHoverPixel(
+      resolveProbePixel(point, nextState, viewport, imageSize, this.callbacks.resolveDepthProbePixel)
+    );
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {
@@ -328,7 +401,9 @@ export class ViewerInteraction {
         this.movedDuringDrag = false;
         this.roiAdjustmentDrag = createRoiAdjustmentDrag(handle, point, state.roi!);
         this.previousPointer = point;
-        this.callbacks.onHoverPixel(resolveProbePixel(point, state, viewport, imageSize));
+        this.callbacks.onHoverPixel(
+          resolveProbePixel(point, state, viewport, imageSize, this.callbacks.resolveDepthProbePixel)
+        );
         this.setRoiInteractionState(createRoiInteractionState({
           hoverHandle: handle,
           activeHandle: handle
@@ -419,6 +494,7 @@ export class ViewerInteraction {
     const state = this.callbacks.getState();
     const viewport = panePoint.pane.viewport;
     let hoverState: ViewerState = state;
+    let skipProbeResolution = false;
 
     if (this.dragging && this.previousPointer) {
       const deltaX = point.x - this.previousPointer.x;
@@ -452,6 +528,14 @@ export class ViewerInteraction {
         const nextView = orbitPanoramaFromDrag(state, viewport, deltaX, deltaY);
         hoverState = { ...state, ...nextView };
         this.callbacks.onViewChange(nextView);
+      } else if (state.viewerMode === 'depth') {
+        const nextView = orbitDepthFromDrag(state, viewport, deltaX, deltaY);
+        hoverState = { ...state, ...nextView };
+        this.callbacks.onViewChange(nextView);
+        if (this.dragMode === 'pan' && this.movedDuringDrag) {
+          this.pendingDepthDragProbeState = hoverState;
+          skipProbeResolution = true;
+        }
       } else {
         const nextView = panImageFromDrag(state, deltaX, deltaY);
         hoverState = { ...state, ...nextView };
@@ -464,7 +548,12 @@ export class ViewerInteraction {
     if (!this.dragging) {
       this.updateRoiHover(point, state, viewport);
     }
-    this.callbacks.onHoverPixel(resolveProbePixel(point, hoverState, viewport, imageSize));
+    if (skipProbeResolution) {
+      return;
+    }
+    this.callbacks.onHoverPixel(
+      resolveProbePixel(point, hoverState, viewport, imageSize, this.callbacks.resolveDepthProbePixel)
+    );
   };
 
   private readonly onPointerUp = (event: PointerEvent): void => {
@@ -546,7 +635,9 @@ export class ViewerInteraction {
         return;
       }
 
-      this.callbacks.onToggleLockPixel(resolveProbePixel(point, state, viewport, imageSize));
+      this.callbacks.onToggleLockPixel(
+        resolveProbePixel(point, state, viewport, imageSize, this.callbacks.resolveDepthProbePixel)
+      );
       const startRoi = this.roiAdjustmentDrag.startRoi;
       this.clearDrag(event.pointerId);
       this.setRoiInteractionState(createRoiInteractionState({
@@ -558,7 +649,22 @@ export class ViewerInteraction {
     if (this.dragging && !this.movedDuringDrag) {
       const state = this.callbacks.getState();
       const viewport = panePoint.pane.viewport;
-      this.callbacks.onToggleLockPixel(resolveProbePixel(point, state, viewport, imageSize));
+      this.callbacks.onToggleLockPixel(
+        resolveProbePixel(point, state, viewport, imageSize, this.callbacks.resolveDepthProbePixel)
+      );
+    }
+
+    if (this.dragging && this.movedDuringDrag && this.dragMode === 'pan' && this.pendingDepthDragProbeState) {
+      const viewport = panePoint.pane.viewport;
+      this.callbacks.onHoverPixel(
+        resolveProbePixel(
+          point,
+          this.pendingDepthDragProbeState,
+          viewport,
+          imageSize,
+          this.callbacks.resolveDepthProbePixel
+        )
+      );
     }
 
     this.clearDrag(event.pointerId);
@@ -597,6 +703,7 @@ export class ViewerInteraction {
     this.movedDuringDrag = false;
     this.previousPointer = null;
     this.dragPane = null;
+    this.pendingDepthDragProbeState = null;
     this.roiAnchorPixel = null;
     this.roiAdjustmentDrag = null;
     this.screenshotDrag = null;
@@ -837,7 +944,7 @@ function withScreenshotRegionSnapTargets(
 
 type ViewerKeyboardZoomCallbacks = Pick<
   InteractionCallbacks,
-  'getState' | 'getViewport' | 'getImageSize' | 'onViewChange' | 'onHoverPixel'
+  'getState' | 'getViewport' | 'getImageSize' | 'resolveDepthProbePixel' | 'onViewChange' | 'onHoverPixel'
 > & {
   getLastPointerInElement: () => PointerPosition | null;
   isBlocked: () => boolean;
@@ -923,7 +1030,29 @@ class ViewerKeyboardZoomController {
       const nextState = { ...state, ...nextView };
       this.callbacks.onViewChange(nextView);
       this.callbacks.onHoverPixel(
-        resolveHoverPixel(this.callbacks.getLastPointerInElement(), nextState, viewport, imageSize)
+        resolveHoverPixel(
+          this.callbacks.getLastPointerInElement(),
+          nextState,
+          viewport,
+          imageSize,
+          this.callbacks.resolveDepthProbePixel
+        )
+      );
+      return;
+    }
+
+    if (state.viewerMode === 'depth') {
+      const nextView = zoomDepthByKeyboardStep(state, signedDirection * stepRatio);
+      const nextState = { ...state, ...nextView };
+      this.callbacks.onViewChange(nextView);
+      this.callbacks.onHoverPixel(
+        resolveHoverPixel(
+          this.callbacks.getLastPointerInElement(),
+          nextState,
+          viewport,
+          imageSize,
+          this.callbacks.resolveDepthProbePixel
+        )
       );
       return;
     }
@@ -939,7 +1068,9 @@ class ViewerKeyboardZoomController {
     const nextView = zoomImageByKeyboardStep(state, viewport, point, signedDirection * stepRatio);
     const nextState = { ...state, ...nextView };
     this.callbacks.onViewChange(nextView);
-    this.callbacks.onHoverPixel(resolveProbePixel(point, nextState, viewport, imageSize));
+    this.callbacks.onHoverPixel(
+      resolveProbePixel(point, nextState, viewport, imageSize, this.callbacks.resolveDepthProbePixel)
+    );
   }
 
   private ensureScheduledFrame(): void {

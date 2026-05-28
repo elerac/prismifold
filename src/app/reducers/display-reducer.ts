@@ -15,6 +15,11 @@ import {
 import { resolveDisplayImageSize } from '../../display-size';
 import { getSuccessValue } from '../../async-resource';
 import { DEFAULT_DISPLAY_GAMMA, normalizeDisplayGamma } from '../../color';
+import {
+  normalizeDepthFocalLengthPx,
+  normalizeDepthPointSize,
+  resolveDepthChannelForLayer
+} from '../../depth';
 import { computeFitView } from '../../interaction/image-geometry';
 import { cloneImageRoi } from '../../roi';
 import { samePixel } from '../../view-state';
@@ -108,14 +113,24 @@ export function displayReducer(
             pendingColormapActivation: null
           };
     }
-    case 'viewerModeSet':
+    case 'viewerModeSet': {
       if (!selectActiveSession(state) || state.sessionState.viewerMode === intent.viewerMode) {
         return state;
       }
-      return patchSessionState(state, { viewerMode: intent.viewerMode }, {
+      const depthPatch = intent.viewerMode === 'depth'
+        ? resolveDepthModeActivationPatch(state)
+        : {};
+      if (intent.viewerMode === 'depth' && !depthPatch.depthChannel) {
+        return state;
+      }
+      return patchSessionState(state, {
+        viewerMode: intent.viewerMode,
+        ...depthPatch
+      }, {
         syncInteractionView: true,
         clearHover: true
       });
+    }
     case 'activeLayerSet': {
       const activeSession = selectActiveSession(state);
       if (!activeSession) {
@@ -130,9 +145,22 @@ export function displayReducer(
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
         }
       );
+      const nextLayer = activeSession.decoded.layers[nextSessionState.activeLayer] ?? null;
+      if (nextLayer && state.sessionState.viewerMode === 'depth') {
+        nextSessionState.depthChannel = resolveDepthChannelForLayer(
+          nextLayer.channelNames,
+          state.sessionState.depthChannel,
+          { allowArbitraryZSuffix: true }
+        );
+        if (!nextSessionState.depthChannel) {
+          nextSessionState.viewerMode = 'image';
+        }
+      }
       if (
         nextSessionState.activeLayer === state.sessionState.activeLayer &&
-        sameDisplaySelection(nextSessionState.displaySelection, state.sessionState.displaySelection)
+        nextSessionState.viewerMode === state.sessionState.viewerMode &&
+        sameDisplaySelection(nextSessionState.displaySelection, state.sessionState.displaySelection) &&
+        nextSessionState.depthChannel === state.sessionState.depthChannel
       ) {
         return state;
       }
@@ -333,16 +361,43 @@ export function displayReducer(
         clearHover: true
       }) : state;
     }
+    case 'depthSettingsEdited': {
+      const activeSession = selectActiveSession(state);
+      const activeLayer = activeSession?.decoded.layers[state.sessionState.activeLayer] ?? null;
+      if (!activeSession || !activeLayer) {
+        return state;
+      }
+
+      const patch: Partial<ViewerAppState['sessionState']> = {};
+      if (intent.patch.depthChannel !== undefined) {
+        patch.depthChannel = activeLayer.channelNames.includes(intent.patch.depthChannel ?? '')
+          ? intent.patch.depthChannel ?? null
+          : resolveDepthChannelForLayer(activeLayer.channelNames, null, { allowArbitraryZSuffix: true });
+      }
+      if (intent.patch.depthFocalLengthPx !== undefined) {
+        patch.depthFocalLengthPx = normalizeDepthFocalLengthPx(intent.patch.depthFocalLengthPx);
+      }
+      if (intent.patch.depthPointSizePx !== undefined) {
+        patch.depthPointSizePx = normalizeDepthPointSize(intent.patch.depthPointSizePx);
+      }
+
+      return patchSessionState(state, patch, {
+        syncInteractionView: false,
+        clearHover: true
+      });
+    }
     case 'interactionStatePublished':
       return sameInteractionState(state.interactionState, intent.interactionState) ? state : {
         ...state,
         interactionState: cloneInteractionState(intent.interactionState)
       };
-    case 'viewStateCommitted':
-      if (sameViewCommit(state.sessionState, intent.view)) {
+    case 'viewStateCommitted': {
+      const patch = normalizeViewerViewPatch(intent.view);
+      if (!patch || sameViewCommit(state.sessionState, { ...state.sessionState, ...patch })) {
         return state;
       }
-      return patchSessionState(state, intent.view);
+      return patchSessionState(state, patch);
+    }
     case 'activeSessionFitToViewport': {
       const activeSession = selectActiveSession(state);
       if (!activeSession || state.sessionState.viewerMode !== 'image') {
@@ -366,6 +421,22 @@ export function displayReducer(
     default:
       return state;
   }
+}
+
+function resolveDepthModeActivationPatch(state: ViewerAppState): Partial<ViewerAppState['sessionState']> {
+  const activeSession = selectActiveSession(state);
+  const activeLayer = activeSession?.decoded.layers[state.sessionState.activeLayer] ?? null;
+  if (!activeLayer) {
+    return {};
+  }
+
+  return {
+    depthChannel: resolveDepthChannelForLayer(
+      activeLayer.channelNames,
+      state.sessionState.depthChannel,
+      { allowArbitraryZSuffix: true }
+    )
+  };
 }
 
 function shouldActivateLoadedSession(state: ViewerAppState, activate: boolean | undefined): boolean {

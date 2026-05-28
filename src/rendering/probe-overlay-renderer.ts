@@ -1,14 +1,32 @@
+import {
+  DepthProbeProjectionCache,
+  normalizeDepthPointSize,
+  resolveDepthChannelForLayer
+} from '../depth';
 import { imageToScreen } from '../interaction/image-geometry';
 import type { Disposable } from '../lifecycle';
 import { resolveActiveProbePixel } from '../probe';
-import type { ImagePixel, ImageRoi, ViewerState, ViewportInfo } from '../types';
+import type {
+  DecodedLayer,
+  DisplayLuminanceRange,
+  ImagePixel,
+  ImageRoi,
+  ViewerState,
+  ViewportInfo
+} from '../types';
 import type { ViewerPaneRenderInfo } from '../viewer-pane-layout';
 
 export class ProbeOverlayRenderer implements Disposable {
   private readonly overlayCanvas: HTMLCanvasElement;
   private readonly overlayContext: CanvasRenderingContext2D;
+  private readonly depthProjectionCache = new DepthProbeProjectionCache();
   private viewport: ViewportInfo = { width: 1, height: 1 };
   private panes: ViewerPaneRenderInfo[] = [];
+  private sourceWidth = 0;
+  private sourceHeight = 0;
+  private sourceLayer: DecodedLayer | null = null;
+  private depthChannelName: string | null = null;
+  private depthRange: DisplayLuminanceRange | null = null;
   private hasImage = false;
   private disposed = false;
 
@@ -47,12 +65,40 @@ export class ProbeOverlayRenderer implements Disposable {
     this.hasImage = hasImage;
   }
 
+  setSourceContext(width: number, height: number, layer: DecodedLayer): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.sourceWidth = width;
+    this.sourceHeight = height;
+    this.sourceLayer = layer;
+  }
+
+  setDepthSourceContext(
+    channelName: string | null,
+    depthRange: DisplayLuminanceRange | null
+  ): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.depthChannelName = channelName;
+    this.depthRange = depthRange;
+  }
+
   clearImage(): void {
     if (this.disposed) {
       return;
     }
 
     this.hasImage = false;
+    this.sourceWidth = 0;
+    this.sourceHeight = 0;
+    this.sourceLayer = null;
+    this.depthChannelName = null;
+    this.depthRange = null;
+    this.depthProjectionCache.clear();
     this.overlayContext.clearRect(0, 0, this.viewport.width, this.viewport.height);
   }
 
@@ -63,7 +109,7 @@ export class ProbeOverlayRenderer implements Disposable {
 
     this.clearOverlay();
 
-    if (!this.hasImage || state.viewerMode === 'panorama') {
+    if (!this.hasImage || (state.viewerMode !== 'image' && state.viewerMode !== 'depth')) {
       return;
     }
 
@@ -82,7 +128,7 @@ export class ProbeOverlayRenderer implements Disposable {
   }
 
   renderPane(state: ViewerState, pane: ViewerPaneRenderInfo): void {
-    if (this.disposed || !this.hasImage || state.viewerMode === 'panorama') {
+    if (this.disposed || !this.hasImage || (state.viewerMode !== 'image' && state.viewerMode !== 'depth')) {
       return;
     }
 
@@ -99,6 +145,14 @@ export class ProbeOverlayRenderer implements Disposable {
         ctx.translate(pane.rect.x, pane.rect.y);
       }
 
+      const probe = resolveActiveProbePixel(state.lockedPixel, state.hoveredPixel);
+      if (state.viewerMode === 'depth') {
+        if (probe) {
+          this.drawDepthProbeMarker(state, probe, pane.viewport);
+        }
+        return;
+      }
+
       if (state.roi) {
         this.drawRoi(state, state.roi, pane.viewport, 'rgba(255, 122, 89, 0.95)');
       }
@@ -110,10 +164,8 @@ export class ProbeOverlayRenderer implements Disposable {
       if (state.roi && (state.roiInteraction.hoverHandle || state.roiInteraction.activeHandle)) {
         this.drawRoiHandles(state, state.draftRoi ?? state.roi, pane.viewport);
       }
-
-      const probe = resolveActiveProbePixel(state.lockedPixel, state.hoveredPixel);
       if (probe) {
-        this.drawProbeMarker(state, probe, pane.viewport);
+        this.drawImageProbeMarker(state, probe, pane.viewport);
       }
     } finally {
       if (usePaneClip) {
@@ -132,13 +184,53 @@ export class ProbeOverlayRenderer implements Disposable {
     this.overlayContext.clearRect(0, 0, this.viewport.width, this.viewport.height);
   }
 
-  private drawProbeMarker(state: ViewerState, pixel: ImagePixel, viewport: ViewportInfo): void {
+  private drawImageProbeMarker(state: ViewerState, pixel: ImagePixel, viewport: ViewportInfo): void {
     const ctx = this.overlayContext;
     const topLeft = imageToScreen(pixel.ix, pixel.iy, state, viewport);
 
     ctx.strokeStyle = state.lockedPixel ? 'rgba(255, 196, 0, 0.95)' : 'rgba(255, 255, 255, 0.95)';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(topLeft.x, topLeft.y, state.zoom, state.zoom);
+  }
+
+  private drawDepthProbeMarker(state: ViewerState, pixel: ImagePixel, viewport: ViewportInfo): void {
+    if (!this.sourceLayer || !this.depthRange) {
+      return;
+    }
+
+    const depthChannel = resolveDepthChannelForLayer(
+      this.sourceLayer.channelNames,
+      this.depthChannelName ?? state.depthChannel,
+      { allowArbitraryZSuffix: true }
+    );
+    if (!depthChannel) {
+      return;
+    }
+
+    const projected = this.depthProjectionCache.projectPixel(pixel, {
+      layer: this.sourceLayer,
+      width: this.sourceWidth,
+      height: this.sourceHeight,
+      channelName: depthChannel,
+      viewport,
+      depthRange: this.depthRange,
+      depthFocalLengthPx: state.depthFocalLengthPx,
+      depthYawDeg: state.depthYawDeg,
+      depthPitchDeg: state.depthPitchDeg,
+      depthZoom: state.depthZoom,
+      depthPointSizePx: state.depthPointSizePx
+    });
+    if (!projected) {
+      return;
+    }
+
+    const ctx = this.overlayContext;
+    const size = Math.max(normalizeDepthPointSize(state.depthPointSizePx), 6);
+    const half = size * 0.5;
+
+    ctx.strokeStyle = state.lockedPixel ? 'rgba(255, 196, 0, 0.95)' : 'rgba(255, 255, 255, 0.95)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(projected.screenX - half, projected.screenY - half, size, size);
   }
 
   private drawRoi(state: ViewerState, roi: ImageRoi, viewport: ViewportInfo, strokeStyle: string): void {

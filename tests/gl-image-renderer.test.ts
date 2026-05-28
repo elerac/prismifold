@@ -234,7 +234,7 @@ describe('gl image renderer', () => {
     renderer.dispose();
 
     expect(gl.deleteTexture).toHaveBeenCalledTimes(2);
-    expect(gl.deleteProgram).toHaveBeenCalledTimes(2);
+    expect(gl.deleteProgram).toHaveBeenCalledTimes(3);
     expect(gl.deleteVertexArray).toHaveBeenCalledTimes(1);
   });
 
@@ -308,6 +308,58 @@ describe('gl image renderer', () => {
     expect(gl.scissor).toHaveBeenCalledWith(160, 0, 160, 180);
     expect(gl.drawArrays).toHaveBeenCalledTimes(2);
     expect(lastUniform2fValue(gl, 'uViewport')).toEqual([160, 180]);
+  });
+
+  it('renders depth mode through the point-cloud pass', () => {
+    const { renderer, gl } = createHarness();
+    const layer = createInterleavedLayerFromChannels({
+      R: [1, 0, 0, 1],
+      G: [0, 1, 0, 1],
+      B: [0, 0, 1, 1],
+      Z: [1, 2, 3, 4]
+    });
+    const state = {
+      ...createInitialState(),
+      viewerMode: 'depth' as const,
+      depthChannel: 'Z',
+      depthYawDeg: 120,
+      depthPitchDeg: 91,
+      depthZoom: 2.5,
+      depthFocalLengthPx: null,
+      depthPointSizePx: 3,
+      displaySelection: createChannelRgbSelection('R', 'G', 'B'),
+      hoveredPixel: null,
+      draftRoi: null,
+      roiInteraction: createEmptyRoiInteractionState()
+    };
+
+    renderer.ensureLayerChannelsResident('session-1', 0, 2, 2, layer, ['R', 'G', 'B', 'Z']);
+    renderer.setDisplaySelectionBindings(
+      'session-1',
+      0,
+      2,
+      2,
+      buildDisplaySourceBinding(layer, state.displaySelection)
+    );
+    renderer.setDepthSourceBinding('session-1', 0, 2, 2, 'Z', { min: 1, max: 4 });
+    renderer.resize(320, 180);
+
+    renderer.render(state);
+
+    expect(gl.clear).toHaveBeenCalledWith(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    expect(gl.enable).toHaveBeenCalledWith(gl.DEPTH_TEST);
+    expect(gl.drawArrays).toHaveBeenLastCalledWith(gl.POINTS, 0, 4);
+    expect(gl.disable).toHaveBeenCalledWith(gl.DEPTH_TEST);
+    expect(lastUniform2fValue(gl, 'uImageSize')).toEqual([2, 2]);
+    expect(lastUniform1fValue(gl, 'uDepthFocalLengthPx')).toBe(2);
+    expect(lastUniform1fValue(gl, 'uDepthYawDeg')).toBeCloseTo(89.9, 7);
+    expect(lastUniform1fValue(gl, 'uDepthPitchDeg')).toBeCloseTo(89.9, 7);
+    expect(lastUniform1fValue(gl, 'uDepthZoom')).toBe(2.5);
+    expect(lastUniform1fValue(gl, 'uDepthPointSizePx')).toBe(3);
+    expect(lastUniform2fValue(gl, 'uDepthOutputOrigin')).toEqual([0, 0]);
+    expect(lastUniform2iValue(gl, 'uDepthGridSize')).toEqual([2, 2]);
+    expect(lastUniform1iValue(gl, 'uDepthSampleStep')).toBe(1);
+    expect(lastUniform2fValue(gl, 'uDepthRange')).toEqual([1, 4]);
   });
 
   it('reuses export framebuffers and textures when the export size is unchanged', () => {
@@ -701,6 +753,72 @@ describe('gl image renderer', () => {
     expect(lastUniform1fValue(gl, 'uPanoramaHfovDeg')).toBe(90);
   });
 
+  it('renders screenshot exports through the depth point-cloud pass when depth mode is active', () => {
+    const { renderer, gl } = createHarness();
+    const layer = createInterleavedLayerFromChannels({
+      R: [1, 0, 0, 1],
+      G: [0, 1, 0, 1],
+      B: [0, 0, 1, 1],
+      Z: [1, 2, 3, 4]
+    });
+    const state = {
+      ...createInitialState(),
+      viewerMode: 'depth' as const,
+      depthChannel: 'Z',
+      depthYawDeg: 17,
+      depthPitchDeg: 20,
+      depthZoom: 2,
+      depthPointSizePx: 4,
+      displaySelection: createChannelRgbSelection('R', 'G', 'B'),
+      hoveredPixel: null,
+      draftRoi: null,
+      roiInteraction: createEmptyRoiInteractionState()
+    };
+
+    renderer.ensureLayerChannelsResident('session-1', 0, 2, 2, layer, ['R', 'G', 'B', 'Z']);
+    renderer.setDisplaySelectionBindings(
+      'session-1',
+      0,
+      2,
+      2,
+      buildDisplaySourceBinding(layer, state.displaySelection)
+    );
+    renderer.setDepthSourceBinding('session-1', 0, 2, 2, 'Z', { min: 1, max: 4 });
+    gl.readPixels.mockImplementation((_x, _y, width, height, _format, _type, data: Uint8ClampedArray) => {
+      expect(width).toBe(40);
+      expect(height).toBe(20);
+      data.fill(0);
+    });
+
+    renderer.readExportPixels({
+      state,
+      sourceWidth: 2,
+      sourceHeight: 2,
+      outputWidth: 40,
+      outputHeight: 20,
+      screenshot: {
+        coordinateSpace: 'viewport',
+        rect: { x: 10, y: 5, width: 20, height: 10 },
+        sourceViewport: { width: 100, height: 50 }
+      }
+    });
+
+    expect(gl.framebufferRenderbuffer).toHaveBeenCalledWith(
+      gl.FRAMEBUFFER,
+      gl.DEPTH_ATTACHMENT,
+      gl.RENDERBUFFER,
+      expect.anything()
+    );
+    expect(gl.clear).toHaveBeenCalledWith(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    expect(gl.drawArrays).toHaveBeenLastCalledWith(gl.POINTS, 0, 4);
+    expect(lastUniform2fValue(gl, 'uViewport')).toEqual([200, 100]);
+    expect(lastUniform2fValue(gl, 'uOutputSize')).toEqual([40, 20]);
+    expect(lastUniform2fValue(gl, 'uScreenOrigin')).toEqual([20, 10]);
+    expect(lastUniform2fValue(gl, 'uDepthOutputOrigin')).toEqual([20, 10]);
+    expect(lastUniform1fValue(gl, 'uDepthYawDeg')).toBe(17);
+    expect(lastUniform1fValue(gl, 'uDepthPointSizePx')).toBe(4);
+  });
+
   it('anchors checkerboard rendering to the viewport origin instead of the canvas origin', () => {
     const { renderer, gl } = createHarness();
     const layer = createInterleavedLayerFromChannels({
@@ -910,23 +1028,48 @@ function lastUniform2fValue(
   return [lastCall[1] as number, lastCall[2] as number];
 }
 
+function lastUniform2iValue(
+  gl: ReturnType<typeof createWebGlContextMock>,
+  uniformName: string
+): [number, number] | undefined {
+  const calls = gl.uniform2i.mock.calls.filter((call) => {
+    const [location] = call as [{ name?: string } | null, ...unknown[]];
+    return location?.name === uniformName;
+  });
+  const lastCall = calls.at(-1);
+  if (!lastCall) {
+    return undefined;
+  }
+  return [lastCall[1] as number, lastCall[2] as number];
+}
+
 function createWebGlContextMock(): WebGL2RenderingContext & {
   texImage2D: ReturnType<typeof vi.fn>;
   createTexture: ReturnType<typeof vi.fn>;
   createFramebuffer: ReturnType<typeof vi.fn>;
+  createRenderbuffer: ReturnType<typeof vi.fn>;
   deleteTexture: ReturnType<typeof vi.fn>;
+  deleteRenderbuffer: ReturnType<typeof vi.fn>;
   deleteProgram: ReturnType<typeof vi.fn>;
   deleteVertexArray: ReturnType<typeof vi.fn>;
   readPixels: ReturnType<typeof vi.fn>;
   uniform1i: ReturnType<typeof vi.fn>;
   uniform1f: ReturnType<typeof vi.fn>;
   uniform2f: ReturnType<typeof vi.fn>;
+  uniform2i: ReturnType<typeof vi.fn>;
   clearColor: ReturnType<typeof vi.fn>;
   clear: ReturnType<typeof vi.fn>;
   scissor: ReturnType<typeof vi.fn>;
 } {
-  const programs = [{ id: 'program-1' }, { id: 'program-2' }];
-  const shaders = [{ id: 'shader-1' }, { id: 'shader-2' }, { id: 'shader-3' }, { id: 'shader-4' }];
+  const programs = [{ id: 'program-1' }, { id: 'program-2' }, { id: 'program-3' }];
+  const shaders = [
+    { id: 'shader-1' },
+    { id: 'shader-2' },
+    { id: 'shader-3' },
+    { id: 'shader-4' },
+    { id: 'shader-5' },
+    { id: 'shader-6' }
+  ];
   const textures = [
     { id: 'texture-1' },
     { id: 'texture-2' },
@@ -935,6 +1078,7 @@ function createWebGlContextMock(): WebGL2RenderingContext & {
     { id: 'texture-5' }
   ];
   const framebuffers = [{ id: 'framebuffer-1' }, { id: 'framebuffer-2' }];
+  const renderbuffers = [{ id: 'renderbuffer-1' }, { id: 'renderbuffer-2' }];
   const vaos = [{ id: 'vao-1' }];
 
   return {
@@ -960,18 +1104,25 @@ function createWebGlContextMock(): WebGL2RenderingContext & {
     RED: 0x1903,
     FLOAT: 0x1406,
     TRIANGLES: 0x0004,
+    POINTS: 0x0000,
     FRAMEBUFFER: 0x8d40,
     READ_FRAMEBUFFER: 0x8ca8,
     DRAW_FRAMEBUFFER: 0x8ca9,
+    RENDERBUFFER: 0x8d41,
     COLOR_ATTACHMENT0: 0x8ce0,
+    DEPTH_ATTACHMENT: 0x8d00,
+    DEPTH_COMPONENT16: 0x81a5,
     FRAMEBUFFER_COMPLETE: 0x8cd5,
     COLOR_BUFFER_BIT: 0x00004000,
+    DEPTH_BUFFER_BIT: 0x00000100,
     SCISSOR_TEST: 0x0c11,
+    DEPTH_TEST: 0x0b71,
     MAX_TEXTURE_SIZE: 4096,
     MAX_TEXTURE_IMAGE_UNITS: 16,
     createVertexArray: vi.fn(() => vaos.shift() ?? { id: 'vao-extra' }),
     createTexture: vi.fn(() => textures.shift() ?? { id: 'texture-extra' }),
     createFramebuffer: vi.fn(() => framebuffers.shift() ?? { id: 'framebuffer-extra' }),
+    createRenderbuffer: vi.fn(() => renderbuffers.shift() ?? { id: 'renderbuffer-extra' }),
     createProgram: vi.fn(() => programs.shift() ?? { id: 'program-extra' }),
     createShader: vi.fn(() => shaders.shift() ?? { id: 'shader-extra' }),
     shaderSource: vi.fn(),
@@ -988,7 +1139,10 @@ function createWebGlContextMock(): WebGL2RenderingContext & {
     activeTexture: vi.fn(),
     bindTexture: vi.fn(),
     bindFramebuffer: vi.fn(),
+    bindRenderbuffer: vi.fn(),
     framebufferTexture2D: vi.fn(),
+    framebufferRenderbuffer: vi.fn(),
+    renderbufferStorage: vi.fn(),
     checkFramebufferStatus: vi.fn(() => 0x8cd5),
     blitFramebuffer: vi.fn(),
     pixelStorei: vi.fn(),
@@ -1017,18 +1171,22 @@ function createWebGlContextMock(): WebGL2RenderingContext & {
     }),
     deleteTexture: vi.fn(),
     deleteFramebuffer: vi.fn(),
+    deleteRenderbuffer: vi.fn(),
     deleteVertexArray: vi.fn()
   } as unknown as WebGL2RenderingContext & {
     texImage2D: ReturnType<typeof vi.fn>;
     createTexture: ReturnType<typeof vi.fn>;
     createFramebuffer: ReturnType<typeof vi.fn>;
+    createRenderbuffer: ReturnType<typeof vi.fn>;
     readPixels: ReturnType<typeof vi.fn>;
     uniform1i: ReturnType<typeof vi.fn>;
     uniform1f: ReturnType<typeof vi.fn>;
     uniform2f: ReturnType<typeof vi.fn>;
+    uniform2i: ReturnType<typeof vi.fn>;
     blitFramebuffer: ReturnType<typeof vi.fn>;
     deleteTexture: ReturnType<typeof vi.fn>;
     deleteFramebuffer: ReturnType<typeof vi.fn>;
+    deleteRenderbuffer: ReturnType<typeof vi.fn>;
     deleteProgram: ReturnType<typeof vi.fn>;
     deleteVertexArray: ReturnType<typeof vi.fn>;
     clearColor: ReturnType<typeof vi.fn>;

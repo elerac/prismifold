@@ -3,6 +3,11 @@ import { sameDisplaySelection } from '../../display-model';
 import { idleResource } from '../../async-resource';
 import { clampZoom } from '../../interaction/image-geometry';
 import {
+  clampDepthPitch,
+  clampDepthYaw,
+  clampDepthZoom
+} from '../../depth';
+import {
   clampPanoramaHfov,
   clampPanoramaPitch,
   normalizePanoramaYaw
@@ -17,6 +22,7 @@ import type {
 import {
   createEmptyRoiInteractionState,
   createInteractionState,
+  pickViewState,
   samePixel,
   sameRoiInteractionState
 } from '../../view-state';
@@ -49,7 +55,10 @@ const VIEW_KEYS = [
   'panY',
   'panoramaYawDeg',
   'panoramaPitchDeg',
-  'panoramaHfovDeg'
+  'panoramaHfovDeg',
+  'depthYawDeg',
+  'depthPitchDeg',
+  'depthZoom'
 ] as const;
 
 type ViewCommitState = Pick<ViewerSessionState, (typeof VIEW_KEYS)[number]>;
@@ -135,13 +144,22 @@ export function normalizeViewerViewPatch(patch: Partial<ViewerViewState>): Parti
   if (patch.panoramaHfovDeg !== undefined && Number.isFinite(patch.panoramaHfovDeg)) {
     normalized.panoramaHfovDeg = clampPanoramaHfov(patch.panoramaHfovDeg);
   }
+  if (patch.depthYawDeg !== undefined && Number.isFinite(patch.depthYawDeg)) {
+    normalized.depthYawDeg = clampDepthYaw(patch.depthYawDeg);
+  }
+  if (patch.depthPitchDeg !== undefined && Number.isFinite(patch.depthPitchDeg)) {
+    normalized.depthPitchDeg = clampDepthPitch(patch.depthPitchDeg);
+  }
+  if (patch.depthZoom !== undefined && Number.isFinite(patch.depthZoom)) {
+    normalized.depthZoom = clampDepthZoom(patch.depthZoom);
+  }
 
   return Object.keys(normalized).length > 0 ? normalized : null;
 }
 
 export function cloneInteractionState(state: ViewerAppState['interactionState']): ViewerAppState['interactionState'] {
   return {
-    view: { ...state.view },
+    view: pickViewState(state.view),
     hoveredPixel: state.hoveredPixel ? { ...state.hoveredPixel } : null,
     draftRoi: cloneImageRoi(state.draftRoi),
     roiInteraction: { ...(state.roiInteraction ?? createEmptyRoiInteractionState()) }

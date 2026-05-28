@@ -6,6 +6,11 @@ import type {
   ViewerSessionState,
   ViewerViewState
 } from './types';
+import {
+  clampDepthPitch,
+  clampDepthYaw,
+  clampDepthZoom
+} from './depth';
 import { sameImageRoi } from './roi';
 import { DEFAULT_MASK_INVALID_STOKES_VECTORS } from './stokes';
 import { DEFAULT_INVALID_VALUE_WARNING_ENABLED } from './invalid-value-warning-settings';
@@ -25,7 +30,10 @@ export function pickViewState(state: ViewerViewState): ViewerViewState {
     panY: state.panY,
     panoramaYawDeg: state.panoramaYawDeg,
     panoramaPitchDeg: state.panoramaPitchDeg,
-    panoramaHfovDeg: state.panoramaHfovDeg
+    panoramaHfovDeg: state.panoramaHfovDeg,
+    depthYawDeg: clampDepthYaw(state.depthYawDeg),
+    depthPitchDeg: clampDepthPitch(state.depthPitchDeg),
+    depthZoom: clampDepthZoom(state.depthZoom)
   };
 }
 
@@ -45,7 +53,7 @@ export function mergeRenderState(
 ): ViewerRenderState {
   return {
     ...sessionState,
-    ...interactionState.view,
+    ...pickViewState(interactionState.view),
     maskInvalidStokesVectors: options.maskInvalidStokesVectors ?? DEFAULT_MASK_INVALID_STOKES_VECTORS,
     spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled ?? DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED,
     invalidValueWarningEnabled: options.invalidValueWarningEnabled ?? DEFAULT_INVALID_VALUE_WARNING_ENABLED,
@@ -70,7 +78,10 @@ export function sameViewState(a: ViewerViewState, b: ViewerViewState): boolean {
     a.panY === b.panY &&
     a.panoramaYawDeg === b.panoramaYawDeg &&
     a.panoramaPitchDeg === b.panoramaPitchDeg &&
-    a.panoramaHfovDeg === b.panoramaHfovDeg
+    a.panoramaHfovDeg === b.panoramaHfovDeg &&
+    a.depthYawDeg === b.depthYawDeg &&
+    a.depthPitchDeg === b.depthPitchDeg &&
+    a.depthZoom === b.depthZoom
   );
 }
 

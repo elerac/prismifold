@@ -464,6 +464,62 @@ describe('viewer app core', () => {
     });
   });
 
+  it('clamps stale depth camera state on interaction publish, commit, and session switch', () => {
+    const core = new ViewerAppCore();
+    const first = createSession('first', createDecodedImage(['R', 'G', 'B', 'Z']));
+    const second = createSession('second', createDecodedImage(['R', 'G', 'B', 'Z']));
+    second.state = {
+      ...second.state,
+      depthYawDeg: 180,
+      depthPitchDeg: -120,
+      depthZoom: 100
+    };
+
+    core.dispatch({ type: 'sessionLoaded', session: first });
+    core.dispatch({
+      type: 'interactionStatePublished',
+      interactionState: {
+        ...createInteractionState(core.getState().sessionState),
+        view: {
+          ...core.getState().interactionState.view,
+          depthYawDeg: 180,
+          depthPitchDeg: -120,
+          depthZoom: 100
+        }
+      }
+    });
+
+    expect(core.getState().interactionState.view).toMatchObject({
+      depthYawDeg: 89.9,
+      depthPitchDeg: -89.9,
+      depthZoom: 50
+    });
+
+    core.dispatch({
+      type: 'viewStateCommitted',
+      view: {
+        depthYawDeg: 180,
+        depthPitchDeg: -120,
+        depthZoom: 100
+      }
+    });
+
+    expect(core.getState().sessionState).toMatchObject({
+      depthYawDeg: 89.9,
+      depthPitchDeg: -89.9,
+      depthZoom: 50
+    });
+
+    core.dispatch({ type: 'sessionLoaded', session: second, activate: false });
+    core.dispatch({ type: 'activeSessionSwitched', sessionId: second.id });
+
+    expect(core.getState().sessionState).toMatchObject({
+      depthYawDeg: 89.9,
+      depthPitchDeg: -89.9,
+      depthZoom: 50
+    });
+  });
+
   it('assigns selected images to the active split pane and switches when activating another pane', () => {
     const core = new ViewerAppCore();
     const first = createSession('first');
@@ -828,7 +884,10 @@ describe('viewer app core', () => {
       panY: 30,
       panoramaYawDeg: 21,
       panoramaPitchDeg: -3,
-      panoramaHfovDeg: 80
+      panoramaHfovDeg: 80,
+      depthYawDeg: 12,
+      depthPitchDeg: -4,
+      depthZoom: 1.5
     };
 
     core.dispatch({ type: 'sessionLoaded', session });

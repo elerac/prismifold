@@ -40,6 +40,9 @@ export function sameViewerSessionState(a: ViewerSessionState, b: ViewerSessionSt
     sameViewState(a, b) &&
     a.activeLayer === b.activeLayer &&
     sameDisplaySelection(a.displaySelection, b.displaySelection) &&
+    a.depthChannel === b.depthChannel &&
+    a.depthFocalLengthPx === b.depthFocalLengthPx &&
+    a.depthPointSizePx === b.depthPointSizePx &&
     samePixel(a.lockedPixel, b.lockedPixel)
     && sameImageRoi(a.roi, b.roi)
   );
@@ -279,8 +282,57 @@ export function sameViewerStateReadout(
   return (
     a.hasActiveImage === b.hasActiveImage &&
     a.viewerMode === b.viewerMode &&
-    sameViewState(a.view, b.view)
+    sameViewerStateReadoutView(a.view, b.view) &&
+    sameDepthReadout(a.depth, b.depth)
   );
+}
+
+function sameViewerStateReadoutView(
+  a: ViewerStateReadoutModel['view'],
+  b: ViewerStateReadoutModel['view']
+): boolean {
+  return (
+    a.zoom === b.zoom &&
+    a.panX === b.panX &&
+    a.panY === b.panY &&
+    a.panoramaYawDeg === b.panoramaYawDeg &&
+    a.panoramaPitchDeg === b.panoramaPitchDeg &&
+    a.panoramaHfovDeg === b.panoramaHfovDeg &&
+    (a.depthYawDeg ?? 0) === (b.depthYawDeg ?? 0) &&
+    (a.depthPitchDeg ?? 0) === (b.depthPitchDeg ?? 0) &&
+    (a.depthZoom ?? 1) === (b.depthZoom ?? 1)
+  );
+}
+
+function sameDepthReadout(
+  a: ViewerStateReadoutModel['depth'],
+  b: ViewerStateReadoutModel['depth']
+): boolean {
+  if (!a && !b) {
+    return true;
+  }
+  if (!a || !b) {
+    return false;
+  }
+
+  return (
+    a.channel === b.channel &&
+    a.focalLengthPx === b.focalLengthPx &&
+    a.resolvedFocalLengthPx === b.resolvedFocalLengthPx &&
+    a.pointSizePx === b.pointSizePx &&
+    sameDepthChannelOptions(a.channelOptions, b.channelOptions)
+  );
+}
+
+function sameDepthChannelOptions(
+  a: NonNullable<ViewerStateReadoutModel['depth']>['channelOptions'],
+  b: NonNullable<ViewerStateReadoutModel['depth']>['channelOptions']
+): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  return a.every((item, index) => item.value === b[index]?.value && item.label === b[index]?.label);
 }
 
 export function sameImageStatsReadout(a: ImageStatsReadoutModel, b: ImageStatsReadoutModel): boolean {

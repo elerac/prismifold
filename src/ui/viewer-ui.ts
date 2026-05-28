@@ -75,6 +75,7 @@ import type {
   ViewerKeyboardNavigationInput,
   ViewerKeyboardZoomInput,
   ViewerMode,
+  ViewerSessionState,
   ViewerViewState,
   ViewportInfo,
   ViewportRect,
@@ -187,7 +188,10 @@ interface ScreenshotSelectionState {
 
 interface ScreenshotSelectionContext {
   viewerMode: ViewerMode;
-  view: ViewerViewState;
+  view: Pick<
+    ViewerViewState,
+    'zoom' | 'panX' | 'panY' | 'panoramaYawDeg' | 'panoramaPitchDeg' | 'panoramaHfovDeg'
+  > & Partial<Pick<ViewerViewState, 'depthYawDeg' | 'depthPitchDeg' | 'depthZoom'>>;
   imageSize: ViewportInfo | null;
 }
 
@@ -248,6 +252,9 @@ export interface UiCallbacks {
   onViewerKeyboardNavigationInputChange: (input: ViewerKeyboardNavigationInput) => void;
   onViewerKeyboardZoomInputChange: (input: ViewerKeyboardZoomInput) => void;
   onViewerViewStateChange: (patch: Partial<ViewerViewState>) => void;
+  onDepthSettingsChange?: (
+    patch: Partial<Pick<ViewerSessionState, 'depthChannel' | 'depthFocalLengthPx' | 'depthPointSizePx'>>
+  ) => void;
   onAutoFitImageOnSelectChange: (enabled: boolean) => void;
   onAutoFitImage: () => void;
   onAutoExposureChange: (enabled: boolean) => void;
@@ -347,6 +354,7 @@ export class ViewerUi implements Disposable {
   private spectralRgbGroupingEnabled = DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED;
   private invalidValueWarningEnabled = DEFAULT_INVALID_VALUE_WARNING_ENABLED;
   private viewerMode: ViewerMode = 'image';
+  private depthModeAvailable = false;
   private autoFitImageOnSelect = false;
   private autoExposureEnabled = false;
   private autoExposurePercentile = AUTO_EXPOSURE_PERCENTILE;
@@ -611,6 +619,9 @@ export class ViewerUi implements Disposable {
     this.viewerStatePanel = new ViewerStatePanel(this.elements, {
       onViewerViewStateChange: (patch) => {
         this.callbacks.onViewerViewStateChange(patch);
+      },
+      onDepthSettingsChange: (patch) => {
+        this.callbacks.onDepthSettingsChange?.(patch);
       }
     });
     this.dragDropController = new DragDropController(this.elements, {
@@ -1037,7 +1048,17 @@ export class ViewerUi implements Disposable {
     this.viewerMode = mode;
     this.elements.imageViewerMenuItem.setAttribute('aria-checked', mode === 'image' ? 'true' : 'false');
     this.elements.panoramaViewerMenuItem.setAttribute('aria-checked', mode === 'panorama' ? 'true' : 'false');
+    this.elements.depthViewerMenuItem.setAttribute('aria-checked', mode === 'depth' ? 'true' : 'false');
     this.updateAutoFitImageButtonDisabled();
+  }
+
+  setDepthModeAvailable(available: boolean): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.depthModeAvailable = available;
+    this.updateViewerModeMenuItemsDisabled();
   }
 
   setVisualizationMode(mode: VisualizationMode): void {
@@ -2108,7 +2129,7 @@ export class ViewerUi implements Disposable {
   }
 
   private getCurrentScreenshotSelectionCoordinateSpace(): StoredScreenshotSelectionRegion['coordinateSpace'] {
-    return this.callbacks.getScreenshotSelectionContext().viewerMode === 'panorama'
+    return this.callbacks.getScreenshotSelectionContext().viewerMode !== 'image'
       ? 'viewport'
       : 'image';
   }
@@ -2124,6 +2145,14 @@ export class ViewerUi implements Disposable {
         id,
         coordinateSpace: 'viewport',
         projectionRect: screenRectToPanoramaProjectionRect(rect, viewport, context.view.panoramaHfovDeg)
+      };
+    }
+
+    if (context.viewerMode === 'depth') {
+      return {
+        id,
+        coordinateSpace: 'viewport',
+        projectionRect: clampScreenshotSelectionRect(rect, viewport)
       };
     }
 
@@ -2190,7 +2219,9 @@ export class ViewerUi implements Disposable {
       return imageRectToScreenRect(region.imageRect, context.view, viewport);
     }
 
-    return panoramaProjectionRectToScreenRect(region.projectionRect, viewport, context.view.panoramaHfovDeg);
+    return context.viewerMode === 'panorama'
+      ? panoramaProjectionRectToScreenRect(region.projectionRect, viewport, context.view.panoramaHfovDeg)
+      : clampScreenshotSelectionRect(region.projectionRect, viewport);
   }
 
   private resolveExportScreenshotRegionCrop(region: StoredScreenshotSelectionRegion): ScreenshotRegionCrop | null {
@@ -2407,6 +2438,7 @@ export class ViewerUi implements Disposable {
     const disabled = this.isViewerLoadBlocked || this.openedImageCount === 0;
     this.elements.imageViewerMenuItem.disabled = disabled;
     this.elements.panoramaViewerMenuItem.disabled = disabled;
+    this.elements.depthViewerMenuItem.disabled = disabled || !this.depthModeAvailable;
   }
 
   private updateWindowPaneMenuItemsDisabled(): void {
@@ -2425,7 +2457,7 @@ export class ViewerUi implements Disposable {
       return;
     }
 
-    this.elements.appAutoFitImageButton.disabled = this.viewerMode === 'panorama';
+    this.elements.appAutoFitImageButton.disabled = this.viewerMode !== 'image';
   }
 
   private resetViewerPanesFromAction(): void {
@@ -2659,6 +2691,15 @@ export class ViewerUi implements Disposable {
 
       this.topMenuController.closeAll();
       this.callbacks.onViewerModeChange('panorama');
+    });
+
+    this.disposables.addEventListener(this.elements.depthViewerMenuItem, 'click', () => {
+      if (this.elements.depthViewerMenuItem.disabled) {
+        return;
+      }
+
+      this.topMenuController.closeAll();
+      this.callbacks.onViewerModeChange('depth');
     });
 
     this.disposables.addEventListener(this.elements.rulersMenuItem, 'click', () => {

@@ -42,6 +42,18 @@ export interface PanoramaUniforms extends CommonUniforms {
   panoramaHfovDeg: WebGLUniformLocation;
 }
 
+export interface DepthUniforms extends CommonUniforms {
+  depthOutputOrigin: WebGLUniformLocation;
+  depthFocalLengthPx: WebGLUniformLocation;
+  depthYawDeg: WebGLUniformLocation;
+  depthPitchDeg: WebGLUniformLocation;
+  depthZoom: WebGLUniformLocation;
+  depthPointSizePx: WebGLUniformLocation;
+  depthGridSize: WebGLUniformLocation;
+  depthSampleStep: WebGLUniformLocation;
+  depthRange: WebGLUniformLocation;
+}
+
 export interface ProgramBundle<TUniforms extends CommonUniforms> {
   program: WebGLProgram;
   uniforms: TUniforms;
@@ -57,6 +69,7 @@ export interface LayerSourceTextures {
 export interface ExportSurface {
   framebuffer: WebGLFramebuffer;
   texture: WebGLTexture;
+  depthBuffer: WebGLRenderbuffer;
   width: number;
   height: number;
 }
@@ -68,6 +81,8 @@ export interface RenderPassOptions {
   alphaOutputMode: AlphaOutputMode;
   warnInvalidValues?: boolean;
   invalidValueWarningPhase?: number;
+  imageWidth?: number;
+  imageHeight?: number;
   viewportWidth?: number;
   viewportHeight?: number;
   viewportLeft?: number;
@@ -76,6 +91,8 @@ export interface RenderPassOptions {
   outputHeight?: number;
   screenOriginX?: number;
   screenOriginY?: number;
+  depthOutputOriginX?: number;
+  depthOutputOriginY?: number;
 }
 
 export interface ReadExportPixelsArgs {
@@ -104,11 +121,16 @@ export interface GlImageRendererState {
   colormapTexture: WebGLTexture;
   imageProgram: ProgramBundle<ImageUniforms>;
   panoramaProgram: ProgramBundle<PanoramaUniforms>;
+  depthProgram: ProgramBundle<DepthUniforms>;
   layerTexturesBySession: Map<string, Map<number, LayerSourceTextures>>;
   exportSourceSurface: ExportSurface | null;
   viewport: ViewportInfo;
   viewportOrigin: { left: number; top: number };
   imageSize: { width: number; height: number } | null;
+  depthSourceSize: { width: number; height: number } | null;
+  activeDepthChannel: string | null;
+  activeDepthTexture: WebGLTexture | null;
+  activeDepthRange: { min: number; max: number } | null;
   colormapTextureSize: { width: number; height: number };
   colormapEntryCount: number;
   invalidValueWarningPhase: number;

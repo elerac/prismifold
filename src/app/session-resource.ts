@@ -1,5 +1,10 @@
 import { computeFitView } from '../interaction/image-geometry';
 import { DEFAULT_DISPLAY_GAMMA } from '../color';
+import {
+  DEFAULT_DEPTH_POINT_SIZE_PX,
+  DEFAULT_DEPTH_ZOOM,
+  resolveDepthChannelForLayer
+} from '../depth';
 import { DEFAULT_PANORAMA_HFOV_DEG } from '../interaction/panorama-geometry';
 import { cloneDisplayLuminanceRange } from '../colormap-range';
 import {
@@ -148,8 +153,14 @@ export function createClearedViewerState(_defaultColormapId: string): ViewerSess
     panoramaYawDeg: 0,
     panoramaPitchDeg: 0,
     panoramaHfovDeg: DEFAULT_PANORAMA_HFOV_DEG,
+    depthYawDeg: 0,
+    depthPitchDeg: 0,
+    depthZoom: DEFAULT_DEPTH_ZOOM,
     activeLayer: 0,
     displaySelection: null,
+    depthChannel: null,
+    depthFocalLengthPx: null,
+    depthPointSizePx: DEFAULT_DEPTH_POINT_SIZE_PX,
     lockedPixel: null,
     roi: null
   };
@@ -193,7 +204,7 @@ export function buildReloadedSessionState(
         panY: currentState.panY
       };
 
-  return buildViewerStateForLayer(
+  const nextState = buildViewerStateForLayer(
     {
       ...currentState,
       ...nextImageCamera,
@@ -205,6 +216,21 @@ export function buildReloadedSessionState(
     currentState.activeLayer,
     { stokesParameterVisibility, spectralRgbGroupingEnabled }
   );
+  if (currentState.viewerMode === 'depth') {
+    const nextLayer = decoded.layers[nextState.activeLayer] ?? null;
+    nextState.depthChannel = nextLayer
+      ? resolveDepthChannelForLayer(
+          nextLayer.channelNames,
+          currentState.depthChannel,
+          { allowArbitraryZSuffix: true }
+        )
+      : null;
+    if (!nextState.depthChannel) {
+      nextState.viewerMode = 'image';
+    }
+  }
+
+  return nextState;
 }
 
 export function buildSwitchedSessionState(
@@ -254,6 +280,17 @@ export function buildSwitchedSessionState(
         panoramaPitchDeg: nextSession.state.panoramaPitchDeg,
         panoramaHfovDeg: nextSession.state.panoramaHfovDeg
       };
+  const nextDepthCamera = currentState.viewerMode === 'depth'
+    ? {
+        depthYawDeg: currentState.depthYawDeg,
+        depthPitchDeg: currentState.depthPitchDeg,
+        depthZoom: currentState.depthZoom
+      }
+    : {
+        depthYawDeg: nextSession.state.depthYawDeg,
+        depthPitchDeg: nextSession.state.depthPitchDeg,
+        depthZoom: nextSession.state.depthZoom
+      };
 
   const nextState = buildViewerStateForLayer(
     {
@@ -261,11 +298,15 @@ export function buildSwitchedSessionState(
       viewerMode: currentState.viewerMode,
       ...nextImageCamera,
       ...nextPanoramaCamera,
+      ...nextDepthCamera,
       exposureEv: currentState.exposureEv,
       channelThumbnailExposureEv: currentState.channelThumbnailExposureEv,
       displayGamma: currentState.displayGamma,
       channelThumbnailDisplayGamma: currentState.channelThumbnailDisplayGamma,
       displaySelection: cloneDisplaySelection(resolvedState.displaySelection),
+      depthChannel: currentState.depthChannel,
+      depthFocalLengthPx: currentState.depthFocalLengthPx,
+      depthPointSizePx: currentState.depthPointSizePx,
       stokesDegreeModulation: { ...currentState.stokesDegreeModulation },
       stokesAolpDegreeModulationMode: currentState.stokesAolpDegreeModulationMode,
       lockedPixel,
@@ -278,6 +319,19 @@ export function buildSwitchedSessionState(
       spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled
     }
   );
+  if (currentState.viewerMode === 'depth') {
+    const nextLayer = nextSession.decoded.layers[nextState.activeLayer] ?? null;
+    nextState.depthChannel = nextLayer
+      ? resolveDepthChannelForLayer(
+          nextLayer.channelNames,
+          currentState.depthChannel,
+          { allowArbitraryZSuffix: true }
+        )
+      : null;
+    if (!nextState.depthChannel) {
+      nextState.viewerMode = 'image';
+    }
+  }
 
   if (!shouldCarryColormapState(currentState.displaySelection, nextState.displaySelection)) {
     return nextState;

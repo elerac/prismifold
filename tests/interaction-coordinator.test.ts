@@ -69,7 +69,10 @@ describe('interaction coordinator', () => {
           panY: 5,
           panoramaYawDeg: 0,
           panoramaPitchDeg: 0,
-          panoramaHfovDeg: 100
+          panoramaHfovDeg: 100,
+          depthYawDeg: 0,
+          depthPitchDeg: 0,
+          depthZoom: 1
         },
         hoveredPixel: { ix: 2, iy: 1 },
         draftRoi: null,
@@ -82,7 +85,10 @@ describe('interaction coordinator', () => {
           panY: 0,
           panoramaYawDeg: 0,
           panoramaPitchDeg: 0,
-          panoramaHfovDeg: 100
+          panoramaHfovDeg: 100,
+          depthYawDeg: 0,
+          depthPitchDeg: 0,
+          depthZoom: 1
         },
         hoveredPixel: null,
         draftRoi: null,
@@ -96,7 +102,10 @@ describe('interaction coordinator', () => {
       panY: 5,
       panoramaYawDeg: 0,
       panoramaPitchDeg: 0,
-      panoramaHfovDeg: 100
+      panoramaHfovDeg: 100,
+      depthYawDeg: 0,
+      depthPitchDeg: 0,
+      depthZoom: 1
     });
   });
 
@@ -160,7 +169,10 @@ describe('interaction coordinator', () => {
         panY: 9,
         panoramaYawDeg: 15,
         panoramaPitchDeg: 10,
-        panoramaHfovDeg: 70
+        panoramaHfovDeg: 70,
+        depthYawDeg: 0,
+        depthPitchDeg: 0,
+        depthZoom: 1
       },
       hoveredPixel: null,
       draftRoi: null,
@@ -168,5 +180,34 @@ describe('interaction coordinator', () => {
     });
     expect(sync.previous.hoveredPixel).toEqual({ ix: 4, iy: 4 });
     expect(harness.cancelFrame).toHaveBeenCalledTimes(0);
+  });
+
+  it('clamps depth view patches before publishing and committing interaction state', () => {
+    const harness = createHarness();
+
+    harness.coordinator.enqueueViewPatch({
+      depthYawDeg: 180,
+      depthPitchDeg: -120,
+      depthZoom: 100
+    });
+    harness.flush();
+
+    expect(harness.onInteractionChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        view: expect.objectContaining({
+          depthYawDeg: 89.9,
+          depthPitchDeg: -89.9,
+          depthZoom: 50
+        })
+      }),
+      expect.anything()
+    );
+    expect(harness.commitViewState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        depthYawDeg: 89.9,
+        depthPitchDeg: -89.9,
+        depthZoom: 50
+      })
+    );
   });
 });

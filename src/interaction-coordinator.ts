@@ -61,10 +61,10 @@ export class ViewerInteractionCoordinator implements Disposable {
       return;
     }
 
-    const nextView = {
+    const nextView = pickViewState({
       ...this.state.view,
       ...patch
-    };
+    });
 
     if (sameViewState(this.state.view, nextView)) {
       return;

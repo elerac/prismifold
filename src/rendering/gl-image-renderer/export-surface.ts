@@ -1,6 +1,6 @@
 import type { ViewerState } from '../../types';
 import { COLORMAP_TEXTURE_UNIT } from './constants';
-import { renderImagePass, renderPanoramaPass } from './render-pass';
+import { renderDepthPass, renderImagePass, renderPanoramaPass } from './render-pass';
 import type { ExportImagePixels, ExportSurface, GlImageRendererState, ReadExportPixelsArgs } from './types';
 
 export function readExportPixels(
@@ -44,6 +44,8 @@ export function readExportPixels(
   try {
     gl.bindFramebuffer(gl.FRAMEBUFFER, sourceSurface.framebuffer);
     gl.viewport(0, 0, outputWidth, outputHeight);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const options = {
       compositeCheckerboard: false,
       alphaOutputMode: preserveAlpha ? 'straight' : 'opaque',
@@ -55,6 +57,8 @@ export function readExportPixels(
     } as const;
     if (exportRender.state.viewerMode === 'panorama') {
       renderPanoramaPass(state, exportRender.state, options);
+    } else if (exportRender.state.viewerMode === 'depth') {
+      renderDepthPass(state, exportRender.state, options);
     } else {
       renderImagePass(state, exportRender.state, options);
     }
@@ -289,6 +293,7 @@ export function deleteExportSurface(
 
   gl.deleteFramebuffer(surface.framebuffer);
   gl.deleteTexture(surface.texture);
+  gl.deleteRenderbuffer(surface.depthBuffer);
 }
 
 function getOrCreateExportSurface(
@@ -331,6 +336,12 @@ function getOrCreateExportSurface(
     gl.deleteTexture(texture);
     throw new Error('Failed to create export framebuffer.');
   }
+  const depthBuffer = gl.createRenderbuffer();
+  if (!depthBuffer) {
+    gl.deleteFramebuffer(framebuffer);
+    gl.deleteTexture(texture);
+    throw new Error('Failed to create export depth buffer.');
+  }
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
   gl.framebufferTexture2D(
@@ -340,15 +351,25 @@ function getOrCreateExportSurface(
     texture,
     0
   );
+  gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
+  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+  gl.framebufferRenderbuffer(
+    gl.FRAMEBUFFER,
+    gl.DEPTH_ATTACHMENT,
+    gl.RENDERBUFFER,
+    depthBuffer
+  );
   if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
     gl.deleteFramebuffer(framebuffer);
     gl.deleteTexture(texture);
+    gl.deleteRenderbuffer(depthBuffer);
     throw new Error('Failed to initialize export framebuffer.');
   }
 
   return {
     framebuffer,
     texture,
+    depthBuffer,
     width,
     height
   };

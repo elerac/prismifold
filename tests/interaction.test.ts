@@ -11,6 +11,10 @@ import {
   zoomAroundPoint
 } from '../src/interaction/image-geometry';
 import {
+  orbitDepthFromDrag,
+  zoomDepthFromWheel
+} from '../src/interaction/depth-mode';
+import {
   clampPanoramaHfov,
   clampPanoramaPitch,
   getPanoramaVerticalFovDeg,
@@ -47,8 +51,14 @@ const state: ViewerState = {
   panoramaYawDeg: 0,
   panoramaPitchDeg: 0,
   panoramaHfovDeg: 100,
+  depthYawDeg: 0,
+  depthPitchDeg: 0,
+  depthZoom: 1,
   activeLayer: 0,
   displaySelection: createChannelRgbSelection('R', 'G', 'B'),
+  depthChannel: null,
+  depthFocalLengthPx: null,
+  depthPointSizePx: 2,
   hoveredPixel: null,
   lockedPixel: null,
   roi: null,
@@ -465,6 +475,59 @@ describe('interaction math', () => {
 
     expect(next.panoramaYawDeg).toBe(170);
     expect(normalizePanoramaYaw(190)).toBe(-170);
+  });
+
+  it('orbits depth view in the mouse drag direction', () => {
+    const viewport = { width: 100, height: 100 };
+    const next = orbitDepthFromDrag(
+      {
+        ...state,
+        viewerMode: 'depth',
+        depthYawDeg: 0,
+        depthPitchDeg: 0
+      },
+      viewport,
+      10,
+      -20
+    );
+
+    expect(next.depthYawDeg).toBe(18);
+    expect(next.depthPitchDeg).toBe(-36);
+  });
+
+  it('prevents depth orbit from crossing to the backside', () => {
+    const viewport = { width: 100, height: 100 };
+    const next = orbitDepthFromDrag(
+      {
+        ...state,
+        viewerMode: 'depth',
+        depthYawDeg: 80,
+        depthPitchDeg: 80
+      },
+      viewport,
+      20,
+      20
+    );
+
+    expect(next.depthYawDeg).toBe(89.9);
+    expect(next.depthPitchDeg).toBe(89.9);
+  });
+
+  it('keeps stale depth orbit fields clamped while zooming', () => {
+    const next = zoomDepthFromWheel(
+      {
+        ...state,
+        viewerMode: 'depth',
+        depthYawDeg: 180,
+        depthPitchDeg: -120,
+        depthZoom: 1
+      },
+      -100
+    );
+
+    expect(next.depthYawDeg).toBe(89.9);
+    expect(next.depthPitchDeg).toBe(-89.9);
+    expect(next.depthZoom).toBeGreaterThan(1);
   });
 
   it('clamps panorama pitch while orbiting', () => {

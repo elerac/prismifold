@@ -1,5 +1,5 @@
 import { DISPLAY_SOURCE_SLOT_COUNT } from '../../display/bindings';
-import { COLORMAP_TEXTURE_UNIT } from './constants';
+import { COLORMAP_TEXTURE_UNIT, DEPTH_TEXTURE_UNIT } from './constants';
 import type { CommonUniforms } from './types';
 
 export function getRequiredUniformLocation(
@@ -54,6 +54,14 @@ export function configureProgramSamplers(gl: WebGL2RenderingContext, program: We
   gl.uniform1i(
     getRequiredUniformLocation(gl, program, 'uColormapTexture'),
     COLORMAP_TEXTURE_UNIT
+  );
+}
+
+export function configureDepthProgramSamplers(gl: WebGL2RenderingContext, program: WebGLProgram): void {
+  configureProgramSamplers(gl, program);
+  gl.uniform1i(
+    getRequiredUniformLocation(gl, program, 'uDepthTexture'),
+    DEPTH_TEXTURE_UNIT
   );
 }
 

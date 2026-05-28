@@ -1,9 +1,10 @@
 import { createEmptyDisplaySourceBinding } from '../../display/bindings';
 import { REQUIRED_TEXTURE_UNITS } from './constants';
 import { createColormapTexture } from './colormap-texture';
+import { createDepthProgram } from './depth-program';
 import { createImageProgram } from './image-program';
 import { createPanoramaProgram } from './panorama-program';
-import { configureProgramSamplers } from './program-utils';
+import { configureDepthProgramSamplers, configureProgramSamplers } from './program-utils';
 import { createZeroTexture } from './texture-store';
 import type { GlImageRendererState, LayerSourceTextures } from './types';
 
@@ -25,6 +26,7 @@ export function createGlImageRendererState(glCanvas: HTMLCanvasElement): GlImage
 
   const imageProgram = createImageProgram(gl);
   const panoramaProgram = createPanoramaProgram(gl);
+  const depthProgram = createDepthProgram(gl);
 
   gl.bindVertexArray(vao);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
@@ -34,6 +36,7 @@ export function createGlImageRendererState(glCanvas: HTMLCanvasElement): GlImage
 
   configureProgramSamplers(gl, imageProgram.program);
   configureProgramSamplers(gl, panoramaProgram.program);
+  configureDepthProgramSamplers(gl, depthProgram.program);
 
   return {
     glCanvas,
@@ -43,11 +46,16 @@ export function createGlImageRendererState(glCanvas: HTMLCanvasElement): GlImage
     colormapTexture,
     imageProgram,
     panoramaProgram,
+    depthProgram,
     layerTexturesBySession: new Map<string, Map<number, LayerSourceTextures>>(),
     exportSourceSurface: null,
     viewport: { width: 1, height: 1 },
     viewportOrigin: { left: 0, top: 0 },
     imageSize: null,
+    depthSourceSize: null,
+    activeDepthChannel: null,
+    activeDepthTexture: null,
+    activeDepthRange: null,
     colormapTextureSize: { width: 1, height: 1 },
     colormapEntryCount: 0,
     invalidValueWarningPhase: 0,

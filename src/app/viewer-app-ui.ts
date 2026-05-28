@@ -1,4 +1,5 @@
 import { sameDisplayLuminanceRange } from '../colormap-range';
+import { hasDepthChannelCandidate } from '../depth';
 import { sameDisplaySelection } from '../display-model';
 import type { OpenedImageSession } from '../types';
 import type { ViewerAppState, ViewerUiSnapshot } from './viewer-app-types';
@@ -57,7 +58,8 @@ export const enum ViewerUiInvalidationFlags {
   MaskInvalidStokesVectors = 1 << 24,
   InvalidValueWarning = 1 << 25,
   SpectralRgbGrouping = 1 << 26,
-  ColormapReverse = 1 << 27
+  ColormapReverse = 1 << 27,
+  DepthModeAvailability = 1 << 28
 }
 
 export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => ViewerUiSnapshot {
@@ -105,6 +107,12 @@ export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => Vie
       colormapExposureEv: state.sessionState.colormapExposureEv,
       colormapGamma: state.sessionState.colormapGamma,
       viewerMode: state.sessionState.viewerMode,
+      depthModeAvailable: Boolean(
+        activeSession &&
+        hasDepthChannelCandidate(
+          activeSession.decoded.layers[state.sessionState.activeLayer]?.channelNames ?? []
+        )
+      ),
       visualizationMode: state.sessionState.visualizationMode,
       stokesDegreeModulationControl: selectStokesControl(state),
       stokesColormapDefaults: state.stokesColormapDefaults,
@@ -213,6 +221,10 @@ export function computeViewerUiInvalidation(
     previous.shouldClearImageBrowserPanels !== next.shouldClearImageBrowserPanels
   ) {
     flags |= ViewerUiInvalidationFlags.ViewerMode;
+  }
+
+  if (previous.depthModeAvailable !== next.depthModeAvailable) {
+    flags |= ViewerUiInvalidationFlags.DepthModeAvailability;
   }
 
   if (
@@ -479,6 +491,7 @@ function sameViewerUiSnapshot(a: ViewerUiSnapshot, b: ViewerUiSnapshot): boolean
     a.colormapExposureEv === b.colormapExposureEv &&
     a.colormapGamma === b.colormapGamma &&
     a.viewerMode === b.viewerMode &&
+    a.depthModeAvailable === b.depthModeAvailable &&
     a.visualizationMode === b.visualizationMode &&
     sameStokesControl(a.stokesDegreeModulationControl, b.stokesDegreeModulationControl) &&
     sameStokesColormapDefaultSettings(a.stokesColormapDefaults, b.stokesColormapDefaults) &&

@@ -6,6 +6,13 @@ import {
   buildDisplayLuminanceRevisionKey
 } from '../display/revision-keys';
 import { sameDisplayLuminanceRange } from '../colormap-range';
+import {
+  DEFAULT_DEPTH_POINT_SIZE_PX,
+  DEFAULT_DEPTH_ZOOM,
+  getDepthChannelOptions,
+  resolveDepthChannelForLayer,
+  resolveDepthFocalLengthPx
+} from '../depth';
 import { sameDisplaySelection } from '../display-model';
 import { resolveDisplayImageSize } from '../display-size';
 import { resolveDisplaySelectionForLayer } from '../display-selection';
@@ -262,7 +269,12 @@ function selectPaneRenderSources(
       displaySelection: resolveDisplaySelectionForLayer(layer.channelNames, renderState.displaySelection, {
         stokesParameterVisibility: state.stokesParameterVisibility,
         spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
-      })
+      }),
+      depthChannel: resolveDepthChannelForLayer(
+        layer.channelNames,
+        renderState.depthChannel,
+        { allowArbitraryZSuffix: renderState.viewerMode === 'depth' }
+      )
     };
 
     sources.push({
@@ -315,6 +327,7 @@ function createProbeReadoutSelector(): (
   let previousColormapExposureEv = 0;
   let previousColormapGamma = 1;
   let previousColormapReversed = false;
+  let previousViewerMode: ViewerAppState['sessionState']['viewerMode'] = 'image';
   let previousVisualizationMode: ViewerAppState['sessionState']['visualizationMode'] = 'rgb';
   let previousColormapRange: ViewerAppState['sessionState']['colormapRange'] = null;
   let previousActiveDisplayLuminanceRange: DisplayLuminanceRange | null = null;
@@ -360,6 +373,7 @@ function createProbeReadoutSelector(): (
       state.sessionState.colormapExposureEv === previousColormapExposureEv &&
       state.sessionState.colormapGamma === previousColormapGamma &&
       state.sessionState.colormapReversed === previousColormapReversed &&
+      state.sessionState.viewerMode === previousViewerMode &&
       state.sessionState.visualizationMode === previousVisualizationMode &&
       state.maskInvalidStokesVectors === previousMaskInvalidStokesVectors &&
       state.spectralRgbGroupingEnabled === previousSpectralRgbGroupingEnabled &&
@@ -391,6 +405,7 @@ function createProbeReadoutSelector(): (
     previousColormapExposureEv = state.sessionState.colormapExposureEv;
     previousColormapGamma = state.sessionState.colormapGamma;
     previousColormapReversed = state.sessionState.colormapReversed;
+    previousViewerMode = state.sessionState.viewerMode;
     previousVisualizationMode = state.sessionState.visualizationMode;
     previousColormapRange = state.sessionState.colormapRange;
     previousActiveDisplayLuminanceRange = activeDisplayLuminanceRange;
@@ -520,6 +535,7 @@ function createRoiReadoutSelector(): (
   let previousLayer: ViewerRenderSnapshot['activeLayer'] = null;
   let previousRoi: ViewerAppState['sessionState']['roi'] = null;
   let previousDisplaySelection: ViewerAppState['sessionState']['displaySelection'] = null;
+  let previousViewerMode: ViewerAppState['sessionState']['viewerMode'] = 'image';
   let previousVisualizationMode: ViewerAppState['sessionState']['visualizationMode'] = 'rgb';
   let previousMaskInvalidStokesVectors = true;
   let previousSpectralRgbGroupingEnabled = true;
@@ -535,6 +551,7 @@ function createRoiReadoutSelector(): (
       sessionId === previousSessionId &&
       activeLayer === previousLayer &&
       sameRoi(state.sessionState.roi, previousRoi) &&
+      state.sessionState.viewerMode === previousViewerMode &&
       state.sessionState.visualizationMode === previousVisualizationMode &&
       state.maskInvalidStokesVectors === previousMaskInvalidStokesVectors &&
       state.spectralRgbGroupingEnabled === previousSpectralRgbGroupingEnabled &&
@@ -546,6 +563,7 @@ function createRoiReadoutSelector(): (
     previousSessionId = sessionId;
     previousLayer = activeLayer;
     previousRoi = state.sessionState.roi;
+    previousViewerMode = state.sessionState.viewerMode;
     previousVisualizationMode = state.sessionState.visualizationMode;
     previousDisplaySelection = state.sessionState.displaySelection;
     previousMaskInvalidStokesVectors = state.maskInvalidStokesVectors;
@@ -753,7 +771,31 @@ function buildViewerStateReadout(
       panY: renderState.panY,
       panoramaYawDeg: renderState.panoramaYawDeg,
       panoramaPitchDeg: renderState.panoramaPitchDeg,
-      panoramaHfovDeg: renderState.panoramaHfovDeg
+      panoramaHfovDeg: renderState.panoramaHfovDeg,
+      depthYawDeg: renderState.depthYawDeg,
+      depthPitchDeg: renderState.depthPitchDeg,
+      depthZoom: renderState.depthZoom
+    },
+    depth: {
+      channel: activeSession
+        ? resolveDepthChannelForLayer(
+            activeSession.decoded.layers[renderState.activeLayer]?.channelNames ?? [],
+            renderState.depthChannel,
+            { allowArbitraryZSuffix: renderState.viewerMode === 'depth' }
+          )
+        : null,
+      channelOptions: activeSession
+        ? getDepthChannelOptions(activeSession.decoded.layers[renderState.activeLayer]?.channelNames ?? [])
+        : [],
+      focalLengthPx: renderState.depthFocalLengthPx,
+      resolvedFocalLengthPx: activeSession
+        ? resolveDepthFocalLengthPx(
+            activeSession.decoded.width,
+            activeSession.decoded.height,
+            renderState.depthFocalLengthPx
+          )
+        : null,
+      pointSizePx: renderState.depthPointSizePx
     }
   };
 }
@@ -838,6 +880,8 @@ function samePaneResourceInputs(
 ): boolean {
   return samePaneRenderSourcesBy(a, b, (source, other) => (
     source.renderState.visualizationMode === other.renderState.visualizationMode &&
+    source.renderState.viewerMode === other.renderState.viewerMode &&
+    source.renderState.depthChannel === other.renderState.depthChannel &&
     source.renderState.maskInvalidStokesVectors === other.renderState.maskInvalidStokesVectors &&
     source.renderState.spectralRgbGroupingEnabled === other.renderState.spectralRgbGroupingEnabled &&
     sameDisplaySelection(source.renderState.displaySelection, other.renderState.displaySelection)
@@ -881,6 +925,9 @@ function samePaneImageInput(a: ViewerPaneRenderSource, b: ViewerPaneRenderSource
     previous.maskInvalidStokesVectors === next.maskInvalidStokesVectors &&
     previous.invalidValueWarningEnabled === next.invalidValueWarningEnabled &&
     sameDisplaySelection(previous.displaySelection, next.displaySelection) &&
+    previous.depthChannel === next.depthChannel &&
+    previous.depthFocalLengthPx === next.depthFocalLengthPx &&
+    previous.depthPointSizePx === next.depthPointSizePx &&
     previous.visualizationMode === next.visualizationMode &&
     sameViewState(previous, next)
   );
@@ -960,6 +1007,9 @@ function sameViewerRenderState(a: ViewerRenderState, b: ViewerRenderState): bool
     a.invalidValueWarningEnabled === b.invalidValueWarningEnabled &&
     a.activeLayer === b.activeLayer &&
     sameDisplaySelection(a.displaySelection, b.displaySelection) &&
+    a.depthChannel === b.depthChannel &&
+    a.depthFocalLengthPx === b.depthFocalLengthPx &&
+    a.depthPointSizePx === b.depthPointSizePx &&
     samePixel(a.lockedPixel, b.lockedPixel) &&
     sameViewState(a, b) &&
     samePixel(a.hoveredPixel, b.hoveredPixel) &&
@@ -992,8 +1042,14 @@ function stateLikeSessionState(): ViewerAppState['sessionState'] {
     panoramaYawDeg: 0,
     panoramaPitchDeg: 0,
     panoramaHfovDeg: 100,
+    depthYawDeg: 0,
+    depthPitchDeg: 0,
+    depthZoom: DEFAULT_DEPTH_ZOOM,
     activeLayer: 0,
     displaySelection: null,
+    depthChannel: null,
+    depthFocalLengthPx: null,
+    depthPointSizePx: DEFAULT_DEPTH_POINT_SIZE_PX,
     lockedPixel: null,
     roi: null
   };
@@ -1006,8 +1062,11 @@ function stateLikeInteractionState(): ViewerAppState['interactionState'] {
       panX: 0,
       panY: 0,
       panoramaYawDeg: 0,
-    panoramaPitchDeg: 0,
-    panoramaHfovDeg: 100
+      panoramaPitchDeg: 0,
+      panoramaHfovDeg: 100,
+      depthYawDeg: 0,
+      depthPitchDeg: 0,
+      depthZoom: DEFAULT_DEPTH_ZOOM
     },
     hoveredPixel: null,
     draftRoi: null,

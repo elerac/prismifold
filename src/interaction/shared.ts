@@ -16,6 +16,12 @@ export interface PointerPosition {
   y: number;
 }
 
+export type DepthProbePixelResolver = (
+  point: PointerPosition,
+  state: ViewerState,
+  viewport: ViewportInfo
+) => ImagePixel | null;
+
 export interface ScreenshotSelectionInteractionRegion {
   id: string;
   rect: ViewportRect;
@@ -35,10 +41,19 @@ export interface InteractionCallbacks {
   resolvePaneAtPoint?: (point: PointerPosition) => ViewerPaneRenderInfo | null;
   onActivePaneChange?: (path: ViewerPanePath) => void;
   getImageSize: () => ImageSize | null;
+  resolveDepthProbePixel?: DepthProbePixelResolver;
   onViewChange: (
     next: Partial<Pick<
       ViewerState,
-      'zoom' | 'panX' | 'panY' | 'panoramaYawDeg' | 'panoramaPitchDeg' | 'panoramaHfovDeg'
+      | 'zoom'
+      | 'panX'
+      | 'panY'
+      | 'panoramaYawDeg'
+      | 'panoramaPitchDeg'
+      | 'panoramaHfovDeg'
+      | 'depthYawDeg'
+      | 'depthPitchDeg'
+      | 'depthZoom'
     >>
   ) => void;
   onHoverPixel: (pixel: ImagePixel | null) => void;

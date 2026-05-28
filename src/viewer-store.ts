@@ -1,4 +1,12 @@
 import { DEFAULT_DISPLAY_GAMMA } from './color';
+import {
+  clampDepthPitch,
+  clampDepthYaw,
+  clampDepthZoom,
+  DEFAULT_DEPTH_POINT_SIZE_PX,
+  DEFAULT_DEPTH_ZOOM,
+  resolveDepthChannelForLayer
+} from './depth';
 import { DEFAULT_PANORAMA_HFOV_DEG } from './interaction/panorama-geometry';
 import { resolveDisplaySelectionForLayer, type DisplaySelectionAvailabilityConfig } from './display-selection';
 import {
@@ -32,8 +40,14 @@ const SESSION_STATE_KEYS = [
   'panoramaYawDeg',
   'panoramaPitchDeg',
   'panoramaHfovDeg',
+  'depthYawDeg',
+  'depthPitchDeg',
+  'depthZoom',
   'activeLayer',
   'displaySelection',
+  'depthChannel',
+  'depthFocalLengthPx',
+  'depthPointSizePx',
   'lockedPixel',
   'roi'
 ] as const satisfies ReadonlyArray<keyof ViewerSessionState>;
@@ -61,8 +75,14 @@ export function createInitialState(): ViewerSessionState {
     panoramaYawDeg: 0,
     panoramaPitchDeg: 0,
     panoramaHfovDeg: DEFAULT_PANORAMA_HFOV_DEG,
+    depthYawDeg: 0,
+    depthPitchDeg: 0,
+    depthZoom: DEFAULT_DEPTH_ZOOM,
     activeLayer: 0,
     displaySelection: null,
+    depthChannel: null,
+    depthFocalLengthPx: null,
+    depthPointSizePx: DEFAULT_DEPTH_POINT_SIZE_PX,
     lockedPixel: null,
     roi: null
   };
@@ -120,14 +140,22 @@ export function buildViewerStateForLayer(
     return {
       ...currentState,
       activeLayer: 0,
-      displaySelection: null
+      displaySelection: null,
+      depthYawDeg: clampDepthYaw(currentState.depthYawDeg),
+      depthPitchDeg: clampDepthPitch(currentState.depthPitchDeg),
+      depthZoom: clampDepthZoom(currentState.depthZoom),
+      depthChannel: null
     };
   }
 
   return {
     ...currentState,
     activeLayer,
-    displaySelection: resolveDisplaySelectionForLayer(layer.channelNames, currentState.displaySelection, config)
+    displaySelection: resolveDisplaySelectionForLayer(layer.channelNames, currentState.displaySelection, config),
+    depthYawDeg: clampDepthYaw(currentState.depthYawDeg),
+    depthPitchDeg: clampDepthPitch(currentState.depthPitchDeg),
+    depthZoom: clampDepthZoom(currentState.depthZoom),
+    depthChannel: resolveDepthChannelForLayer(layer.channelNames, currentState.depthChannel)
   };
 }
 
@@ -139,6 +167,15 @@ function pickSessionStatePatch(patch: Partial<ViewerSessionState>): Partial<View
         [key]: patch[key]
       });
     }
+  }
+  if (patch.depthYawDeg !== undefined) {
+    nextPatch.depthYawDeg = clampDepthYaw(patch.depthYawDeg);
+  }
+  if (patch.depthPitchDeg !== undefined) {
+    nextPatch.depthPitchDeg = clampDepthPitch(patch.depthPitchDeg);
+  }
+  if (patch.depthZoom !== undefined) {
+    nextPatch.depthZoom = clampDepthZoom(patch.depthZoom);
   }
   return nextPatch;
 }

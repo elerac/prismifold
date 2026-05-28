@@ -4,7 +4,7 @@ import {
   serializeChannelThumbnailRequestKey
 } from '../channel-thumbnail-keys';
 import { sameDisplaySelection, type DisplaySelection } from '../display-model';
-import { samePixel, sameRoi, sameViewState } from '../view-state';
+import { samePixel, sameRoi, sameRoiInteractionState, sameViewState } from '../view-state';
 import { ViewerInteractionCoordinator } from '../interaction-coordinator';
 import { ChannelThumbnailService } from '../services/channel-thumbnail-service';
 import { ThumbnailService } from '../services/thumbnail-service';
@@ -64,7 +64,8 @@ export function syncInteractionCoordinator(
   if (
     sameViewState(coordinatorState.view, nextInteractionState.view) &&
     samePixel(coordinatorState.hoveredPixel, nextInteractionState.hoveredPixel) &&
-    sameRoi(coordinatorState.draftRoi, nextInteractionState.draftRoi)
+    sameRoi(coordinatorState.draftRoi, nextInteractionState.draftRoi) &&
+    sameRoiInteractionState(coordinatorState.roiInteraction, nextInteractionState.roiInteraction)
   ) {
     return;
   }

@@ -103,7 +103,7 @@ export class RulerOverlayRenderer implements Disposable {
     this.clearOverlay();
 
     const imageSize = this.imageSize;
-    if (!visible || !imageSize || state.viewerMode === 'panorama') {
+    if (!visible || !imageSize || state.viewerMode !== 'image') {
       return;
     }
 
@@ -136,7 +136,7 @@ export class RulerOverlayRenderer implements Disposable {
     }
 
     const imageSize = this.imageSize;
-    if (!visible || !imageSize || state.viewerMode === 'panorama') {
+    if (!visible || !imageSize || state.viewerMode !== 'image') {
       return;
     }
 

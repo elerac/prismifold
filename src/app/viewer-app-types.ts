@@ -87,7 +87,17 @@ export interface ImageStatsReadoutModel {
 export interface ViewerStateReadoutModel {
   hasActiveImage: boolean;
   viewerMode: ViewerSessionState['viewerMode'];
-  view: ViewerViewState;
+  view: Pick<
+    ViewerViewState,
+    'zoom' | 'panX' | 'panY' | 'panoramaYawDeg' | 'panoramaPitchDeg' | 'panoramaHfovDeg'
+  > & Partial<Pick<ViewerViewState, 'depthYawDeg' | 'depthPitchDeg' | 'depthZoom'>>;
+  depth?: {
+    channel: string | null;
+    channelOptions: Array<{ value: string; label: string }>;
+    focalLengthPx: number | null;
+    resolvedFocalLengthPx: number | null;
+    pointSizePx: number;
+  };
 }
 
 export interface ViewerOpenedImageOption {
@@ -235,8 +245,12 @@ export type ViewerIntent =
   | { type: 'lockedPixelToggled'; pixel: ViewerSessionState['lockedPixel'] }
   | { type: 'roiSet'; roi: ViewerSessionState['roi'] }
   | { type: 'viewerStateEdited'; patch: Partial<ViewerViewState> }
+  | {
+      type: 'depthSettingsEdited';
+      patch: Partial<Pick<ViewerSessionState, 'depthChannel' | 'depthFocalLengthPx' | 'depthPointSizePx'>>;
+    }
   | { type: 'interactionStatePublished'; interactionState: ViewerInteractionState }
-  | { type: 'viewStateCommitted'; view: ViewerInteractionState['view'] }
+  | { type: 'viewStateCommitted'; view: Partial<ViewerViewState> }
   | { type: 'pendingOpenedImagesReserved'; reservations: PendingOpenedImageReservation[] }
   | { type: 'pendingOpenedImagesCleared'; sessionIds?: string[] }
   | { type: 'sessionLoaded'; session: OpenedImageSession; activate?: boolean }
@@ -343,6 +357,7 @@ export interface ViewerUiSnapshot {
   colormapExposureEv: number;
   colormapGamma: number;
   viewerMode: ViewerSessionState['viewerMode'];
+  depthModeAvailable?: boolean;
   visualizationMode: ViewerSessionState['visualizationMode'];
   stokesDegreeModulationControl: StokesDegreeModulationControlModel | null;
   stokesColormapDefaults: StokesColormapDefaultSettings;

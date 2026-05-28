@@ -49,6 +49,10 @@ import {
   computeDisplaySelectionAutoExposurePreview
 } from '../analysis/auto-exposure';
 import { cloneDisplaySelection, type DisplaySelection } from '../display-model';
+import {
+  computePositiveFiniteDepthRange,
+  resolveDepthChannelForLayer
+} from '../depth';
 import { getFiniteChannelRange } from '../channel-storage';
 import type {
   DecodedLayer,
@@ -136,6 +140,14 @@ interface RenderCacheRenderer {
     spectralRgbGroupingEnabled: boolean | undefined,
     textureRevisionKey: string,
     binding: ReturnType<typeof buildDisplaySourceBinding>
+  ) => void;
+  setDepthSourceBinding?: (
+    sessionId: string,
+    layerIndex: number,
+    width: number,
+    height: number,
+    channelName: string | null,
+    depthRange: DisplayLuminanceRange | null
   ) => void;
   discardChannelSourceTexture: (sessionId: string, layerIndex: number, channelName: string) => void;
   discardLayerSourceTextures: (sessionId: string, layerIndex: number) => void;
@@ -314,17 +326,24 @@ export class RenderCacheService implements Disposable {
     const binding = buildDisplaySourceBinding(layer, state.displaySelection, state.visualizationMode, {
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
     });
+    const depthChannel = state.viewerMode === 'depth'
+      ? resolveDepthChannelForLayer(layer.channelNames, state.depthChannel, { allowArbitraryZSuffix: true })
+      : null;
     const requiredChannelNames = getDisplaySourceBindingChannelNames(binding).filter((channelName) => {
       return isDerivedDisplaySourceName(channelName) ||
         layer.channelStorage.channelIndexByName[channelName] !== undefined;
     });
+    const requiredTextureChannelNames = [
+      ...requiredChannelNames,
+      ...(depthChannel && layer.channelStorage.channelIndexByName[depthChannel] !== undefined ? [depthChannel] : [])
+    ];
     const protectedBinding = this.resolvePrepareProtectedBinding(
       session.id,
       state.activeLayer,
       layer,
       state.displaySelection,
       state.spectralRgbGroupingEnabled !== false,
-      requiredChannelNames
+      requiredTextureChannelNames
     );
     const { missingChannelNames } = this.ensureResidentChannels({
       session,
@@ -332,7 +351,7 @@ export class RenderCacheService implements Disposable {
       width: session.decoded.width,
       height: session.decoded.height,
       layer,
-      channelNames: requiredChannelNames,
+      channelNames: requiredTextureChannelNames,
       protectedBinding
     });
     const textureDirty =
@@ -353,6 +372,14 @@ export class RenderCacheService implements Disposable {
         state.spectralRgbGroupingEnabled,
         textureRevisionKey,
         binding
+      );
+      this.renderer.setDepthSourceBinding?.(
+        session.id,
+        state.activeLayer,
+        session.decoded.width,
+        session.decoded.height,
+        depthChannel,
+        computePositiveFiniteDepthRange(layer, session.decoded.width, session.decoded.height, depthChannel)
       );
       this.setBoundTextureTracking(protectedBinding, textureRevisionKey);
     }
