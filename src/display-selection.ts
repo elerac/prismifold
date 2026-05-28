@@ -51,6 +51,19 @@ export interface RgbChannelGroup {
   a?: string;
 }
 
+type ComponentChannelGroupKind = 'rgb' | 'xyz' | 'uv';
+
+interface ComponentChannelGroup {
+  kind: ComponentChannelGroupKind;
+  optionKey: string;
+  key: string;
+  label: string;
+  r: string;
+  g: string;
+  b: string | null;
+  a?: string;
+}
+
 export interface ChannelDisplayOption {
   key: string;
   label: string;
@@ -75,6 +88,7 @@ export function pickDefaultDisplaySelection(
 ): DisplaySelection | null {
   const names = [...channelNames];
   const rgbGroups = extractRgbChannelGroups(names);
+  const componentGroups = extractComponentChannelGroups(names);
   const nonMuellerRgbGroups = rgbGroups.filter((group) => !isMuellerMatrixElementName(group.key));
   if (nonMuellerRgbGroups.length > 0) {
     return buildChannelRgbSelection(nonMuellerRgbGroups[0]!);
@@ -87,6 +101,11 @@ export function pickDefaultDisplaySelection(
 
   if (rgbGroups.length > 0) {
     return buildChannelRgbSelection(rgbGroups[0]!);
+  }
+
+  const nonRgbComponentGroup = componentGroups.find((group) => group.kind !== 'rgb');
+  if (nonRgbComponentGroup) {
+    return buildChannelRgbSelection(nonRgbComponentGroup);
   }
 
   if (config.spectralRgbGroupingEnabled !== false) {
@@ -212,7 +231,7 @@ export function buildChannelDisplayOptions(
   const includeRgbGroups = config.includeRgbGroups ?? true;
   const includeSplitChannels = config.includeSplitChannels ?? false;
   const includeAlphaCompanions = config.includeAlphaCompanions ?? !includeSplitChannels;
-  const rgbComponentChannels = new Set<string>();
+  const groupedComponentChannels = new Set<string>();
   const consumedAlphaChannels = new Set<string>();
   const singleChannelOptions = new Set<string>();
 
@@ -225,18 +244,20 @@ export function buildChannelDisplayOptions(
     options.push(buildSingleChannelDisplayOption(channelName, channelNames, labelOverride, includeAlphaCompanions));
   };
 
-  for (const group of extractRgbChannelGroups(channelNames)) {
-    rgbComponentChannels.add(group.r);
-    rgbComponentChannels.add(group.g);
-    rgbComponentChannels.add(group.b);
+  for (const group of extractComponentChannelGroups(channelNames)) {
+    groupedComponentChannels.add(group.r);
+    groupedComponentChannels.add(group.g);
+    if (group.b) {
+      groupedComponentChannels.add(group.b);
+    }
     if (group.a) {
-      rgbComponentChannels.add(group.a);
+      groupedComponentChannels.add(group.a);
       consumedAlphaChannels.add(group.a);
     }
 
     if (includeRgbGroups) {
       options.push({
-        key: `group:${group.key}`,
+        key: group.optionKey,
         label: group.label,
         selection: buildChannelRgbSelection(group),
         mapping: {
@@ -251,7 +272,9 @@ export function buildChannelDisplayOptions(
     if (includeSplitChannels) {
       pushSingleChannelOption(group.r, group.r);
       pushSingleChannelOption(group.g, group.g);
-      pushSingleChannelOption(group.b, group.b);
+      if (group.b) {
+        pushSingleChannelOption(group.b, group.b);
+      }
       if (group.a) {
         pushSingleChannelOption(group.a, group.a);
       }
@@ -259,7 +282,7 @@ export function buildChannelDisplayOptions(
   }
 
   for (const channelName of channelNames) {
-    if (!includeAlphaCompanions || rgbComponentChannels.has(channelName) || isAlphaChannel(channelName)) {
+    if (!includeAlphaCompanions || groupedComponentChannels.has(channelName) || isAlphaChannel(channelName)) {
       continue;
     }
 
@@ -270,7 +293,7 @@ export function buildChannelDisplayOptions(
   }
 
   for (const channelName of channelNames) {
-    if (rgbComponentChannels.has(channelName) || consumedAlphaChannels.has(channelName)) {
+    if (groupedComponentChannels.has(channelName) || consumedAlphaChannels.has(channelName)) {
       continue;
     }
 
@@ -416,8 +439,8 @@ function normalizeChannelSelection(
       : null;
   }
 
-  const group = findSelectedRgbGroup(
-    extractRgbChannelGroups(channelNames),
+  const group = findSelectedComponentChannelGroup(
+    extractComponentChannelGroups(channelNames),
     selection.r,
     selection.g,
     selection.b
@@ -434,7 +457,7 @@ function findMergedSelectionForSplitChannel(
   }
 
   const selectedChannel = selected.channel;
-  for (const group of extractRgbChannelGroups(channelNames)) {
+  for (const group of extractComponentChannelGroups(channelNames)) {
     if (
       selectedChannel !== group.r &&
       selectedChannel !== group.g &&
@@ -491,7 +514,7 @@ function findSplitSelectionForMergedGroup(
   }
 
   if (selected.kind === 'channelRgb') {
-    for (const group of extractRgbChannelGroups(channelNames)) {
+    for (const group of extractComponentChannelGroups(channelNames)) {
       if (selected.r !== group.r || selected.g !== group.g || selected.b !== group.b) {
         continue;
       }
@@ -551,7 +574,7 @@ function findSplitSelectionForMergedSpectralStokes(
   return suffix ? buildScalarStokesSelection(selected.parameter, suffix) : null;
 }
 
-function buildChannelRgbSelection(group: RgbChannelGroup): ChannelRgbSelection {
+function buildChannelRgbSelection(group: Pick<ComponentChannelGroup, 'r' | 'g' | 'b' | 'a'>): ChannelRgbSelection {
   return {
     kind: 'channelRgb',
     r: group.r,
@@ -591,6 +614,115 @@ function buildSingleChannelDisplayOption(
       displayB: channelName,
       displayA: selection.alpha
     }
+  };
+}
+
+function extractComponentChannelGroups(channelNames: string[]): ComponentChannelGroup[] {
+  return [
+    ...extractRgbChannelGroups(channelNames).map((group): ComponentChannelGroup => ({
+      kind: 'rgb',
+      optionKey: `group:${group.key}`,
+      ...group
+    })),
+    ...extractVectorChannelGroups(channelNames, 'xyz', ['X', 'Y', 'Z']),
+    ...extractVectorChannelGroups(channelNames, 'uv', ['U', 'V'])
+  ];
+}
+
+function extractVectorChannelGroups(
+  channelNames: string[],
+  kind: Exclude<ComponentChannelGroupKind, 'rgb'>,
+  suffixes: readonly string[]
+): ComponentChannelGroup[] {
+  const grouped = new Map<string, Partial<Record<string, string>>>();
+  const recognizedSuffixes = [...suffixes, 'A'];
+
+  for (const channelName of channelNames) {
+    const parsed = parseChannelNameSuffix(channelName, recognizedSuffixes);
+    if (!parsed) {
+      continue;
+    }
+
+    const group = grouped.get(parsed.base) ?? {};
+    if (!group[parsed.suffix]) {
+      group[parsed.suffix] = channelName;
+      grouped.set(parsed.base, group);
+    }
+  }
+
+  const groups: ComponentChannelGroup[] = [];
+  for (const [base, channels] of grouped.entries()) {
+    const r = channels[suffixes[0]!];
+    const g = channels[suffixes[1]!];
+    const bSuffix = suffixes[2] ?? null;
+    const b = bSuffix ? channels[bSuffix] ?? null : null;
+    if (!r || !g || (bSuffix && !b)) {
+      continue;
+    }
+
+    groups.push({
+      kind,
+      optionKey: kind === 'xyz' ? `groupXYZ:${base}` : `groupUV:${base}`,
+      key: base,
+      label: buildComponentGroupLabel(base, suffixes, Boolean(channels.A)),
+      r,
+      g,
+      b,
+      a: channels.A
+    });
+  }
+
+  groups.sort(compareComponentChannelGroups);
+  return groups;
+}
+
+function findSelectedComponentChannelGroup(
+  groups: ComponentChannelGroup[],
+  displayR: string,
+  displayG: string,
+  displayB: string | null
+): ComponentChannelGroup | null {
+  return groups.find((group) => group.r === displayR && group.g === displayG && group.b === displayB) ?? null;
+}
+
+function compareComponentChannelGroups(a: Pick<ComponentChannelGroup, 'key'>, b: Pick<ComponentChannelGroup, 'key'>): number {
+  if (a.key.length === 0) {
+    return -1;
+  }
+  if (b.key.length === 0) {
+    return 1;
+  }
+  return a.key.localeCompare(b.key);
+}
+
+function buildComponentGroupLabel(base: string, suffixes: readonly string[], hasAlpha: boolean): string {
+  const channelsLabel = [...suffixes, ...(hasAlpha ? ['A'] : [])].join(',');
+  return base.length > 0 ? `${base}.(${channelsLabel})` : channelsLabel;
+}
+
+function parseChannelNameSuffix<T extends string>(
+  channelName: string,
+  suffixes: readonly T[]
+): { base: string; suffix: T } | null {
+  const bareSuffix = suffixes.find((suffix) => channelName === suffix);
+  if (bareSuffix) {
+    return { base: '', suffix: bareSuffix };
+  }
+
+  const dotIndex = channelName.lastIndexOf('.');
+  if (dotIndex <= 0 || dotIndex >= channelName.length - 1) {
+    return null;
+  }
+
+  const suffixValue = channelName.slice(dotIndex + 1);
+  const suffix = suffixes.find((candidate) => candidate === suffixValue);
+  if (!suffix) {
+    return null;
+  }
+
+  return {
+    base: channelName.slice(0, dotIndex),
+    suffix
   };
 }
 

@@ -59,6 +59,84 @@ describe('channel view items', () => {
     ]);
   });
 
+  it('derives XYZ and UV stack children from existing split descriptors', () => {
+    const channelNames = [
+      'normal.X',
+      'normal.Y',
+      'normal.Z',
+      'motion.U',
+      'motion.V',
+      'motion.A',
+      'depth.Z'
+    ];
+    const items = buildChannelViewItems(channelNames);
+    const merged = selectVisibleChannelViewItems(items, false);
+    const split = selectVisibleChannelViewItems(items, true);
+    const stacks = buildChannelViewStacks(channelNames, items);
+
+    expect(merged.map((item) => ({ value: item.value, label: item.label, meta: item.meta, swatches: item.swatches })))
+      .toEqual([
+        {
+          value: 'groupXYZ:normal',
+          label: 'normal.XYZ',
+          meta: '32f x 3',
+          swatches: ['#ff6570', '#6bd66f', '#51aefe']
+        },
+        {
+          value: 'groupUV:motion',
+          label: 'motion.UVA',
+          meta: '32f x 3',
+          swatches: ['#ff6570', '#6bd66f']
+        },
+        {
+          value: 'channel:depth.Z',
+          label: 'depth.Z',
+          meta: '32f',
+          swatches: ['#8f83e6']
+        }
+      ]);
+    expect(split.map((item) => item.value)).toEqual([
+      'channel:normal.X',
+      'channel:normal.Y',
+      'channel:normal.Z',
+      'channel:motion.U',
+      'channel:motion.V',
+      'channel:motion.A',
+      'channel:depth.Z'
+    ]);
+    expect(stacks).toEqual([
+      {
+        key: 'stack:groupXYZ:normal:channelRgb:normal.X:normal.Y:normal.Z:',
+        parentValue: 'groupXYZ:normal',
+        childValues: [
+          'channel:normal.X',
+          'channel:normal.Y',
+          'channel:normal.Z'
+        ]
+      },
+      {
+        key: 'stack:groupUV:motion:channelRgb:motion.U:motion.V::motion.A',
+        parentValue: 'groupUV:motion',
+        childValues: [
+          'channel:motion.U',
+          'channel:motion.V',
+          'channel:motion.A'
+        ]
+      }
+    ]);
+  });
+
+  it('shows UV groups as two-channel displays when no alpha companion exists', () => {
+    const uvItem = selectVisibleChannelViewItems(buildChannelViewItems(['U', 'V']), false)[0];
+
+    expect(uvItem).toMatchObject({
+      value: 'groupUV:',
+      label: 'UV',
+      meta: '32f x 2',
+      swatches: ['#ff6570', '#6bd66f']
+    });
+  });
+
   it('builds merged and split stokes descriptors from the same item set', () => {
     const items = buildChannelViewItems([
       'S0.R', 'S0.G', 'S0.B',

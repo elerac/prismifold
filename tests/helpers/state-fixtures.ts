@@ -183,7 +183,7 @@ export function createStokesSelection(
 export function createChannelRgbSelection(
   r = 'R',
   g = 'G',
-  b = 'B',
+  b: string | null = 'B',
   alpha: string | null = null
 ): ChannelRgbSelection {
   return {

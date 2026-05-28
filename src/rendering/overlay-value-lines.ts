@@ -48,9 +48,11 @@ export function buildOverlayValueLines(
   } else {
     lines = [
       { color: OVERLAY_RGB_LABEL_COLORS[0], value: formatOverlayValue(r) },
-      { color: OVERLAY_RGB_LABEL_COLORS[1], value: formatOverlayValue(g) },
-      { color: OVERLAY_RGB_LABEL_COLORS[2], value: formatOverlayValue(b) }
+      { color: OVERLAY_RGB_LABEL_COLORS[1], value: formatOverlayValue(g) }
     ];
+    if (!isTwoComponentChannelRgbSelection(selection)) {
+      lines.push({ color: OVERLAY_RGB_LABEL_COLORS[2], value: formatOverlayValue(b) });
+    }
   }
 
   if (alphaChannel) {
@@ -61,8 +63,16 @@ export function buildOverlayValueLines(
 }
 
 export function getOverlayValueLineCount(state: OverlayLabelState): number {
-  const colorLineCount = state.visualizationMode === 'colormap' || isMonoSelection(state.displaySelection) ? 1 : 3;
+  const colorLineCount = state.visualizationMode === 'colormap' || isMonoSelection(state.displaySelection)
+    ? 1
+    : isTwoComponentChannelRgbSelection(state.displaySelection)
+      ? 2
+      : 3;
   return selectionUsesOverlayAlpha(state.displaySelection) ? colorLineCount + 1 : colorLineCount;
+}
+
+function isTwoComponentChannelRgbSelection(selection: ViewerState['displaySelection']): boolean {
+  return Boolean(selection && selection.kind === 'channelRgb' && !selection.b);
 }
 
 function overlayLabelColorForChannel(channelName: string): string {

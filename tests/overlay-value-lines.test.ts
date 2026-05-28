@@ -37,6 +37,21 @@ describe('renderer overlay value helpers', () => {
     expect(lines).toHaveLength(3);
   });
 
+  it('keeps two channel lines for non-colormap grouped UV displays', () => {
+    const lines = buildOverlayValueLines(
+      {
+        visualizationMode: 'rgb',
+        displaySelection: createChannelRgbSelection('U', 'V', null)
+      },
+      1,
+      0.5,
+      0
+    );
+
+    expect(lines.map((line) => line.value)).toEqual(['1.00', '0.500']);
+    expect(lines).toHaveLength(2);
+  });
+
   it('keeps one channel-colored line for repeated-channel RGB displays', () => {
     const lines = buildOverlayValueLines(
       {

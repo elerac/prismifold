@@ -40,7 +40,7 @@ export function serializeDisplaySelectionLuminanceKey(
 
   switch (selection.kind) {
     case 'channelRgb':
-      return `channelRgb:${selection.r}:${selection.g}:${selection.b}`;
+      return `channelRgb:${selection.r}:${selection.g}:${selection.b ?? ''}`;
     case 'channelMono':
       return `channelMono:${selection.channel}`;
     case 'spectralRgb':

@@ -217,7 +217,9 @@ export function findSelectedChannelViewItem<T extends Pick<ChannelViewItem, 'sel
 }
 
 export function getChannelViewSwatches(mapping: DisplayChannelMapping): string[] {
-  const displayChannels = [mapping.displayR, mapping.displayG, mapping.displayB];
+  const displayChannels = [mapping.displayR, mapping.displayG, mapping.displayB].filter((channelName): channelName is string => (
+    channelName !== null
+  ));
   if (displayChannels.every((channelName) => channelName === mapping.displayR)) {
     const swatches = [getRepresentativeChannelColor(mapping.displayR)];
     if (mapping.displayA && mapping.displayA !== mapping.displayR) {
@@ -226,12 +228,8 @@ export function getChannelViewSwatches(mapping: DisplayChannelMapping): string[]
     return swatches;
   }
 
-  const channels = [
-    ...displayChannels,
-    ...(mapping.displayA ? [mapping.displayA] : [])
-  ];
-  const uniqueChannels = Array.from(new Set(channels));
-  return uniqueChannels.slice(0, 3).map(getRepresentativeChannelColor);
+  const uniqueChannels = Array.from(new Set(displayChannels));
+  return uniqueChannels.slice(0, 3).map((channelName, index) => getDisplaySlotChannelColor(channelName, index));
 }
 
 function buildDisplayItems(
@@ -318,10 +316,26 @@ function formatChannelViewLabel(label: string): string {
   if (label === 'R,G,B') {
     return 'RGB';
   }
+  if (label === 'X,Y,Z,A') {
+    return 'XYZA';
+  }
+  if (label === 'X,Y,Z') {
+    return 'XYZ';
+  }
+  if (label === 'U,V,A') {
+    return 'UVA';
+  }
+  if (label === 'U,V') {
+    return 'UV';
+  }
 
   return label
     .replace(/\.\(R,G,B,A\)/g, '.RGBA')
-    .replace(/\.\(R,G,B\)/g, '.RGB');
+    .replace(/\.\(R,G,B\)/g, '.RGB')
+    .replace(/\.\(X,Y,Z,A\)/g, '.XYZA')
+    .replace(/\.\(X,Y,Z\)/g, '.XYZ')
+    .replace(/\.\(U,V,A\)/g, '.UVA')
+    .replace(/\.\(U,V\)/g, '.UV');
 }
 
 function formatChannelViewMeta(mapping: DisplayChannelMapping, channelCount?: number): string {
@@ -335,7 +349,21 @@ function getDisplayMappingChannelCount(mapping: DisplayChannelMapping): number {
     mapping.displayG,
     mapping.displayB,
     ...(mapping.displayA ? [mapping.displayA] : [])
-  ]).size;
+  ].filter((channelName): channelName is string => channelName !== null)).size;
+}
+
+function getDisplaySlotChannelColor(channelName: string, displaySlotIndex: number): string {
+  if (displaySlotIndex === 0) {
+    return '#ff6570';
+  }
+  if (displaySlotIndex === 1) {
+    return '#6bd66f';
+  }
+  if (displaySlotIndex === 2) {
+    return '#51aefe';
+  }
+
+  return getRepresentativeChannelColor(channelName);
 }
 
 function getRepresentativeChannelColor(channelName: string): string {

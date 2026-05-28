@@ -41,6 +41,18 @@ describe('display CPU materialization', () => {
     expect(Array.from(texture.filter((_, index) => index % 4 === 3))).toEqual([0.25, 1, 0, 0]);
   });
 
+  it('fills missing blue with zero for grouped UV display textures', () => {
+    const layer = createLayerFromChannels({
+      U: [0.25],
+      V: [0.75],
+      A: [0.5]
+    }, 'uv');
+
+    const texture = buildSelectedDisplayTexture(layer, 1, 1, createChannelRgbSelection('U', 'V', null, 'A'));
+
+    expect(Array.from(texture)).toEqual([0.25, 0.75, 0, 0.5]);
+  });
+
   it('builds grayscale display textures for mono selections', () => {
     const layer = createLayerFromChannels({
       Y: [0.25, 0.5, 0.75, 1]

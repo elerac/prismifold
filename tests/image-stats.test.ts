@@ -58,6 +58,25 @@ describe('display image stats', () => {
     });
   });
 
+  it('omits synthetic blue from grouped UV image stats', () => {
+    const layer = createLayerFromChannels({
+      U: [1, 2],
+      V: [3, 5]
+    });
+
+    const stats = computeDisplaySelectionImageStats(
+      layer,
+      2,
+      1,
+      createChannelRgbSelection('U', 'V', null)
+    );
+
+    expect(stats?.channels).toEqual([
+      createExpectedStatsChannel('R', 1, 1.5, 2, 2, 0, 0, 0),
+      createExpectedStatsChannel('G', 3, 4, 5, 2, 0, 0, 0)
+    ]);
+  });
+
   it('computes Mueller matrix stats over the 4x display grid', () => {
     const layer = createLayerFromChannels(Object.fromEntries(
       MUELLER_MATRIX_ELEMENTS.map((element, index) => [element, [index + 1]])

@@ -123,6 +123,43 @@ describe('display selection', () => {
     expect(splitOnlyOptions.map((option) => option.label)).toEqual(['HOGE.R', 'HOGE.G', 'HOGE.B', 'HOGE.A']);
   });
 
+  it('builds grouped XYZ and UV display options with split components', () => {
+    const defaultOptions = buildChannelDisplayOptions([
+      'normal.X',
+      'normal.Y',
+      'normal.Z',
+      'motion.U',
+      'motion.V',
+      'motion.A',
+      'mask'
+    ]);
+    const splitOptions = buildChannelDisplayOptions(['motion.U', 'motion.V', 'motion.A'], {
+      includeSplitChannels: true
+    });
+
+    expect(defaultOptions.map((option) => option.label)).toEqual([
+      'normal.(X,Y,Z)',
+      'motion.(U,V,A)',
+      'mask'
+    ]);
+    expect(defaultOptions[0]?.key).toBe('groupXYZ:normal');
+    expect(defaultOptions[0]?.selection).toEqual(createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z'));
+    expect(defaultOptions[1]?.key).toBe('groupUV:motion');
+    expect(defaultOptions[1]?.selection).toEqual(createChannelRgbSelection('motion.U', 'motion.V', null, 'motion.A'));
+    expect(defaultOptions[1]?.mapping).toEqual({
+      displayR: 'motion.U',
+      displayG: 'motion.V',
+      displayB: null,
+      displayA: 'motion.A'
+    });
+    expect(splitOptions.map((option) => option.label)).toEqual([
+      'motion.(U,V,A)',
+      'motion.U',
+      'motion.V',
+      'motion.A'
+    ]);
+  });
+
   it('resolves alpha companions for scalar options and splits alpha companions into separate rows', () => {
     const bareOptions = buildChannelDisplayOptions(['Z', 'A']);
     const namespacedOptions = buildChannelDisplayOptions(['depth.Z', 'depth.A', 'A']);
@@ -168,13 +205,36 @@ describe('display selection', () => {
     expect(options[0]?.selection).toEqual(createChannelMonoSelection('A'));
   });
 
-  it('builds grayscale options for scalar-only and non-RGB channel lists', () => {
+  it('builds grayscale options for scalar-only and non-grouped channel lists', () => {
     const scalarOptions = buildChannelDisplayOptions(['Z']);
-    const nonRgbOptions = buildChannelDisplayOptions(['X', 'Y', 'Z']);
+    const nonRgbOptions = buildChannelDisplayOptions(['P', 'Q', 'T']);
 
     expect(scalarOptions.map((option) => option.label)).toEqual(['Z']);
-    expect(nonRgbOptions.map((option) => option.label)).toEqual(['X', 'Y', 'Z']);
+    expect(nonRgbOptions.map((option) => option.label)).toEqual(['P', 'Q', 'T']);
     expect(findSelectedChannelDisplayOption(nonRgbOptions, createChannelRgbSelection('X', 'Y', 'Z'))).toBeNull();
+  });
+
+  it('remaps grouped and split XYZ/UV selections when toggling split mode', () => {
+    const xyzChannels = ['normal.X', 'normal.Y', 'normal.Z'];
+    const uvChannels = ['motion.U', 'motion.V', 'motion.A'];
+    const xyzGrouped = createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z');
+    const uvGrouped = createChannelRgbSelection('motion.U', 'motion.V', null, 'motion.A');
+
+    expect(findSplitSelectionForMergedDisplay(xyzChannels, xyzGrouped)).toEqual(
+      createChannelMonoSelection('normal.X')
+    );
+    expect(findMergedSelectionForSplitDisplay(xyzChannels, createChannelMonoSelection('normal.Z'))).toEqual(
+      xyzGrouped
+    );
+    expect(findSplitSelectionForMergedDisplay(uvChannels, uvGrouped)).toEqual(
+      createChannelMonoSelection('motion.U')
+    );
+    expect(findMergedSelectionForSplitDisplay(uvChannels, createChannelMonoSelection('motion.V'))).toEqual(
+      uvGrouped
+    );
+    expect(findMergedSelectionForSplitDisplay(uvChannels, createChannelMonoSelection('motion.A'))).toEqual(
+      uvGrouped
+    );
   });
 
   it('remaps grouped and split RGB Stokes selections when toggling split mode', () => {
@@ -231,6 +291,15 @@ describe('display selection', () => {
   it('prefers detected RGB group as default display selection', () => {
     expect(pickDefaultDisplaySelection(['AOV.X', 'HOGE.B', 'HOGE.R', 'HOGE.G'])).toEqual(
       createChannelRgbSelection('HOGE.R', 'HOGE.G', 'HOGE.B')
+    );
+  });
+
+  it('uses XYZ and UV groups as defaults when RGB is unavailable', () => {
+    expect(pickDefaultDisplaySelection(['normal.X', 'normal.Y', 'normal.Z'])).toEqual(
+      createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z')
+    );
+    expect(pickDefaultDisplaySelection(['motion.U', 'motion.V'])).toEqual(
+      createChannelRgbSelection('motion.U', 'motion.V', null)
     );
   });
 

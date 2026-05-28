@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildViewerStateForLayer, createInitialState, ViewerStore } from '../src/viewer-store';
 import {
-  createChannelMonoSelection,
   createChannelRgbSelection,
   createImage,
   createLayer,
@@ -47,7 +46,7 @@ describe('viewer store', () => {
     );
 
     expect(nextState.activeLayer).toBe(1);
-    expect(nextState.displaySelection).toEqual(createChannelMonoSelection('X'));
+    expect(nextState.displaySelection).toEqual(createChannelRgbSelection('X', 'Y', 'Z'));
   });
 
   it('falls back from arbitrary mixed spectral channel mappings to spectral RGB', () => {

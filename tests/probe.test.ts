@@ -86,6 +86,29 @@ describe('probe helpers', () => {
     });
   });
 
+  it('shows grouped UV probe previews as red/green display values with zero blue', () => {
+    const preview = buildProbeColorPreview(
+      {
+        x: 4,
+        y: 7,
+        values: {
+          U: 1,
+          V: 0.5
+        }
+      },
+      createChannelRgbSelection('U', 'V', null),
+      0
+    );
+
+    expect(preview).toEqual({
+      cssColor: 'rgb(255, 186, 0)',
+      displayValues: [
+        { label: 'R', value: '1.00' },
+        { label: 'G', value: '0.500' }
+      ]
+    });
+  });
+
   it('shows non-finite selected probe values while keeping swatch CSS valid', () => {
     const preview = buildProbeColorPreview(
       {

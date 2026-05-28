@@ -19,6 +19,11 @@ describe('display bindings', () => {
       B: [3],
       A: [0.5]
     });
+    const uvLayer = createLayerFromChannels({
+      U: [1],
+      V: [2],
+      A: [0.5]
+    });
     const stokesLayer = createLayerFromChannels({
       'S0.R': [1],
       'S0.G': [2],
@@ -69,6 +74,7 @@ describe('display bindings', () => {
     });
 
     const rgbBinding = buildDisplaySourceBinding(channelLayer, createChannelRgbSelection('R', 'G', 'B', 'A'));
+    const uvBinding = buildDisplaySourceBinding(uvLayer, createChannelRgbSelection('U', 'V', null, 'A'));
     const monoBinding = buildDisplaySourceBinding(channelLayer, createChannelMonoSelection('G', 'A'));
     const stokesBinding = buildDisplaySourceBinding(stokesLayer, createStokesSelection('dop', 'stokesRgb'));
     const suffixedStokesBinding = buildDisplaySourceBinding(
@@ -102,6 +108,11 @@ describe('display bindings', () => {
     expect(rgbBinding.slots.slice(0, 4)).toEqual(['R', 'G', 'B', 'A']);
     expect(rgbBinding.usesImageAlpha).toBe(true);
     expect(rgbBinding.stokesParameter).toBeNull();
+
+    expect(uvBinding.mode).toBe('channelRgb');
+    expect(uvBinding.slots.slice(0, 4)).toEqual(['U', 'V', null, 'A']);
+    expect(uvBinding.usesImageAlpha).toBe(true);
+    expect(uvBinding.stokesParameter).toBeNull();
 
     expect(monoBinding.mode).toBe('channelMono');
     expect(monoBinding.slots.slice(0, 4)).toEqual(['G', null, null, 'A']);

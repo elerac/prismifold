@@ -194,7 +194,7 @@ export type ViewerState = ViewerRenderState;
 export interface DisplayChannelMapping {
   displayR: string;
   displayG: string;
-  displayB: string;
+  displayB: string | null;
   displayA?: string | null;
 }
 

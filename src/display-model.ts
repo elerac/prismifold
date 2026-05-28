@@ -28,7 +28,7 @@ export type ChannelRgbSelection = {
   kind: 'channelRgb';
   r: string;
   g: string;
-  b: string;
+  b: string | null;
   alpha: string | null;
 };
 
@@ -154,7 +154,7 @@ export function serializeDisplaySelectionKey(selection: DisplaySelection | null)
 
   switch (selection.kind) {
     case 'channelRgb':
-      return `channelRgb:${selection.r}:${selection.g}:${selection.b}:${selection.alpha ?? ''}`;
+      return `channelRgb:${selection.r}:${selection.g}:${selection.b ?? ''}:${selection.alpha ?? ''}`;
     case 'channelMono':
       return `channelMono:${selection.channel}:${selection.alpha ?? ''}`;
     case 'spectralRgb':
@@ -308,29 +308,11 @@ export function getDisplaySelectionOptionLabel(selection: DisplaySelection): str
 }
 
 export function parseRgbChannelName(channelName: string): { base: string; suffix: RgbSuffix } | null {
-  if (channelName === 'R' || channelName === 'G' || channelName === 'B' || channelName === 'A') {
-    return { base: '', suffix: channelName };
-  }
-
-  const dotIndex = channelName.lastIndexOf('.');
-  if (dotIndex <= 0 || dotIndex >= channelName.length - 1) {
-    return null;
-  }
-
-  const suffix = channelName.slice(dotIndex + 1);
-  if (suffix !== 'R' && suffix !== 'G' && suffix !== 'B' && suffix !== 'A') {
-    return null;
-  }
-
-  return {
-    base: channelName.slice(0, dotIndex),
-    suffix
-  };
+  return parseChannelNameSuffix(channelName, ['R', 'G', 'B', 'A'] as const);
 }
 
 export function buildRgbGroupLabel(base: string, hasAlpha: boolean): string {
-  const channelsLabel = hasAlpha ? 'R,G,B,A' : 'R,G,B';
-  return base.length > 0 ? `${base}.(${channelsLabel})` : channelsLabel;
+  return buildComponentGroupLabel(base, ['R', 'G', 'B'], hasAlpha);
 }
 
 export function isAlphaChannel(channelName: string): boolean {
@@ -338,27 +320,82 @@ export function isAlphaChannel(channelName: string): boolean {
 }
 
 function formatChannelRgbSelectionLabel(selection: ChannelRgbSelection): string {
-  const parsedR = parseRgbChannelName(selection.r);
-  const parsedG = parseRgbChannelName(selection.g);
-  const parsedB = parseRgbChannelName(selection.b);
-  if (
-    parsedR &&
-    parsedG &&
-    parsedB &&
-    parsedR.base === parsedG.base &&
-    parsedR.base === parsedB.base &&
-    parsedR.suffix === 'R' &&
-    parsedG.suffix === 'G' &&
-    parsedB.suffix === 'B'
-  ) {
-    return buildRgbGroupLabel(parsedR.base, Boolean(selection.alpha));
+  const rgbGroup = matchComponentGroupSelection(selection, ['R', 'G', 'B']);
+  if (rgbGroup) {
+    return buildComponentGroupLabel(rgbGroup.base, ['R', 'G', 'B'], Boolean(selection.alpha));
   }
 
-  const channels = [selection.r, selection.g, selection.b];
+  const xyzGroup = matchComponentGroupSelection(selection, ['X', 'Y', 'Z']);
+  if (xyzGroup) {
+    return buildComponentGroupLabel(xyzGroup.base, ['X', 'Y', 'Z'], Boolean(selection.alpha));
+  }
+
+  const uvGroup = matchComponentGroupSelection(selection, ['U', 'V']);
+  if (uvGroup) {
+    return buildComponentGroupLabel(uvGroup.base, ['U', 'V'], Boolean(selection.alpha));
+  }
+
+  const channels = [selection.r, selection.g, ...(selection.b ? [selection.b] : [])];
   if (selection.alpha) {
     channels.push(selection.alpha);
   }
   return channels.join(',');
+}
+
+function buildComponentGroupLabel(base: string, suffixes: readonly string[], hasAlpha: boolean): string {
+  const channelsLabel = [...suffixes, ...(hasAlpha ? ['A'] : [])].join(',');
+  return base.length > 0 ? `${base}.(${channelsLabel})` : channelsLabel;
+}
+
+function matchComponentGroupSelection(
+  selection: ChannelRgbSelection,
+  suffixes: readonly string[]
+): { base: string } | null {
+  const channelNames = [selection.r, selection.g, ...(selection.b ? [selection.b] : [])];
+  if (channelNames.length !== suffixes.length) {
+    return null;
+  }
+
+  const parsed = channelNames.map((channelName) => parseChannelNameSuffix(channelName, [...suffixes, 'A']));
+  if (parsed.some((entry) => entry === null)) {
+    return null;
+  }
+
+  const base = parsed[0]?.base ?? '';
+  for (let index = 0; index < suffixes.length; index += 1) {
+    const entry = parsed[index];
+    if (!entry || entry.base !== base || entry.suffix !== suffixes[index]) {
+      return null;
+    }
+  }
+
+  return { base };
+}
+
+function parseChannelNameSuffix<T extends string>(
+  channelName: string,
+  suffixes: readonly T[]
+): { base: string; suffix: T } | null {
+  const bareSuffix = suffixes.find((suffix) => channelName === suffix);
+  if (bareSuffix) {
+    return { base: '', suffix: bareSuffix };
+  }
+
+  const dotIndex = channelName.lastIndexOf('.');
+  if (dotIndex <= 0 || dotIndex >= channelName.length - 1) {
+    return null;
+  }
+
+  const suffixValue = channelName.slice(dotIndex + 1);
+  const suffix = suffixes.find((candidate) => candidate === suffixValue);
+  if (!suffix) {
+    return null;
+  }
+
+  return {
+    base: channelName.slice(0, dotIndex),
+    suffix
+  };
 }
 
 function formatSpectralRgbSelectionLabel(selection: SpectralRgbSelection): string {

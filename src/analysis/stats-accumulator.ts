@@ -37,9 +37,11 @@ export function createDisplaySelectionStatsAccumulators(
     case 'channelRgb': {
       const rows: StatsAccumulator[] = [
         createStatsAccumulator('R', (pixelIndex) => readChannelValue(evaluator.r, pixelIndex)),
-        createStatsAccumulator('G', (pixelIndex) => readChannelValue(evaluator.g, pixelIndex)),
-        createStatsAccumulator('B', (pixelIndex) => readChannelValue(evaluator.b, pixelIndex))
+        createStatsAccumulator('G', (pixelIndex) => readChannelValue(evaluator.g, pixelIndex))
       ];
+      if (!selection || selection.kind !== 'channelRgb' || selection.b) {
+        rows.push(createStatsAccumulator('B', (pixelIndex) => readChannelValue(evaluator.b, pixelIndex)));
+      }
       if (selectionUsesImageAlpha(selection) && evaluator.a) {
         rows.push(createStatsAccumulator('A', (pixelIndex) => readChannelValue(evaluator.a, pixelIndex)));
       }

@@ -137,11 +137,7 @@ export function buildProbeColorPreview(
     ];
     displayValues = isMonoSelection(selection)
       ? [{ label: 'Mono', value: formatOverlayValue(rawR) }]
-      : [
-          { label: 'R', value: formatOverlayValue(rawR) },
-          { label: 'G', value: formatOverlayValue(rawG) },
-          { label: 'B', value: formatOverlayValue(rawB) }
-        ];
+      : buildProbeRgbDisplayValues(selection, rawR, rawG, rawB);
   }
 
   if (rawA !== null) {
@@ -214,7 +210,28 @@ function readProbeDisplayValues(
     return [value, value, value];
   }
 
-  return [readProbeChannel(sample, selection.r), readProbeChannel(sample, selection.g), readProbeChannel(sample, selection.b)];
+  return [
+    readProbeChannel(sample, selection.r),
+    readProbeChannel(sample, selection.g),
+    selection.b ? readProbeChannel(sample, selection.b) : 0
+  ];
+}
+
+function buildProbeRgbDisplayValues(
+  selection: DisplaySelection | null,
+  rawR: number,
+  rawG: number,
+  rawB: number
+): ProbeDisplayValue[] {
+  const values: ProbeDisplayValue[] = [
+    { label: 'R', value: formatOverlayValue(rawR) },
+    { label: 'G', value: formatOverlayValue(rawG) }
+  ];
+  if (!selection || selection.kind !== 'channelRgb' || selection.b) {
+    values.push({ label: 'B', value: formatOverlayValue(rawB) });
+  }
+
+  return values;
 }
 
 function readProbeDisplayAlpha(sample: PixelSample, selection: DisplaySelection | null): number | null {
