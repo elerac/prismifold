@@ -51,7 +51,6 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
   let resizeObserver: ResizeObserver | null = null;
   const unsubscribers: Array<() => void> = [];
   let disposed = false;
-  let app: AppHandle;
   const isDisposed = () => disposed;
   const onBeforeUnload = () => {
     app.dispose();
@@ -114,7 +113,7 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
         },
         isDisposed
       });
-  app = {
+  const app: AppHandle = {
     loadUrl: async (url, loadOptions = {}) => {
       await getServices().sessionController.enqueueUrl(url, {
         filename: loadOptions.name,
