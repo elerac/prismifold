@@ -379,6 +379,28 @@ describe('viewer app lanes', () => {
     expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.RenderImage)).toBe(false);
   });
 
+  it('keeps ROI readout stable on viewer mode switches', () => {
+    const previous = createActiveState();
+    previous.sessionState = {
+      ...previous.sessionState,
+      roi: { x0: 0, y0: 0, x1: 1, y1: 0 }
+    };
+    const next = {
+      ...previous,
+      sessionState: {
+        ...previous.sessionState,
+        viewerMode: 'panorama' as const
+      },
+      interactionState: createInteractionState({
+        ...previous.sessionState,
+        viewerMode: 'panorama' as const
+      })
+    };
+
+    const renderFlags = createRenderFlags(previous, next);
+    expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.RoiReadout)).toBe(false);
+  });
+
   it('treats draft ROI changes as overlay-only invalidation', () => {
     const previous = createActiveState();
     const next = {

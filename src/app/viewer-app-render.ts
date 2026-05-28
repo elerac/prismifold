@@ -535,7 +535,6 @@ function createRoiReadoutSelector(): (
   let previousLayer: ViewerRenderSnapshot['activeLayer'] = null;
   let previousRoi: ViewerAppState['sessionState']['roi'] = null;
   let previousDisplaySelection: ViewerAppState['sessionState']['displaySelection'] = null;
-  let previousViewerMode: ViewerAppState['sessionState']['viewerMode'] = 'image';
   let previousVisualizationMode: ViewerAppState['sessionState']['visualizationMode'] = 'rgb';
   let previousMaskInvalidStokesVectors = true;
   let previousSpectralRgbGroupingEnabled = true;
@@ -551,7 +550,6 @@ function createRoiReadoutSelector(): (
       sessionId === previousSessionId &&
       activeLayer === previousLayer &&
       sameRoi(state.sessionState.roi, previousRoi) &&
-      state.sessionState.viewerMode === previousViewerMode &&
       state.sessionState.visualizationMode === previousVisualizationMode &&
       state.maskInvalidStokesVectors === previousMaskInvalidStokesVectors &&
       state.spectralRgbGroupingEnabled === previousSpectralRgbGroupingEnabled &&
@@ -563,7 +561,6 @@ function createRoiReadoutSelector(): (
     previousSessionId = sessionId;
     previousLayer = activeLayer;
     previousRoi = state.sessionState.roi;
-    previousViewerMode = state.sessionState.viewerMode;
     previousVisualizationMode = state.sessionState.visualizationMode;
     previousDisplaySelection = state.sessionState.displaySelection;
     previousMaskInvalidStokesVectors = state.maskInvalidStokesVectors;
