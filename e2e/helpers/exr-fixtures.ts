@@ -162,6 +162,33 @@ export function buildNamedRgbaExr(): Buffer {
   }
 }
 
+export function buildLongNamedRgbExr(): Buffer {
+  ensureExrEncoderInitialized();
+
+  const encoder = new ExrEncoder(2, 2);
+  try {
+    encoder.addLayer(
+      null,
+      [
+        'beauty_render_layer_with_a_very_long_surface_name.R',
+        'beauty_render_layer_with_a_very_long_surface_name.G',
+        'beauty_render_layer_with_a_very_long_surface_name.B'
+      ],
+      new Float32Array([
+        1, 0, 0,
+        0, 1, 0,
+        0, 0, 1,
+        1, 1, 1
+      ]),
+      SamplePrecision.F32,
+      CompressionMethod.None
+    );
+    return Buffer.from(encoder.encode());
+  } finally {
+    encoder.free();
+  }
+}
+
 export function buildNamedRgbBareAlphaExr(): Buffer {
   ensureExrEncoderInitialized();
 

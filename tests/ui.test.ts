@@ -9572,6 +9572,76 @@ describe('channel thumbnail strip', () => {
     expect(document.querySelector('.channel-thumbnail-hover-preview')).toBeNull();
   });
 
+  it('shows the full channel name when hovering an expanded thumbnail tile', () => {
+    vi.useFakeTimers();
+    installUiFixture();
+    mockDesktopLayoutGeometry();
+
+    const ui = new ViewerUi(createUiCallbacks());
+    const channelNames = [
+      'beauty_render_layer_with_a_very_long_surface_name.R',
+      'beauty_render_layer_with_a_very_long_surface_name.G',
+      'beauty_render_layer_with_a_very_long_surface_name.B'
+    ];
+    const channelThumbnailItems = buildChannelViewItems(channelNames).map((item) => ({
+      ...item,
+      thumbnailDataUrl: 'data:image/png;base64,AAAA'
+    }));
+
+    ui.setRgbGroupOptions(channelNames, {
+      kind: 'channelRgb',
+      r: channelNames[0]!,
+      g: channelNames[1]!,
+      b: channelNames[2]!,
+      alpha: null
+    }, channelThumbnailItems);
+
+    const tile = document.querySelector<HTMLButtonElement>('#channel-thumbnail-strip .channel-thumbnail-tile');
+    const preview = tile?.querySelector<HTMLElement>('.channel-thumbnail-tile-preview');
+    const label = tile?.querySelector<HTMLElement>('.channel-thumbnail-tile-label');
+    expect(tile).toBeTruthy();
+    expect(preview).toBeTruthy();
+    expect(label).toBeTruthy();
+    expect(tile!.getAttribute('title')).toBeNull();
+    expect(tile!.getAttribute('aria-label')).toBe('beauty_render_layer_with_a_very_long_surface_name.RGB');
+    expect(tile!.dataset.channelLabel).toBe('beauty_render_layer_with_a_very_long_surface_name.RGB');
+
+    preview!.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body }));
+    vi.advanceTimersByTime(250);
+    ui.setRgbGroupOptions(channelNames, {
+      kind: 'channelRgb',
+      r: channelNames[0]!,
+      g: channelNames[1]!,
+      b: channelNames[2]!,
+      alpha: null
+    }, channelThumbnailItems);
+
+    vi.advanceTimersByTime(249);
+    expect(document.querySelector('.channel-thumbnail-name-tooltip')).toBeNull();
+
+    vi.advanceTimersByTime(251);
+
+    const tooltip = document.querySelector('.channel-thumbnail-name-tooltip');
+    expect(tooltip).not.toBeNull();
+    expect(tooltip?.textContent).toBe('beauty_render_layer_with_a_very_long_surface_name.RGB');
+    expect(document.querySelector('.channel-thumbnail-hover-preview')).toBeNull();
+
+    preview!.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: label }));
+
+    expect(document.querySelector('.channel-thumbnail-name-tooltip')).not.toBeNull();
+
+    label!.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+
+    expect(document.querySelector('.channel-thumbnail-name-tooltip')).toBeNull();
+
+    label!.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body }));
+    vi.advanceTimersByTime(500);
+
+    const repeatedTooltip = document.querySelector('.channel-thumbnail-name-tooltip');
+    expect(repeatedTooltip).not.toBeNull();
+    expect(repeatedTooltip?.textContent).toBe('beauty_render_layer_with_a_very_long_surface_name.RGB');
+  });
+
   it('keeps thumbnail frame sizing stable when the strip rerenders for another image', () => {
     installUiFixture();
     mockDesktopLayoutGeometry();

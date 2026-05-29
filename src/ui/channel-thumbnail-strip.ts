@@ -65,6 +65,10 @@ export class ChannelThumbnailStrip implements Disposable {
   private hoverPreviewTile: HTMLButtonElement | null = null;
   private hoverPreviewElement: HTMLElement | null = null;
   private hoverPreviewSessionActive = false;
+  private channelNameTooltipTimer: number | null = null;
+  private channelNameTooltipPreview: HTMLElement | null = null;
+  private channelNameTooltipValue: string | null = null;
+  private channelNameTooltipElement: HTMLElement | null = null;
   private channelThumbnailDragState: ChannelThumbnailDragState | null = null;
   private pointerSelectionState: ChannelThumbnailPointerSelectionState | null = null;
   private suppressClickUntilMs = 0;
@@ -93,7 +97,7 @@ export class ChannelThumbnailStrip implements Disposable {
 
         const stackKey = stackToggle.dataset.stackKey ?? '';
         if (stackKey) {
-          this.endHoverPreviewSession();
+          this.endHoverUi();
           this.callbacks.onChannelStackToggle(stackKey);
         }
         return;
@@ -112,7 +116,7 @@ export class ChannelThumbnailStrip implements Disposable {
         return;
       }
 
-      this.endHoverPreviewSession();
+      this.endHoverUi();
       this.chooseValue(value);
     });
     this.disposables.addEventListener(this.elements.channelThumbnailStrip, 'pointerdown', (event) => {
@@ -131,6 +135,12 @@ export class ChannelThumbnailStrip implements Disposable {
       this.handleKeyDown(event);
     });
     this.disposables.addEventListener(this.elements.channelThumbnailStrip, 'mouseover', (event) => {
+      this.handleChannelNameTooltipPointer(event, { ignoreInternalTransition: true });
+    }, true);
+    this.disposables.addEventListener(this.elements.channelThumbnailStrip, 'mousemove', (event) => {
+      this.handleChannelNameTooltipPointer(event, { ignoreInternalTransition: false });
+    }, true);
+    this.disposables.addEventListener(this.elements.channelThumbnailStrip, 'mouseover', (event) => {
       this.handleMouseOver(event);
     });
     this.disposables.addEventListener(this.elements.channelThumbnailStrip, 'mouseout', (event) => {
@@ -143,19 +153,20 @@ export class ChannelThumbnailStrip implements Disposable {
       this.finishChannelThumbnailDrag(true);
     });
     this.disposables.addEventListener(this.elements.channelThumbnailStrip, 'mouseleave', () => {
-      this.endHoverPreviewSession();
+      this.endHoverUi();
     });
     this.disposables.addEventListener(this.elements.channelThumbnailStrip, 'scroll', () => {
-      this.endHoverPreviewSession();
+      this.endHoverUi();
     });
     this.disposables.addEventListener(window, 'resize', () => {
       this.endHoverPreviewSession();
+      this.repositionChannelNameTooltipAfterLayout();
     });
     this.disposables.addEventListener(window, 'blur', () => {
       this.finishChannelThumbnailDrag(true);
     });
     this.disposables.addEventListener(document, 'click', () => {
-      this.endHoverPreviewSession();
+      this.endHoverUi();
     }, true);
     this.disposables.addEventListener(this.elements.viewerContainer, 'dragenter', (event) => {
       this.handleViewerDragEnter(event);
@@ -172,6 +183,7 @@ export class ChannelThumbnailStrip implements Disposable {
     this.resizeObserver = new ResizeObserver(() => {
       this.syncTileSizing();
       this.endHoverPreviewSession();
+      this.repositionChannelNameTooltipAfterLayout();
     });
     this.resizeObserver.observe(this.elements.channelThumbnailStrip);
     this.disposables.add(() => {
@@ -185,7 +197,7 @@ export class ChannelThumbnailStrip implements Disposable {
     }
 
     this.disposed = true;
-    this.endHoverPreviewSession();
+    this.endHoverUi();
     this.cancelPointerSelection();
     this.finishChannelThumbnailDrag(false);
     this.disposables.dispose();
@@ -247,12 +259,13 @@ export class ChannelThumbnailStrip implements Disposable {
       this.hasActiveImage &&
       !this.isLoading &&
       canSyncChannelThumbnailSelectionOnly(this.elements.channelThumbnailStrip, this.items, nextItems);
+    const preserveExpandedNameTooltip = this.selectedValue === nextSelectedValue;
 
     this.hasActiveImage = true;
     this.items = nextItems;
     this.selectedValue = nextSelectedValue;
     if (canSyncSelectionOnly) {
-      this.syncSelectionOnly();
+      this.syncSelectionOnly({ preserveExpandedNameTooltip });
       return;
     }
 
@@ -271,7 +284,12 @@ export class ChannelThumbnailStrip implements Disposable {
   }
 
   private render(): void {
-    this.endHoverPreviewSession();
+    const activeNameTooltipValue = this.channelNameTooltipValue ?? (this.channelNameTooltipPreview
+      ? this.getChannelNameTooltipValueForPreview(this.channelNameTooltipPreview)
+      : null);
+    const hoveredNameTooltipValue = activeNameTooltipValue ?? this.getHoveredChannelNameTooltipValue();
+    const restoreNameTooltipImmediately = this.channelNameTooltipElement !== null;
+    this.endHoverUi();
     const disabled = this.isLoading || this.items.length === 0;
     if (
       disabled ||
@@ -309,6 +327,9 @@ export class ChannelThumbnailStrip implements Disposable {
     );
     this.syncTileSizing();
     this.applyChannelThumbnailDragState();
+    if (!disabled && hoveredNameTooltipValue) {
+      this.restoreChannelNameTooltipAfterRender(hoveredNameTooltipValue, restoreNameTooltipImmediately);
+    }
 
     if (shouldRestoreFocus) {
       focusSelectedTile(this.elements.channelThumbnailStrip, { preventScroll: true });
@@ -329,13 +350,24 @@ export class ChannelThumbnailStrip implements Disposable {
     this.callbacks.onChannelViewChange(value);
   }
 
-  private syncSelectionOnly(): void {
-    this.endHoverPreviewSession();
+  private syncSelectionOnly(options: { preserveExpandedNameTooltip?: boolean } = {}): void {
+    const shouldRestoreNameTooltip = options.preserveExpandedNameTooltip === true;
+    const activeNameTooltipValue = shouldRestoreNameTooltip
+      ? (this.channelNameTooltipValue ?? (this.channelNameTooltipPreview
+        ? this.getChannelNameTooltipValueForPreview(this.channelNameTooltipPreview)
+        : null) ?? this.getHoveredChannelNameTooltipValue())
+      : null;
+    const restoreNameTooltipImmediately = this.channelNameTooltipElement !== null;
+    this.endHoverUi();
     for (const tile of this.elements.channelThumbnailStrip.querySelectorAll<HTMLButtonElement>('.channel-thumbnail-tile')) {
       tile.setAttribute('aria-selected', tile.dataset.channelValue === this.selectedValue ? 'true' : 'false');
     }
 
     this.applyChannelThumbnailDragState();
+    if (activeNameTooltipValue) {
+      this.restoreChannelNameTooltipAfterRender(activeNameTooltipValue, restoreNameTooltipImmediately);
+    }
+
     if (isFocusWithinElement(this.elements.channelThumbnailStrip)) {
       focusSelectedTile(this.elements.channelThumbnailStrip, { preventScroll: true });
     }
@@ -389,7 +421,7 @@ export class ChannelThumbnailStrip implements Disposable {
     const value = pointerState.value;
     traceViewerInteraction({ type: 'channelThumbnailPointerUp', value });
     this.cancelPointerSelection(event.pointerId);
-    this.endHoverPreviewSession();
+    this.endHoverUi();
     this.chooseValue(value);
     this.suppressClickValue = value;
     this.suppressPointerClickUntilMs = Math.max(
@@ -459,7 +491,7 @@ export class ChannelThumbnailStrip implements Disposable {
     }
 
     this.cancelPointerSelection();
-    this.endHoverPreviewSession();
+    this.endHoverUi();
     this.channelThumbnailDragState = {
       value,
       tile
@@ -469,7 +501,7 @@ export class ChannelThumbnailStrip implements Disposable {
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'copy';
       safelySetDragData(event.dataTransfer, CHANNEL_THUMBNAIL_DRAG_MIME, value);
-      safelySetDragData(event.dataTransfer, 'text/plain', tile.title || value);
+      safelySetDragData(event.dataTransfer, 'text/plain', tile.dataset.channelLabel || value);
     }
   }
 
@@ -620,6 +652,10 @@ export class ChannelThumbnailStrip implements Disposable {
       return;
     }
 
+    if (!isCompactChannelThumbnailStrip(this.elements.channelThumbnailStrip)) {
+      return;
+    }
+
     const relatedTarget = event.relatedTarget instanceof Node ? event.relatedTarget : null;
     if (relatedTarget && tile.contains(relatedTarget)) {
       return;
@@ -629,6 +665,23 @@ export class ChannelThumbnailStrip implements Disposable {
   }
 
   private handleMouseOut(event: MouseEvent): void {
+    if (!isCompactChannelThumbnailStrip(this.elements.channelThumbnailStrip)) {
+      const refs = this.findChannelNameTooltipRefs(event.target);
+      if (!refs) {
+        return;
+      }
+
+      const relatedTarget = event.relatedTarget instanceof Node ? event.relatedTarget : null;
+      if (relatedTarget && refs.wrapper.contains(relatedTarget)) {
+        return;
+      }
+
+      if (this.channelNameTooltipPreview === refs.preview) {
+        this.endChannelNameTooltip();
+      }
+      return;
+    }
+
     const tile = findClosestListRow(event.target, 'channelValue') as HTMLButtonElement | null;
     if (!tile) {
       return;
@@ -650,6 +703,54 @@ export class ChannelThumbnailStrip implements Disposable {
     if (this.hoverPreviewTile === tile) {
       this.endHoverPreviewSession();
     }
+  }
+
+  private handleChannelNameTooltipPointer(
+    event: MouseEvent,
+    options: { ignoreInternalTransition: boolean }
+  ): void {
+    if (this.disposed || this.isLoading || isCompactChannelThumbnailStrip(this.elements.channelThumbnailStrip)) {
+      return;
+    }
+
+    const refs = this.findChannelNameTooltipRefs(event.target);
+    if (!refs) {
+      return;
+    }
+
+    if (options.ignoreInternalTransition) {
+      const relatedTarget = event.relatedTarget instanceof Node ? event.relatedTarget : null;
+      if (relatedTarget && refs.wrapper.contains(relatedTarget)) {
+        return;
+      }
+    }
+
+    if (
+      this.channelNameTooltipPreview === refs.preview &&
+      (this.channelNameTooltipTimer !== null || this.channelNameTooltipElement)
+    ) {
+      return;
+    }
+
+    this.scheduleChannelNameTooltip(refs);
+  }
+
+  private findChannelNameTooltipRefs(target: EventTarget | null): ChannelThumbnailTileRefs | null {
+    if (!(target instanceof Element)) {
+      return null;
+    }
+
+    const wrapper = target.closest<HTMLElement>('.channel-thumbnail-tile-wrapper');
+    if (!wrapper || !this.elements.channelThumbnailStrip.contains(wrapper)) {
+      return null;
+    }
+
+    const refs = tileWrapperRefs.get(wrapper);
+    if (!refs || refs.tile.disabled) {
+      return null;
+    }
+
+    return refs;
   }
 
   private scheduleHoverPreview(tile: HTMLButtonElement): void {
@@ -700,16 +801,7 @@ export class ChannelThumbnailStrip implements Disposable {
 
     this.removeHoverPreviewElement();
 
-    const preview = document.createElement('div');
-    preview.className = 'channel-thumbnail-hover-preview';
-    preview.setAttribute('aria-hidden', 'true');
-
-    const image = document.createElement('img');
-    image.className = 'channel-thumbnail-hover-preview-image';
-    image.src = refs.thumbnailDataUrl;
-    image.alt = '';
-    image.draggable = false;
-    preview.append(image);
+    const preview = createChannelThumbnailHoverPreview(refs);
 
     document.body.append(preview);
     positionHoverPreview(tile, preview);
@@ -736,6 +828,157 @@ export class ChannelThumbnailStrip implements Disposable {
     this.removeHoverPreviewElement();
     this.hoverPreviewTile = null;
     this.hoverPreviewSessionActive = false;
+  }
+
+  private scheduleChannelNameTooltip(refs: ChannelThumbnailTileRefs): void {
+    this.clearChannelNameTooltipTimer();
+    this.endHoverPreviewSession();
+    const value = refs.tile.dataset.channelValue ?? '';
+    if (
+      this.disposed ||
+      this.isLoading ||
+      isCompactChannelThumbnailStrip(this.elements.channelThumbnailStrip) ||
+      !refs.preview.isConnected ||
+      !value ||
+      getChannelThumbnailLabelText(refs).length === 0
+    ) {
+      this.endChannelNameTooltip();
+      return;
+    }
+
+    this.channelNameTooltipPreview = refs.preview;
+    this.channelNameTooltipValue = value;
+    if (this.channelNameTooltipElement) {
+      this.showChannelNameTooltip(refs);
+      return;
+    }
+
+    this.channelNameTooltipTimer = window.setTimeout(() => {
+      this.channelNameTooltipTimer = null;
+      if (this.channelNameTooltipPreview !== refs.preview) {
+        return;
+      }
+
+      this.showChannelNameTooltip(refs);
+    }, HOVER_PREVIEW_DELAY_MS);
+  }
+
+  private showChannelNameTooltip(refs: ChannelThumbnailTileRefs): void {
+    if (
+      this.disposed ||
+      this.isLoading ||
+      isCompactChannelThumbnailStrip(this.elements.channelThumbnailStrip) ||
+      !refs.preview.isConnected ||
+      this.channelNameTooltipPreview !== refs.preview
+    ) {
+      this.endChannelNameTooltip();
+      return;
+    }
+
+    const label = getChannelThumbnailLabelText(refs);
+    if (!label) {
+      this.endChannelNameTooltip();
+      return;
+    }
+
+    this.removeChannelNameTooltipElement();
+    const tooltip = createChannelNameTooltip(label);
+    document.body.append(tooltip);
+    positionChannelNameTooltip(refs.preview, tooltip);
+    tooltip.classList.add('is-visible');
+    this.channelNameTooltipElement = tooltip;
+    this.channelNameTooltipPreview = refs.preview;
+    this.channelNameTooltipValue = refs.tile.dataset.channelValue ?? this.channelNameTooltipValue;
+  }
+
+  private repositionChannelNameTooltipAfterLayout(): void {
+    const tooltip = this.channelNameTooltipElement;
+    const preview = this.channelNameTooltipPreview;
+    if (!tooltip || !preview) {
+      return;
+    }
+
+    if (
+      this.disposed ||
+      isCompactChannelThumbnailStrip(this.elements.channelThumbnailStrip) ||
+      !preview.isConnected
+    ) {
+      this.endChannelNameTooltip();
+      return;
+    }
+
+    positionChannelNameTooltip(preview, tooltip);
+  }
+
+  private clearChannelNameTooltipTimer(): void {
+    if (this.channelNameTooltipTimer !== null) {
+      window.clearTimeout(this.channelNameTooltipTimer);
+      this.channelNameTooltipTimer = null;
+    }
+  }
+
+  private removeChannelNameTooltipElement(): void {
+    this.channelNameTooltipElement?.remove();
+    this.channelNameTooltipElement = null;
+  }
+
+  private endChannelNameTooltip(): void {
+    this.clearChannelNameTooltipTimer();
+    this.removeChannelNameTooltipElement();
+    this.channelNameTooltipPreview = null;
+    this.channelNameTooltipValue = null;
+  }
+
+  private endHoverUi(): void {
+    this.endHoverPreviewSession();
+    this.endChannelNameTooltip();
+  }
+
+  private getHoveredChannelNameTooltipValue(): string | null {
+    if (isCompactChannelThumbnailStrip(this.elements.channelThumbnailStrip)) {
+      return null;
+    }
+
+    for (const tile of this.elements.channelThumbnailStrip.querySelectorAll<HTMLButtonElement>('.channel-thumbnail-tile')) {
+      const refs = tileRefs.get(tile);
+      if (!refs || !isElementHovered(refs.wrapper)) {
+        continue;
+      }
+
+      return tile.dataset.channelValue ?? null;
+    }
+
+    return null;
+  }
+
+  private restoreChannelNameTooltipAfterRender(value: string, immediate: boolean): void {
+    const tile = Array.from(
+      this.elements.channelThumbnailStrip.querySelectorAll<HTMLButtonElement>('.channel-thumbnail-tile')
+    ).find((candidate) => candidate.dataset.channelValue === value);
+    const refs = tile ? tileRefs.get(tile) : null;
+    if (!refs) {
+      return;
+    }
+
+    if (immediate) {
+      this.channelNameTooltipPreview = refs.preview;
+      this.channelNameTooltipValue = value;
+      this.showChannelNameTooltip(refs);
+      return;
+    }
+
+    this.scheduleChannelNameTooltip(refs);
+  }
+
+  private getChannelNameTooltipValueForPreview(preview: HTMLElement): string | null {
+    for (const tile of this.elements.channelThumbnailStrip.querySelectorAll<HTMLButtonElement>('.channel-thumbnail-tile')) {
+      const refs = tileRefs.get(tile);
+      if (refs?.preview === preview) {
+        return tile.dataset.channelValue ?? null;
+      }
+    }
+
+    return null;
   }
 
   private syncTileSizing(): void {
@@ -871,9 +1114,11 @@ function updateChannelThumbnailTile(
   tile.setAttribute('role', 'option');
   tile.setAttribute('aria-selected', options.selected ? 'true' : 'false');
   tile.setAttribute('aria-disabled', options.disabled ? 'true' : 'false');
+  tile.setAttribute('aria-label', item.label);
+  tile.dataset.channelLabel = item.label;
   tile.disabled = options.disabled;
   tile.draggable = !options.disabled;
-  tile.title = item.label;
+  tile.removeAttribute('title');
 
   updateChannelThumbnailPreview(refs.preview, item.thumbnailDataUrl);
   refs.thumbnailDataUrl = item.thumbnailDataUrl;
@@ -955,6 +1200,40 @@ function updateChannelThumbnailPreview(
   image.draggable = false;
   image.setAttribute('aria-hidden', 'true');
   preview.replaceChildren(image);
+}
+
+function createChannelThumbnailHoverPreview(refs: ChannelThumbnailTileRefs): HTMLElement {
+  const preview = document.createElement('div');
+  preview.className = 'channel-thumbnail-hover-preview';
+  preview.setAttribute('aria-hidden', 'true');
+
+  const image = document.createElement('img');
+  image.className = 'channel-thumbnail-hover-preview-image';
+  image.src = refs.thumbnailDataUrl ?? '';
+  image.alt = '';
+  image.draggable = false;
+  preview.append(image);
+  return preview;
+}
+
+function getChannelThumbnailLabelText(refs: ChannelThumbnailTileRefs): string {
+  return refs.label.textContent?.trim() || refs.tile.dataset.channelLabel?.trim() || '';
+}
+
+function createChannelNameTooltip(label: string): HTMLElement {
+  const tooltip = document.createElement('div');
+  tooltip.className = 'channel-thumbnail-name-tooltip';
+  tooltip.setAttribute('aria-hidden', 'true');
+  tooltip.textContent = label;
+  return tooltip;
+}
+
+function isElementHovered(element: HTMLElement): boolean {
+  try {
+    return element.matches(':hover');
+  } catch {
+    return false;
+  }
 }
 
 function getThumbnailImageRect(preview: HTMLElement): DOMRect {
@@ -1087,6 +1366,23 @@ function positionHoverPreview(tile: HTMLElement, preview: HTMLElement): void {
 
   preview.style.left = `${clamp(centeredLeft, HOVER_PREVIEW_VIEWPORT_MARGIN_PX, maxLeft)}px`;
   preview.style.top = `${clamp(top, HOVER_PREVIEW_VIEWPORT_MARGIN_PX, maxTop)}px`;
+}
+
+function positionChannelNameTooltip(anchor: HTMLElement, tooltip: HTMLElement): void {
+  const anchorRect = anchor.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const tooltipWidth = tooltipRect.width;
+  const tooltipHeight = tooltipRect.height;
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth || tooltipWidth;
+  const centeredLeft = anchorRect.left + anchorRect.width / 2 - tooltipWidth / 2;
+  const maxLeft = Math.max(
+    HOVER_PREVIEW_VIEWPORT_MARGIN_PX,
+    viewportWidth - tooltipWidth - HOVER_PREVIEW_VIEWPORT_MARGIN_PX
+  );
+  const top = anchorRect.top - tooltipHeight - HOVER_PREVIEW_GAP_PX;
+
+  tooltip.style.left = `${clamp(centeredLeft, HOVER_PREVIEW_VIEWPORT_MARGIN_PX, maxLeft)}px`;
+  tooltip.style.top = `${Math.max(HOVER_PREVIEW_VIEWPORT_MARGIN_PX, top)}px`;
 }
 
 function clamp(value: number, min: number, max: number): number {

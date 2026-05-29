@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { gotoViewerApp, openGalleryCbox } from './helpers/app';
-import { buildScalarChannelExr, buildSizedRgbExr, buildSpectralExr } from './helpers/exr-fixtures';
+import { buildLongNamedRgbExr, buildScalarChannelExr, buildSizedRgbExr, buildSpectralExr } from './helpers/exr-fixtures';
 import { installIdleCallbackController } from './helpers/idle-callbacks';
 import { clickChannelStackToggle, dragBy, readProbeCoords, resolveViewerPoint } from './helpers/viewer';
 
@@ -196,6 +196,64 @@ test('keeps collapsed bottom channel names visible and selectable', async ({ pag
   await expect(thumbnailPreviews.nth(0)).toBeVisible();
 });
 
+test('shows expanded thumbnail channel names in a stable custom tooltip', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoViewerApp(page);
+
+  const openedImages = page.locator('#opened-images-select');
+  const longLabel = 'beauty_render_layer_with_a_very_long_surface_name.RGB';
+  const thumbnailTile = page.locator('#channel-thumbnail-strip .channel-thumbnail-tile').filter({
+    hasText: longLabel
+  });
+  const thumbnailPreview = thumbnailTile.locator('.channel-thumbnail-tile-preview');
+  const nameTooltip = page.locator('.channel-thumbnail-name-tooltip');
+
+  await page.setInputFiles('#file-input', {
+    name: 'long_named_rgb.exr',
+    mimeType: 'image/exr',
+    buffer: buildLongNamedRgbExr()
+  });
+
+  await expect(openedImages.locator('option:checked')).toContainText('long_named_rgb.exr', { timeout: 30000 });
+  await expect(thumbnailTile).toHaveCount(1);
+  await expect(thumbnailTile).not.toHaveAttribute('title');
+  await expect(thumbnailTile).toHaveAttribute('aria-label', longLabel);
+  await expect(thumbnailTile).toHaveAttribute('data-channel-label', longLabel);
+  await expect(thumbnailPreview).toBeVisible();
+
+  await page.mouse.move(8, 8);
+  await thumbnailPreview.hover();
+  await expect(nameTooltip).toHaveText(longLabel, { timeout: 2000 });
+  await expect(nameTooltip).toHaveClass(/is-visible/);
+  await expect(page.locator('.channel-thumbnail-hover-preview')).toHaveCount(0);
+
+  const firstMetrics = await readExpandedNameTooltipMetrics(page);
+  expect(firstMetrics.tooltipStyle.position).toBe('fixed');
+  expect(firstMetrics.tooltipStyle.pointerEvents).toBe('none');
+  expect(firstMetrics.tooltipStyle.borderTopWidth).not.toBe('0px');
+  expect(firstMetrics.tooltip.bottom).toBeLessThanOrEqual(firstMetrics.preview.top);
+  expect(rectsIntersect(firstMetrics.tooltip, firstMetrics.preview)).toBe(false);
+
+  await page.mouse.move(8, 8);
+  await expect(nameTooltip).toHaveCount(0);
+
+  await thumbnailTile.locator('.channel-thumbnail-tile-label').hover();
+  await expect(nameTooltip).toHaveText(longLabel, { timeout: 2000 });
+  await expect(page.locator('.channel-thumbnail-hover-preview')).toHaveCount(0);
+  const labelMetrics = await readExpandedNameTooltipMetrics(page);
+  expect(labelMetrics.tooltip.bottom).toBeLessThanOrEqual(labelMetrics.preview.top);
+  expect(rectsIntersect(labelMetrics.tooltip, labelMetrics.preview)).toBe(false);
+
+  await page.mouse.move(8, 8);
+  await expect(nameTooltip).toHaveCount(0);
+
+  await thumbnailPreview.hover();
+  await expect(nameTooltip).toHaveText(longLabel, { timeout: 2000 });
+  const secondMetrics = await readExpandedNameTooltipMetrics(page);
+  expect(secondMetrics.tooltip.bottom).toBeLessThanOrEqual(secondMetrics.preview.top);
+  expect(rectsIntersect(secondMetrics.tooltip, secondMetrics.preview)).toBe(false);
+});
+
 test('keeps a newly opened image centered after collapsed bottom channel labels appear', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoViewerApp(page);
@@ -363,6 +421,59 @@ test('auto-fits images selected from Open Files when the top-bar toggle is enabl
     y: 25
   });
 });
+
+interface TooltipRect {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+async function readExpandedNameTooltipMetrics(page: Page): Promise<{
+  preview: TooltipRect;
+  tooltip: TooltipRect;
+  tooltipStyle: {
+    borderTopWidth: string;
+    pointerEvents: string;
+    position: string;
+  };
+}> {
+  return await page.evaluate(() => {
+    const preview = document.querySelector('#channel-thumbnail-strip .channel-thumbnail-tile-preview');
+    const tooltip = document.querySelector('.channel-thumbnail-name-tooltip');
+    if (!(preview instanceof HTMLElement) || !(tooltip instanceof HTMLElement)) {
+      throw new Error('Expanded channel name tooltip is not visible.');
+    }
+
+    const readRect = (element: HTMLElement): TooltipRect => {
+      const rect = element.getBoundingClientRect();
+      return {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height
+      };
+    };
+    const style = getComputedStyle(tooltip);
+    return {
+      preview: readRect(preview),
+      tooltip: readRect(tooltip),
+      tooltipStyle: {
+        borderTopWidth: style.borderTopWidth,
+        pointerEvents: style.pointerEvents,
+        position: style.position
+      }
+    };
+  });
+}
+
+function rectsIntersect(a: TooltipRect, b: TooltipRect): boolean {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
 
 async function dragLocatorToPoint(
   page: Page,

@@ -2970,7 +2970,32 @@ body.is-resizing-panel-rows * {
     transform 90ms ease;
 }
 
-.channel-thumbnail-hover-preview.is-visible {
+.channel-thumbnail-name-tooltip {
+  position: fixed;
+  z-index: 35;
+  max-width: min(22rem, calc(100vw - 16px));
+  padding: 0.36rem 0.52rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--panel-border));
+  border-radius: var(--panel-radius);
+  background: color-mix(in srgb, var(--panel) 96%, #000);
+  color: var(--text);
+  box-shadow:
+    0 0.55rem 1.35rem rgba(0, 0, 0, 0.36),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  font-size: var(--type-ui-size);
+  font-weight: 650;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(2px);
+  transition:
+    opacity 90ms ease,
+    transform 90ms ease;
+}
+
+.channel-thumbnail-hover-preview.is-visible,
+.channel-thumbnail-name-tooltip.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
