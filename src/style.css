@@ -160,7 +160,7 @@ body.embed-body {
   right: 8px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
   pointer-events: none;
 }
@@ -178,6 +178,7 @@ body.embed-body {
 }
 
 .embed-source-label {
+  margin-right: auto;
   min-width: 0;
   overflow: hidden;
   padding: 6px 8px;
