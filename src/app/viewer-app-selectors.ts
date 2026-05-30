@@ -189,7 +189,8 @@ export function buildExportBatchTarget(state: ViewerAppState): ExportImageBatchT
       const displaySelection = layer
         ? resolveDisplaySelectionForLayer(layer.channelNames, effectiveState.displaySelection, {
             stokesParameterVisibility: state.stokesParameterVisibility,
-            spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+            spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+            channelRecognitionSettings: state.channelRecognitionSettings
           })
         : effectiveState.displaySelection;
       return {
@@ -203,7 +204,8 @@ export function buildExportBatchTarget(state: ViewerAppState): ExportImageBatchT
         channels: layer
           ? buildChannelViewItems(layer.channelNames, {
               stokesParameterVisibility: state.stokesParameterVisibility,
-              spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+              spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+              channelRecognitionSettings: state.channelRecognitionSettings
             }).map((item) => ({
               value: item.value,
               label: item.label,
@@ -244,7 +246,8 @@ export function buildChannelThumbnailItems(state: ViewerAppState): ViewerChannel
 
   return buildChannelViewItems(layer.channelNames, {
     stokesParameterVisibility: state.stokesParameterVisibility,
-    spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+    spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+    channelRecognitionSettings: state.channelRecognitionSettings
   }).map((item) => {
     const requestKey = serializeChannelThumbnailRequestKey({
       sessionId: session.id,
@@ -254,7 +257,8 @@ export function buildChannelThumbnailItems(state: ViewerAppState): ViewerChannel
       displayGamma: state.sessionState.channelThumbnailDisplayGamma,
       stokesDegreeModulation: state.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: state.sessionState.stokesAolpDegreeModulationMode,
-      maskInvalidStokesVectors: state.maskInvalidStokesVectors
+      maskInvalidStokesVectors: state.maskInvalidStokesVectors,
+      channelRecognitionSettings: state.channelRecognitionSettings
     });
     const contextKey = serializeChannelThumbnailContextKey(
       session.id,

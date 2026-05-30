@@ -20,6 +20,7 @@ import {
 } from './display-model';
 import type { DisplayChannelMapping } from './types';
 import type { StokesParameterVisibilitySettings } from './stokes';
+import type { ChannelRecognitionSettings } from './channel-recognition-settings';
 
 export type { RgbChannelGroup } from './channel-recognition';
 
@@ -34,11 +35,13 @@ export interface ChannelDisplayOptionsConfig {
   includeRgbGroups?: boolean;
   includeSplitChannels?: boolean;
   includeAlphaCompanions?: boolean;
+  channelRecognitionSettings?: ChannelRecognitionSettings;
 }
 
 export interface DisplaySelectionAvailabilityConfig {
   stokesParameterVisibility?: StokesParameterVisibilitySettings;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionSettings?: ChannelRecognitionSettings;
 }
 
 export function pickDefaultDisplaySelection(
@@ -58,8 +61,11 @@ export function resolveDisplaySelectionForLayer(
   }
 
   if (currentSelection.kind === 'channelMono' || currentSelection.kind === 'channelRgb') {
-    const normalized = normalizeChannelSelection(channelNames, currentSelection);
-    return normalized ?? pickDefaultDisplaySelection(channelNames, config);
+    const normalized = normalizeChannelSelection(channelNames, currentSelection, config);
+    const recognition = recognizeLayerChannels(channelNames, config);
+    return normalized && findRecognizedCandidateForSelection(recognition, normalized)
+      ? normalized
+      : pickDefaultDisplaySelection(channelNames, config);
   }
 
   const recognition = recognizeLayerChannels(channelNames, config);
@@ -87,7 +93,8 @@ export function buildChannelDisplayOptions(
   const includeSplitChannels = config.includeSplitChannels ?? false;
   const includeAlphaCompanions = config.includeAlphaCompanions ?? !includeSplitChannels;
   const recognition = recognizeLayerChannels(channelNames, {
-    includeAlphaCompanions
+    includeAlphaCompanions,
+    channelRecognitionSettings: config.channelRecognitionSettings
   });
 
   return recognition.candidates
@@ -127,13 +134,14 @@ export function findSelectedChannelDisplayOption(
 
 export function findMergedSelectionForSplitDisplay(
   channelNames: string[],
-  selected: DisplaySelection | null
+  selected: DisplaySelection | null,
+  config: DisplaySelectionAvailabilityConfig = {}
 ): DisplaySelection | null {
   if (!selected) {
     return null;
   }
 
-  const recognition = recognizeLayerChannels(channelNames);
+  const recognition = recognizeLayerChannels(channelNames, config);
   const splitCandidate = findRecognizedCandidateForSelection(recognition, selected, 'split');
   if (!splitCandidate?.mergedParentKey) {
     return null;
@@ -147,13 +155,14 @@ export function findMergedSelectionForSplitDisplay(
 
 export function findSplitSelectionForMergedDisplay(
   channelNames: string[],
-  selected: DisplaySelection | null
+  selected: DisplaySelection | null,
+  config: DisplaySelectionAvailabilityConfig = {}
 ): DisplaySelection | null {
   if (!selected) {
     return null;
   }
 
-  const recognition = recognizeLayerChannels(channelNames);
+  const recognition = recognizeLayerChannels(channelNames, config);
   const mergedCandidate = findRecognizedCandidateForSelection(recognition, selected, 'merged');
   if (!mergedCandidate || mergedCandidate.splitChildren.length === 0) {
     return null;
@@ -169,12 +178,22 @@ export function findSplitSelectionForMergedDisplay(
 
 function normalizeChannelSelection(
   channelNames: string[],
-  selection: ChannelSelection
+  selection: ChannelSelection,
+  config: DisplaySelectionAvailabilityConfig = {}
 ): ChannelSelection | null {
   if (selection.kind === 'channelMono') {
-    return channelNames.includes(selection.channel)
-      ? buildChannelMonoSelection(channelNames, selection.channel)
-      : null;
+    if (!channelNames.includes(selection.channel)) {
+      return null;
+    }
+
+    const recognition = recognizeLayerChannels(channelNames, config);
+    const recognized = recognition.candidates.find((candidate) => (
+      candidate.kind === 'singleChannel' &&
+      candidate.selection.kind === 'channelMono' &&
+      candidate.selection.channel === selection.channel &&
+      candidate.availability.merged
+    ));
+    return recognized?.selection ?? buildChannelMonoSelection(channelNames, selection.channel);
   }
 
   const group = findSelectedComponentChannelGroup(

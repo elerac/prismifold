@@ -11,6 +11,7 @@ import {
   createStokesSelection,
   createViewerState
 } from './helpers/state-fixtures';
+import { createDefaultChannelRecognitionSettings } from '../src/channel-recognition-settings';
 
 describe('display revision keys', () => {
   it('builds a stable revision key for display selection state', () => {
@@ -127,6 +128,17 @@ describe('display revision keys', () => {
       displaySelection: createChannelMonoSelection('Y'),
       spectralRgbGroupingEnabled: false
     })).toBe('1:channelMono:Y:');
+  });
+
+  it('includes non-default channel recognition settings in resource revision keys', () => {
+    expect(buildDisplayLuminanceRevisionKey({
+      activeLayer: 1,
+      displaySelection: createChannelMonoSelection('Y'),
+      channelRecognitionSettings: {
+        ...createDefaultChannelRecognitionSettings(),
+        'component.rgb': false
+      }
+    })).toContain('channelRecognition:component.rgb:0');
   });
 
   it('matches revision keys used by viewer state', () => {

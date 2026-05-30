@@ -62,6 +62,7 @@ import type {
   ViewerRenderState,
   ViewerSessionState
 } from '../types';
+import type { ChannelRecognitionSettings } from '../channel-recognition-settings';
 import { createAbortError, isAbortError, throwIfAborted, type Disposable } from '../lifecycle';
 
 export interface PrepareActiveSessionResult {
@@ -229,7 +230,9 @@ type PendingAnalysisJob =
 
 type RenderCacheDisplayState =
   Pick<ViewerSessionState, 'activeLayer' | 'displaySelection' | 'visualizationMode'> &
-  Partial<Pick<ViewerRenderState, 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>>;
+  Partial<Pick<ViewerRenderState, 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>> & {
+    channelRecognitionSettings?: ChannelRecognitionSettings;
+  };
 
 const DISPLAY_LUMINANCE_RANGE_IDLE_TIMEOUT_MS = 250;
 const DISPLAY_LUMINANCE_RANGE_IDLE_FALLBACK_DELAY_MS = 64;

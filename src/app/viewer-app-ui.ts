@@ -15,6 +15,7 @@ import {
 } from './viewer-app-equality';
 import { sameStokesColormapDefaultSettings } from '../stokes-colormap-settings';
 import { sameStokesParameterVisibilitySettings } from '../stokes-parameter-visibility-settings';
+import { sameChannelRecognitionSettings } from '../channel-recognition-settings';
 import { sameViewerPaneLayout } from '../viewer-pane-layout';
 import {
   buildExportTarget,
@@ -59,7 +60,8 @@ export const enum ViewerUiInvalidationFlags {
   InvalidValueWarning = 1 << 25,
   SpectralRgbGrouping = 1 << 26,
   ColormapReverse = 1 << 27,
-  DepthModeAvailability = 1 << 28
+  DepthModeAvailability = 1 << 28,
+  ChannelRecognitionSettings = 1 << 29
 }
 
 export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => ViewerUiSnapshot {
@@ -117,6 +119,7 @@ export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => Vie
       stokesDegreeModulationControl: selectStokesControl(state),
       stokesColormapDefaults: state.stokesColormapDefaults,
       stokesParameterVisibility: state.stokesParameterVisibility,
+      channelRecognitionSettings: state.channelRecognitionSettings,
       maskInvalidStokesVectors: state.maskInvalidStokesVectors,
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
       invalidValueWarningEnabled: state.invalidValueWarningEnabled,
@@ -244,6 +247,10 @@ export function computeViewerUiInvalidation(
 
   if (!sameStokesParameterVisibilitySettings(previous.stokesParameterVisibility, next.stokesParameterVisibility)) {
     flags |= ViewerUiInvalidationFlags.StokesParameterVisibility;
+  }
+
+  if (!sameChannelRecognitionSettings(previous.channelRecognitionSettings, next.channelRecognitionSettings)) {
+    flags |= ViewerUiInvalidationFlags.ChannelRecognitionSettings | ViewerUiInvalidationFlags.RgbGroupOptions;
   }
 
   if (previous.maskInvalidStokesVectors !== next.maskInvalidStokesVectors) {
@@ -496,6 +503,7 @@ function sameViewerUiSnapshot(a: ViewerUiSnapshot, b: ViewerUiSnapshot): boolean
     sameStokesControl(a.stokesDegreeModulationControl, b.stokesDegreeModulationControl) &&
     sameStokesColormapDefaultSettings(a.stokesColormapDefaults, b.stokesColormapDefaults) &&
     sameStokesParameterVisibilitySettings(a.stokesParameterVisibility, b.stokesParameterVisibility) &&
+    sameChannelRecognitionSettings(a.channelRecognitionSettings, b.channelRecognitionSettings) &&
     a.maskInvalidStokesVectors === b.maskInvalidStokesVectors &&
     a.spectralRgbGroupingEnabled === b.spectralRgbGroupingEnabled &&
     a.invalidValueWarningEnabled === b.invalidValueWarningEnabled &&

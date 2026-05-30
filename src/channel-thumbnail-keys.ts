@@ -7,6 +7,12 @@ import {
   type StokesDegreeModulationState
 } from './display-model';
 import { DEFAULT_DISPLAY_GAMMA } from './color';
+import {
+  createDefaultChannelRecognitionSettings,
+  sameChannelRecognitionSettings,
+  serializeChannelRecognitionSettingsKey,
+  type ChannelRecognitionSettings
+} from './channel-recognition-settings';
 
 export function serializeChannelThumbnailContextKey(
   sessionId: string,
@@ -27,6 +33,7 @@ export function serializeChannelThumbnailRequestKey(args: {
   stokesAolpDegreeModulationMode: StokesAolpDegreeModulationMode;
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionSettings?: ChannelRecognitionSettings;
 }): string {
   const maskKey = isStokesThumbnailSelection(args.selection)
     ? `|maskInvalidStokesVectors:${args.maskInvalidStokesVectors !== false ? '1' : '0'}`
@@ -34,7 +41,11 @@ export function serializeChannelThumbnailRequestKey(args: {
   const spectralKey = isSpectralThumbnailSelection(args.selection)
     ? `|spectralRgbGrouping:${args.spectralRgbGroupingEnabled !== false ? '1' : '0'}`
     : '';
-  return `${serializeChannelThumbnailContextKey(args.sessionId, args.activeLayer, args.selection)}|exposure:${serializeFiniteNumber(args.exposureEv, 0)}|gamma:${serializeFiniteNumber(args.displayGamma, DEFAULT_DISPLAY_GAMMA)}|modulation:${serializeStokesDegreeModulationKey(args.stokesDegreeModulation)}|aolpModulation:${args.stokesAolpDegreeModulationMode}${maskKey}${spectralKey}`;
+  const recognitionKey = args.channelRecognitionSettings &&
+    !sameChannelRecognitionSettings(args.channelRecognitionSettings, createDefaultChannelRecognitionSettings())
+    ? `|recognition:${serializeChannelRecognitionSettingsKey(args.channelRecognitionSettings)}`
+    : '';
+  return `${serializeChannelThumbnailContextKey(args.sessionId, args.activeLayer, args.selection)}|exposure:${serializeFiniteNumber(args.exposureEv, 0)}|gamma:${serializeFiniteNumber(args.displayGamma, DEFAULT_DISPLAY_GAMMA)}|modulation:${serializeStokesDegreeModulationKey(args.stokesDegreeModulation)}|aolpModulation:${args.stokesAolpDegreeModulationMode}${maskKey}${spectralKey}${recognitionKey}`;
 }
 
 export function buildChannelThumbnailSessionPrefix(sessionId: string): string {

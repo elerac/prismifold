@@ -1,4 +1,5 @@
 import { sameDisplayLuminanceRange } from '../colormap-range';
+import { sameChannelRecognitionSettings } from '../channel-recognition-settings';
 import { sameDisplaySelection } from '../display-model';
 import { sameImageRoi } from '../roi';
 import type { ProbeColorPreview, ProbeDisplayValue } from '../probe';
@@ -267,6 +268,7 @@ export function sameResourceTarget(a: ViewerResourceTarget | null, b: ViewerReso
     a.visualizationMode === b.visualizationMode &&
     a.maskInvalidStokesVectors === b.maskInvalidStokesVectors &&
     a.spectralRgbGroupingEnabled === b.spectralRgbGroupingEnabled &&
+    sameChannelRecognitionSettings(a.channelRecognitionSettings, b.channelRecognitionSettings) &&
     sameDisplaySelection(a.displaySelection, b.displaySelection) &&
     a.decodedRef === b.decodedRef
   );

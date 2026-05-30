@@ -9,6 +9,7 @@ import type { RenderCacheService } from '../src/services/render-cache-service';
 import type { ThumbnailService } from '../src/services/thumbnail-service';
 import type { ChannelThumbnailService } from '../src/services/channel-thumbnail-service';
 import type { OpenedImageThumbnailOptions } from '../src/thumbnail';
+import { createDefaultChannelRecognitionSettings } from '../src/channel-recognition-settings';
 import { buildViewerStateForLayer, createInitialState } from '../src/viewer-store';
 import { createChannelMonoSelection, createLayerFromChannels } from './helpers/state-fixtures';
 import type { DecodedExrImage, OpenedImageSession, ViewerSessionState } from '../src/types';
@@ -233,6 +234,37 @@ describe('viewer app state effects', () => {
     core.dispatch({ type: 'autoExposurePercentileSet', percentile: 97.5 });
 
     expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('requeues opened image thumbnails when channel recognition settings change', () => {
+    const core = new ViewerAppCore();
+    const enqueue = vi.fn<ThumbnailService['enqueue']>(() => Promise.resolve());
+    const renderCache = {
+      trackSession: vi.fn(),
+      discard: vi.fn(),
+      clear: vi.fn()
+    } as unknown as RenderCacheService;
+    const thumbnailService = {
+      enqueue,
+      discard: vi.fn(),
+      clear: vi.fn()
+    } as unknown as ThumbnailService;
+
+    core.subscribeState((transition) => {
+      applySessionResourceEffects(transition, core, renderCache, thumbnailService);
+    });
+
+    core.dispatch({ type: 'sessionLoaded', session: createSession('session-1') });
+    enqueue.mockClear();
+
+    const settings = {
+      ...createDefaultChannelRecognitionSettings(),
+      'component.rgb': false
+    };
+    core.dispatch({ type: 'channelRecognitionSettingsSet', settings });
+
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(enqueue.mock.calls[0]?.[3]?.channelRecognitionSettings).toEqual(settings);
   });
 
   it('ensures the active colormap lut after session and layer state transitions only', () => {

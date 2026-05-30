@@ -1,5 +1,6 @@
 import { AUTO_EXPOSURE_PERCENTILE } from '../analysis/auto-exposure';
 import { idleResource } from '../async-resource';
+import { createDefaultChannelRecognitionSettings } from '../channel-recognition-settings';
 import { DEFAULT_COLORMAP_ID } from '../colormaps';
 import { DEFAULT_INVALID_VALUE_WARNING_ENABLED } from '../invalid-value-warning-settings';
 import {
@@ -59,6 +60,7 @@ export function createInitialViewerAppState(): ViewerAppState {
     stokesDisplayRestoreStates: {},
     stokesColormapDefaults: createDefaultStokesColormapDefaultSettings(),
     stokesParameterVisibility: createDefaultStokesParameterVisibilitySettings(),
+    channelRecognitionSettings: createDefaultChannelRecognitionSettings(),
     maskInvalidStokesVectors: DEFAULT_MASK_INVALID_STOKES_VECTORS,
     spectralRgbGroupingEnabled: DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED,
     invalidValueWarningEnabled: DEFAULT_INVALID_VALUE_WARNING_ENABLED,

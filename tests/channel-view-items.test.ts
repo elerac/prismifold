@@ -10,6 +10,7 @@ import {
 } from '../src/channel-view-items';
 import { createDefaultStokesParameterVisibilitySettings } from '../src/stokes';
 import { MUELLER_MATRIX_ELEMENTS } from '../src/mueller';
+import { createDefaultChannelRecognitionSettings } from '../src/channel-recognition-settings';
 import {
   createChannelMonoSelection,
   createMuellerMatrixSelection,
@@ -280,6 +281,31 @@ describe('channel view items', () => {
     expect(findSelectedChannelViewItem(items, createSpectralRgbSelection())).toBeNull();
   });
 
+  it('uses channel recognition settings to hide disabled grouped descriptors', () => {
+    const items = buildChannelViewItems(['R', 'G', 'B', '400nm', '500nm'], {
+      channelRecognitionSettings: {
+        ...createDefaultChannelRecognitionSettings(),
+        'component.rgb': false,
+        'spectral.series': false
+      }
+    });
+
+    expect(selectVisibleChannelViewItems(items, false).map((item) => item.value)).toEqual([
+      'channel:R',
+      'channel:G',
+      'channel:B',
+      'channel:400nm',
+      'channel:500nm'
+    ]);
+    expect(buildChannelViewStacks(['R', 'G', 'B', '400nm', '500nm'], items, {
+      channelRecognitionSettings: {
+        ...createDefaultChannelRecognitionSettings(),
+        'component.rgb': false,
+        'spectral.series': false
+      }
+    })).toEqual([]);
+  });
+
   it('derives spectral RGB stack children and expands one stack at a time', () => {
     const channelNames = ['410nm', '500nm', '650nm', 'mask'];
     const items = buildChannelViewItems(channelNames);
@@ -348,7 +374,7 @@ describe('channel view items', () => {
       .toBe('stokesSpectralRgb:s1_over_s0:group');
   });
 
-  it('keeps spectral Stokes wavelength entries ungrouped when spectral RGB grouping is disabled', () => {
+  it('hides spectral Stokes entries when legacy spectral RGB grouping is disabled', () => {
     const items = buildChannelViewItems([
       'S0.400nm', 'S1.400nm', 'S2.400nm', 'S3.400nm',
       'S0.500nm', 'S1.500nm', 'S2.500nm', 'S3.500nm'
@@ -360,8 +386,8 @@ describe('channel view items', () => {
 
     expect(values.some((value) => value.startsWith('spectralRgb:'))).toBe(false);
     expect(values.some((value) => value.startsWith('stokesSpectralRgb:'))).toBe(false);
-    expect(labels).toContain('S1/S0.400nm');
-    expect(labels).toContain('AoLP.500nm');
+    expect(labels).not.toContain('S1/S0.400nm');
+    expect(labels).not.toContain('AoLP.500nm');
     expect(labels).not.toContain('S1/S0 Spectral RGB');
     expect(findSelectedChannelViewItem(items, createStokesSelection('s1_over_s0', 'stokesSpectralRgb')))
       .toBeNull();

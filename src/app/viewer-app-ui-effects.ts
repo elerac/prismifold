@@ -102,6 +102,10 @@ export function applyUiEffects(ui: ViewerRuntimeUi, transition: ViewerUiTransiti
     ui.setSpectralRgbGroupingEnabled(snapshot.spectralRgbGroupingEnabled);
   }
 
+  if (invalidation & ViewerUiInvalidationFlags.ChannelRecognitionSettings) {
+    ui.setChannelRecognitionSettings(snapshot.channelRecognitionSettings);
+  }
+
   if (invalidation & ViewerUiInvalidationFlags.InvalidValueWarning) {
     ui.setInvalidValueWarningEnabled(snapshot.invalidValueWarningEnabled);
   }

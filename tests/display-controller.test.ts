@@ -5,7 +5,9 @@ import { ViewerAppCore } from '../src/app/viewer-app-core';
 import { buildViewerStateForLayer, createInitialState } from '../src/viewer-store';
 import { DecodedExrImage, OpenedImageSession } from '../src/types';
 import { createDefaultStokesColormapDefaultSettings } from '../src/stokes';
+import { createDefaultChannelRecognitionSettings } from '../src/channel-recognition-settings';
 import {
+  createChannelMonoSelection,
   createChannelRgbSelection,
   createLayerFromChannels,
   createStokesSelection
@@ -687,6 +689,23 @@ describe('display controller shim', () => {
     await controller.applyDisplaySelection(createStokesSelection('aolp'));
 
     expect(core.getState().sessionState.displaySelection).toEqual(createChannelRgbSelection('R', 'G', 'B'));
+  });
+
+  it('applies and resets channel recognition settings', async () => {
+    const decoded = createDecodedImage(['R', 'G', 'B', 'Y']);
+    const { controller, core } = createController(createSession(decoded));
+
+    await controller.initialize();
+
+    controller.setChannelRecognitionSetting('component.rgb', false);
+
+    expect(core.getState().channelRecognitionSettings['component.rgb']).toBe(false);
+    expect(core.getState().sessionState.displaySelection).toEqual(createChannelMonoSelection('Y'));
+
+    controller.resetChannelRecognitionSettings();
+
+    expect(core.getState().channelRecognitionSettings).toEqual(createDefaultChannelRecognitionSettings());
+    expect(core.getState().sessionState.displaySelection).toEqual(createChannelMonoSelection('Y'));
   });
 
   it('resets colormap state when switching across Stokes colormap groups', async () => {

@@ -24,6 +24,7 @@ import {
   createDefaultStokesDegreeModulation,
   type StokesParameterVisibilitySettings
 } from '../stokes';
+import type { ChannelRecognitionSettings } from '../channel-recognition-settings';
 import type {
   DecodedExrImage,
   ImagePixel,
@@ -52,6 +53,7 @@ export interface BuildLoadedSessionArgs {
   autoFitImageOnSelect: boolean;
   stokesParameterVisibility?: StokesParameterVisibilitySettings;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionSettings?: ChannelRecognitionSettings;
 }
 
 export interface BuildSwitchedSessionStateOptions {
@@ -59,6 +61,7 @@ export interface BuildSwitchedSessionStateOptions {
   autoFitInsets?: ViewportInsets | null;
   stokesParameterVisibility?: StokesParameterVisibilitySettings;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionSettings?: ChannelRecognitionSettings;
 }
 
 export function buildLoadedSession(args: BuildLoadedSessionArgs): OpenedImageSession {
@@ -73,7 +76,8 @@ export function buildLoadedSession(args: BuildLoadedSessionArgs): OpenedImageSes
     0,
     {
       stokesParameterVisibility: args.stokesParameterVisibility,
-      spectralRgbGroupingEnabled: args.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: args.spectralRgbGroupingEnabled,
+      channelRecognitionSettings: args.channelRecognitionSettings
     }
   );
   const defaultDisplaySize = resolveDisplayImageSize(
@@ -103,7 +107,8 @@ export function buildLoadedSession(args: BuildLoadedSessionArgs): OpenedImageSes
         autoFitViewport: args.autoFitImageOnSelect ? args.viewport : null,
         autoFitInsets: args.autoFitImageOnSelect ? args.fitInsets ?? null : null,
         stokesParameterVisibility: args.stokesParameterVisibility,
-        spectralRgbGroupingEnabled: args.spectralRgbGroupingEnabled
+        spectralRgbGroupingEnabled: args.spectralRgbGroupingEnabled,
+        channelRecognitionSettings: args.channelRecognitionSettings
       })
     : defaultSessionState;
 
@@ -118,7 +123,8 @@ export function buildReloadedSession(
   decoded: DecodedExrImage,
   baseState: ViewerSessionState,
   stokesParameterVisibility?: StokesParameterVisibilitySettings,
-  spectralRgbGroupingEnabled?: boolean
+  spectralRgbGroupingEnabled?: boolean,
+  channelRecognitionSettings?: ChannelRecognitionSettings
 ): OpenedImageSession {
   return {
     ...session,
@@ -128,7 +134,8 @@ export function buildReloadedSession(
       session.decoded,
       decoded,
       stokesParameterVisibility,
-      spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled,
+      channelRecognitionSettings
     )
   };
 }
@@ -174,13 +181,14 @@ export function buildReloadedSessionState(
   previousImage: DecodedExrImage,
   decoded: DecodedExrImage,
   stokesParameterVisibility?: StokesParameterVisibilitySettings,
-  spectralRgbGroupingEnabled?: boolean
+  spectralRgbGroupingEnabled?: boolean,
+  channelRecognitionSettings?: ChannelRecognitionSettings
 ): ViewerSessionState {
   const resolvedState = buildViewerStateForLayer(
     currentState,
     decoded,
     currentState.activeLayer,
-    { stokesParameterVisibility, spectralRgbGroupingEnabled }
+    { stokesParameterVisibility, spectralRgbGroupingEnabled, channelRecognitionSettings }
   );
   const displaySize = resolveDisplayImageSize(decoded.width, decoded.height, resolvedState.displaySelection);
   const lockedPixel = currentState.lockedPixel
@@ -217,7 +225,7 @@ export function buildReloadedSessionState(
     },
     decoded,
     currentState.activeLayer,
-    { stokesParameterVisibility, spectralRgbGroupingEnabled }
+    { stokesParameterVisibility, spectralRgbGroupingEnabled, channelRecognitionSettings }
   );
   if (currentState.viewerMode === 'depth') {
     const nextLayer = decoded.layers[nextState.activeLayer] ?? null;
@@ -251,7 +259,8 @@ export function buildSwitchedSessionState(
     nextSession.state.activeLayer,
     {
       stokesParameterVisibility: options.stokesParameterVisibility,
-      spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled,
+      channelRecognitionSettings: options.channelRecognitionSettings
     }
   );
   const displaySize = resolveDisplayImageSize(
@@ -319,7 +328,8 @@ export function buildSwitchedSessionState(
     resolvedState.activeLayer,
     {
       stokesParameterVisibility: options.stokesParameterVisibility,
-      spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled,
+      channelRecognitionSettings: options.channelRecognitionSettings
     }
   );
   if (currentState.viewerMode === 'depth') {
@@ -401,7 +411,7 @@ export function buildResetSessionState(
   defaultColormapId: string,
   viewport: ViewportInfo,
   fitInsets?: ViewportInsets,
-  options: Pick<BuildSwitchedSessionStateOptions, 'stokesParameterVisibility' | 'spectralRgbGroupingEnabled'> = {}
+  options: Pick<BuildSwitchedSessionStateOptions, 'stokesParameterVisibility' | 'spectralRgbGroupingEnabled' | 'channelRecognitionSettings'> = {}
 ): ViewerSessionState {
   const resetBaseState = buildResetSessionBaseState(
     activeSession,
@@ -431,7 +441,7 @@ export function buildResetSessionBaseState(
   activeSession: OpenedImageSession | null,
   currentState: ViewerSessionState,
   defaultColormapId: string,
-  options: Pick<BuildSwitchedSessionStateOptions, 'stokesParameterVisibility' | 'spectralRgbGroupingEnabled'> = {}
+  options: Pick<BuildSwitchedSessionStateOptions, 'stokesParameterVisibility' | 'spectralRgbGroupingEnabled' | 'channelRecognitionSettings'> = {}
 ): ViewerSessionState {
   if (!activeSession) {
     return createClearedViewerState(defaultColormapId);
@@ -446,7 +456,8 @@ export function buildResetSessionBaseState(
     0,
     {
       stokesParameterVisibility: options.stokesParameterVisibility,
-      spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled,
+      channelRecognitionSettings: options.channelRecognitionSettings
     }
   );
   return resetBaseState;

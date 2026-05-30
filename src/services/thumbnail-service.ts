@@ -5,6 +5,7 @@ import {
   createOpenedImageThumbnailDataUrl,
   type OpenedImageThumbnailOptions
 } from '../thumbnail';
+import { cloneChannelRecognitionSettings } from '../channel-recognition-settings';
 import { DecodedLayer, OpenedImageSession, ViewerSessionState } from '../types';
 
 const THUMBNAIL_IDLE_TIMEOUT_MS = 250;
@@ -361,6 +362,9 @@ function cloneThumbnailOptions(options: OpenedImageThumbnailOptions): OpenedImag
   }
   if (options.spectralRgbGroupingEnabled !== undefined) {
     cloned.spectralRgbGroupingEnabled = options.spectralRgbGroupingEnabled !== false;
+  }
+  if (options.channelRecognitionSettings) {
+    cloned.channelRecognitionSettings = cloneChannelRecognitionSettings(options.channelRecognitionSettings);
   }
   return cloned;
 }

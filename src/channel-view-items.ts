@@ -8,6 +8,7 @@ import {
   type RecognizedChannelCandidate
 } from './channel-recognition';
 import type { StokesParameterVisibilitySettings } from './stokes';
+import type { ChannelRecognitionSettings } from './channel-recognition-settings';
 import type { DisplayChannelMapping } from './types';
 
 export interface ChannelViewItem {
@@ -49,6 +50,7 @@ export type ChannelViewStackedThumbnailItem = ChannelViewStackedItem<ChannelView
 export interface ChannelViewItemsConfig {
   stokesParameterVisibility?: StokesParameterVisibilitySettings;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionSettings?: ChannelRecognitionSettings;
 }
 
 export function buildChannelViewItems(
@@ -119,20 +121,21 @@ export function hasSplitChannelViewItems(items: readonly Pick<ChannelViewItem, '
 
 export function buildChannelViewStacks(
   channelNames: string[],
-  items: readonly ChannelViewItem[]
+  items: readonly ChannelViewItem[],
+  config: ChannelViewItemsConfig = {}
 ): ChannelViewStackInfo[] {
   const splitItems = selectVisibleChannelViewItems(items, true);
   const stacks: ChannelViewStackInfo[] = [];
 
   for (const parent of selectVisibleChannelViewItems(items, false)) {
-    const firstSplitSelection = findSplitSelectionForMergedDisplay(channelNames, parent.selection);
+    const firstSplitSelection = findSplitSelectionForMergedDisplay(channelNames, parent.selection, config);
     if (!firstSplitSelection) {
       continue;
     }
 
     const childItems = splitItems
       .filter((child) => {
-        const mergedSelection = findMergedSelectionForSplitDisplay(channelNames, child.selection);
+        const mergedSelection = findMergedSelectionForSplitDisplay(channelNames, child.selection, config);
         return sameDisplaySelection(mergedSelection, parent.selection);
       })
       .sort((a, b) => compareNullableOrder(a.splitOrder, b.splitOrder));
@@ -157,9 +160,10 @@ export function buildChannelViewStacks(
 export function selectStackedChannelViewItems<T extends ChannelViewItem>(
   channelNames: string[],
   items: readonly T[],
-  expandedStackKeys: ReadonlySet<string>
+  expandedStackKeys: ReadonlySet<string>,
+  config: ChannelViewItemsConfig = {}
 ): ChannelViewStackedItem<T>[] {
-  const stacks = buildChannelViewStacks(channelNames, items);
+  const stacks = buildChannelViewStacks(channelNames, items, config);
   const stackByParentValue = new Map(stacks.map((stack) => [stack.parentValue, stack]));
   const itemByValue = new Map(items.map((item) => [item.value, item]));
   const visibleItems: ChannelViewStackedItem<T>[] = [];
@@ -190,18 +194,20 @@ export function selectStackedChannelViewItems<T extends ChannelViewItem>(
 export function pruneExpandedChannelStackKeys(
   channelNames: string[],
   items: readonly ChannelViewItem[],
-  expandedStackKeys: ReadonlySet<string>
+  expandedStackKeys: ReadonlySet<string>,
+  config: ChannelViewItemsConfig = {}
 ): Set<string> {
-  const validStackKeys = new Set(buildChannelViewStacks(channelNames, items).map((stack) => stack.key));
+  const validStackKeys = new Set(buildChannelViewStacks(channelNames, items, config).map((stack) => stack.key));
   return new Set([...expandedStackKeys].filter((key) => validStackKeys.has(key)));
 }
 
 export function findChannelViewStackForValue(
   channelNames: string[],
   items: readonly ChannelViewItem[],
-  value: string
+  value: string,
+  config: ChannelViewItemsConfig = {}
 ): ChannelViewStackInfo | null {
-  return buildChannelViewStacks(channelNames, items).find((stack) => (
+  return buildChannelViewStacks(channelNames, items, config).find((stack) => (
     stack.parentValue === value || stack.childValues.includes(value)
   )) ?? null;
 }
@@ -238,10 +244,10 @@ function buildDisplayItems(
   includeSplitRgbChannels: boolean,
   config: ChannelViewItemsConfig
 ): Omit<ChannelViewItem, 'mergedOrder' | 'splitOrder'>[] {
-  const spectralRgbGroupingEnabled = config.spectralRgbGroupingEnabled !== false;
   const recognition = recognizeLayerChannels(channelNames, {
     stokesParameterVisibility: config.stokesParameterVisibility,
-    spectralRgbGroupingEnabled
+    spectralRgbGroupingEnabled: config.spectralRgbGroupingEnabled,
+    channelRecognitionSettings: config.channelRecognitionSettings
   });
 
   return recognition.candidates

@@ -24,6 +24,7 @@ import { RenderCacheService } from '../../services/render-cache-service';
 import { getStokesDisplayColormapDefault, isStokesDegreeModulationParameter } from '../../stokes';
 import { buildDisplaySelectionThumbnailPixels } from '../../thumbnail';
 import { createInteractionState, mergeRenderState } from '../../view-state';
+import type { ChannelRecognitionSettings } from '../../channel-recognition-settings';
 import {
   selectActiveColormapLut,
   selectActiveSession,
@@ -259,7 +260,8 @@ export function createImageExportPixelsResolver({
         },
         {
           maskInvalidStokesVectors: state.maskInvalidStokesVectors,
-          spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+          spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+          channelRecognitionSettings: state.channelRecognitionSettings
         }
       );
       assertActiveSessionCurrent(core.getState(), activeSession, options.signal);
@@ -1044,7 +1046,8 @@ async function resolveBatchEntryPreviewPixels({
     },
     {
       maskInvalidStokesVectors: appState.maskInvalidStokesVectors,
-      spectralRgbGroupingEnabled: appState.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: appState.spectralRgbGroupingEnabled,
+      channelRecognitionSettings: appState.channelRecognitionSettings
     }
   );
   throwIfAborted(signal, abortMessage);
@@ -1123,7 +1126,8 @@ async function resolveBatchEntryExportState({
       displaySelection: selection,
       visualizationMode,
       maskInvalidStokesVectors: appState.maskInvalidStokesVectors,
-      spectralRgbGroupingEnabled: appState.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: appState.spectralRgbGroupingEnabled,
+      channelRecognitionSettings: appState.channelRecognitionSettings
     };
     const displayLuminanceRange = rangeStrategy === 'sampledPreview'
       ? resolvePreviewDisplayLuminanceRange(renderCache, session, layer, rangeState)
@@ -1173,6 +1177,7 @@ function resolvePreviewDisplayLuminanceRange(
     visualizationMode: VisualizationMode;
     maskInvalidStokesVectors?: boolean;
     spectralRgbGroupingEnabled?: boolean;
+    channelRecognitionSettings?: ChannelRecognitionSettings;
   }
 ): DisplayLuminanceRange | null {
   const cachedRange = renderCache.getCachedLuminanceRange(session.id, state);

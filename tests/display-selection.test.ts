@@ -18,6 +18,7 @@ import {
   createStokesSelection
 } from './helpers/state-fixtures';
 import { MUELLER_MATRIX_ELEMENTS } from '../src/mueller';
+import { createDefaultChannelRecognitionSettings } from '../src/channel-recognition-settings';
 
 describe('display selection', () => {
   it('extracts RGB groups from channel namespaces', () => {
@@ -389,6 +390,29 @@ describe('display selection', () => {
       createStokesSelection('s1_over_s0', 'stokesSpectralRgb'),
       { spectralRgbGroupingEnabled: false }
     )).toEqual(createChannelMonoSelection('S0.400nm'));
+  });
+
+  it('falls back when the active recognized rule family is disabled', () => {
+    expect(resolveDisplaySelectionForLayer(
+      ['R', 'G', 'B', 'Y'],
+      createChannelRgbSelection('R', 'G', 'B'),
+      {
+        channelRecognitionSettings: {
+          ...createDefaultChannelRecognitionSettings(),
+          'component.rgb': false
+        }
+      }
+    )).toEqual(createChannelMonoSelection('Y'));
+    expect(resolveDisplaySelectionForLayer(
+      ['400nm', '500nm', '600nm'],
+      createSpectralRgbSelection(),
+      {
+        channelRecognitionSettings: {
+          ...createDefaultChannelRecognitionSettings(),
+          'spectral.series': false
+        }
+      }
+    )).toEqual(createChannelMonoSelection('400nm'));
   });
 
   it('preserves valid channel and stokes selections per layer and falls back otherwise', () => {

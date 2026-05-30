@@ -52,6 +52,13 @@ import {
   saveStoredSpectralRgbGroupingSetting
 } from '../spectral-default-settings';
 import {
+  createDefaultChannelRecognitionSettings,
+  readStoredChannelRecognitionSettings,
+  saveStoredChannelRecognitionSettings,
+  type ChannelRecognitionSettingId,
+  type ChannelRecognitionSettings
+} from '../channel-recognition-settings';
+import {
   DEFAULT_INVALID_VALUE_WARNING_ENABLED,
   readStoredInvalidValueWarningSetting,
   saveStoredInvalidValueWarningSetting
@@ -107,8 +114,10 @@ export class DisplayController implements Disposable {
         enabled: readStoredStokesInvalidVectorMaskSetting()
       });
       this.core.dispatch({
-        type: 'spectralRgbGroupingSet',
-        enabled: readStoredSpectralRgbGroupingSetting()
+        type: 'channelRecognitionSettingsSet',
+        settings: readStoredChannelRecognitionSettings({
+          legacySpectralRgbGroupingEnabled: readStoredSpectralRgbGroupingSetting()
+        })
       });
       this.core.dispatch({
         type: 'invalidValueWarningSet',
@@ -533,7 +542,13 @@ export class DisplayController implements Disposable {
       return;
     }
 
+    const settings = {
+      ...this.core.getState().channelRecognitionSettings,
+      'spectral.series': enabled,
+      'stokes.spectral': enabled
+    };
     saveStoredSpectralRgbGroupingSetting(enabled);
+    saveStoredChannelRecognitionSettings(settings);
     this.core.dispatch({
       type: 'spectralRgbGroupingSet',
       enabled
@@ -542,6 +557,44 @@ export class DisplayController implements Disposable {
 
   resetSpectralRgbGroupingEnabled(): void {
     this.setSpectralRgbGroupingEnabled(DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED);
+  }
+
+  setChannelRecognitionSetting(id: ChannelRecognitionSettingId, enabled: boolean): void {
+    if (this.disposed) {
+      return;
+    }
+
+    const settings = {
+      ...this.core.getState().channelRecognitionSettings,
+      [id]: enabled
+    };
+    this.setChannelRecognitionSettings(settings);
+  }
+
+  setChannelRecognitionSettings(settings: ChannelRecognitionSettings): void {
+    if (this.disposed) {
+      return;
+    }
+
+    saveStoredChannelRecognitionSettings(settings);
+    saveStoredSpectralRgbGroupingSetting(DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED);
+    this.core.dispatch({
+      type: 'channelRecognitionSettingsSet',
+      settings
+    });
+  }
+
+  resetChannelRecognitionSettings(): void {
+    if (this.disposed) {
+      return;
+    }
+
+    const defaults = createDefaultChannelRecognitionSettings();
+    saveStoredChannelRecognitionSettings(defaults);
+    saveStoredSpectralRgbGroupingSetting(DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED);
+    this.core.dispatch({
+      type: 'channelRecognitionSettingsReset'
+    });
   }
 
   setInvalidValueWarningEnabled(enabled: boolean): void {
@@ -783,7 +836,8 @@ export class DisplayController implements Disposable {
 
     return resolveDisplaySelectionForLayer(layer.channelNames, selection, {
       stokesParameterVisibility: state.stokesParameterVisibility,
-      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+      channelRecognitionSettings: state.channelRecognitionSettings
     });
   }
 

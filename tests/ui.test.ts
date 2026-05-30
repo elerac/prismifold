@@ -35,6 +35,12 @@ import {
   createDefaultStokesColormapDefaultSettings,
   createDefaultStokesParameterVisibilitySettings
 } from '../src/stokes';
+import {
+  CHANNEL_RECOGNITION_SETTINGS_STORAGE_KEY,
+  CHANNEL_RECOGNITION_SETTING_DESCRIPTORS,
+  createDefaultChannelRecognitionSettings,
+  type ChannelRecognitionSettingId
+} from '../src/channel-recognition-settings';
 import { AUTO_EXPOSURE_PERCENTILE } from '../src/auto-exposure';
 import {
   getDefaultImageLoadWorkers,
@@ -44,6 +50,10 @@ import { SPECTRAL_RGB_GROUPING_STORAGE_KEY } from '../src/spectral-default-setti
 
 const AUTO_EXPOSURE_PERCENTILE_STORAGE_KEY = 'openexr-viewer:auto-exposure-percentile:v1';
 const RULERS_VISIBLE_STORAGE_KEY = 'openexr-viewer:rulers-visible:v1';
+
+function getRecognitionCheckbox(id: ChannelRecognitionSettingId): HTMLInputElement {
+  return document.querySelector<HTMLInputElement>(`input[data-channel-recognition-setting="${id}"]`)!;
+}
 
 interface ResizeObserverRegistration {
   callback: ResizeObserverCallback;
@@ -2290,12 +2300,12 @@ describe('panel split sizing', () => {
 
     const onResetSettings = vi.fn();
     const onMaskInvalidStokesVectorsChange = vi.fn();
-    const onSpectralRgbGroupingChange = vi.fn();
+    const onChannelRecognitionSettingsChange = vi.fn();
     const onInvalidValueWarningChange = vi.fn();
     const ui = new ViewerUi(createUiCallbacks({
       onResetSettings,
       onMaskInvalidStokesVectorsChange,
-      onSpectralRgbGroupingChange,
+      onChannelRecognitionSettingsChange,
       onInvalidValueWarningChange
     }));
     ui.setStokesDefaultSettingsOptions([
@@ -2322,7 +2332,7 @@ describe('panel split sizing', () => {
     const imageLoadWorkersInput = document.getElementById('image-load-workers-input') as HTMLInputElement;
     const stokesAolpSelect = document.getElementById('stokes-default-aolp-colormap-select') as HTMLSelectElement;
     const stokesMaskCheckbox = document.getElementById('stokes-invalid-vector-mask-checkbox') as HTMLInputElement;
-    const spectralGroupingCheckbox = document.getElementById('spectral-rgb-grouping-checkbox') as HTMLInputElement;
+    const spectralGroupingCheckbox = getRecognitionCheckbox('spectral.series');
     const invalidValueWarningButton = document.getElementById(
       'app-invalid-value-warning-button'
     ) as HTMLButtonElement;
@@ -2354,7 +2364,7 @@ describe('panel split sizing', () => {
 
     expect(onResetSettings).toHaveBeenCalledTimes(1);
     expect(onMaskInvalidStokesVectorsChange).toHaveBeenCalledWith(true);
-    expect(onSpectralRgbGroupingChange).toHaveBeenCalledWith(true);
+    expect(onChannelRecognitionSettingsChange).toHaveBeenCalledWith(createDefaultChannelRecognitionSettings());
     expect(onInvalidValueWarningChange).toHaveBeenCalledWith(true);
     expect(themeSelect.value).toBe('default');
     expect(spectrumMotionSelect.value).toBe(SPECTRUM_LATTICE_MOTION_ANIMATE);
@@ -2368,6 +2378,7 @@ describe('panel split sizing', () => {
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
     expect(window.localStorage.getItem(SPECTRUM_LATTICE_MOTION_STORAGE_KEY)).toBeNull();
     expect(window.localStorage.getItem(AUTO_EXPOSURE_PERCENTILE_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(CHANNEL_RECOGNITION_SETTINGS_STORAGE_KEY)).toBeNull();
     expect(window.localStorage.getItem(IMAGE_LOAD_WORKERS_STORAGE_KEY)).toBeNull();
     expect(window.localStorage.getItem(SPECTRAL_RGB_GROUPING_STORAGE_KEY)).toBeNull();
     expect(imageButton.getAttribute('aria-expanded')).toBe('true');
@@ -2815,12 +2826,17 @@ describe('view menu', () => {
     expect(labels).toEqual([
       'Theme',
       'Spectrum lattice motion',
-      'Spectral Defaults',
+      'Channel Recognition',
       'Stokes Defaults',
       'Auto Exposure Percentile',
       'Image Load Workers',
       'Memory Budget'
     ]);
+    expect(Array.from(document.querySelectorAll('#channel-recognition-settings-control input'))
+      .map((input) => (input as HTMLInputElement).dataset.channelRecognitionSetting)).toEqual(
+      CHANNEL_RECOGNITION_SETTING_DESCRIPTORS.map((descriptor) => descriptor.id)
+    );
+    expect(getRecognitionCheckbox('fallback.singleChannel').disabled).toBe(true);
     expect(autoExposurePercentileInput.value).toBe('99.5');
     expect(autoExposurePercentileInput.min).toBe('1');
     expect(autoExposurePercentileInput.max).toBe('100');
@@ -3009,27 +3025,34 @@ describe('view menu', () => {
     expect(checkbox.checked).toBe(true);
   });
 
-  it('renders and dispatches the Spectral Defaults grouping setting from Settings', () => {
+  it('renders and dispatches Channel Recognition settings from Settings', () => {
     installUiFixture();
 
-    const onSpectralRgbGroupingChange = vi.fn();
-    const ui = new ViewerUi(createUiCallbacks({ onSpectralRgbGroupingChange }));
-    const control = document.getElementById('spectral-default-settings-control') as HTMLElement;
-    const checkbox = document.getElementById('spectral-rgb-grouping-checkbox') as HTMLInputElement;
+    const onChannelRecognitionSettingsChange = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onChannelRecognitionSettingsChange }));
+    const control = document.getElementById('channel-recognition-settings-control') as HTMLElement;
+    const checkbox = getRecognitionCheckbox('spectral.series');
+    const singleChannelCheckbox = getRecognitionCheckbox('fallback.singleChannel');
 
     expect(control).not.toBeNull();
     expect(control.closest('#settings-dialog')).toBe(document.getElementById('settings-dialog'));
     expect(checkbox).not.toBeNull();
     expect(checkbox.checked).toBe(true);
-    expect(checkbox.closest('#spectral-default-settings-control')).toBe(control);
+    expect(checkbox.closest('#channel-recognition-settings-control')).toBe(control);
+    expect(singleChannelCheckbox.checked).toBe(true);
+    expect(singleChannelCheckbox.disabled).toBe(true);
+    expect(singleChannelCheckbox.parentElement?.textContent).toContain('required');
 
     checkbox.checked = false;
     checkbox.dispatchEvent(new Event('change', { bubbles: true }));
 
-    expect(onSpectralRgbGroupingChange).toHaveBeenCalledWith(false);
-    expect(window.localStorage.getItem(SPECTRAL_RGB_GROUPING_STORAGE_KEY)).toBe('false');
+    expect(onChannelRecognitionSettingsChange).toHaveBeenCalledWith({
+      ...createDefaultChannelRecognitionSettings(),
+      'spectral.series': false
+    });
+    expect(window.localStorage.getItem(SPECTRAL_RGB_GROUPING_STORAGE_KEY)).toBeNull();
 
-    ui.setSpectralRgbGroupingEnabled(true);
+    ui.setChannelRecognitionSettings(createDefaultChannelRecognitionSettings());
 
     expect(checkbox.checked).toBe(true);
   });
@@ -3519,7 +3542,16 @@ describe('view menu', () => {
     const settingsDialog = document.getElementById('settings-dialog') as HTMLElement;
     const themeSelect = document.getElementById('theme-select') as HTMLSelectElement;
     const spectrumMotionSelect = document.getElementById('spectrum-lattice-motion-select') as HTMLSelectElement;
-    const spectralGroupingCheckbox = document.getElementById('spectral-rgb-grouping-checkbox') as HTMLInputElement;
+    const rgbRecognition = getRecognitionCheckbox('component.rgb');
+    const xyzRecognition = getRecognitionCheckbox('component.xyz');
+    const uvRecognition = getRecognitionCheckbox('component.uv');
+    const spectralGroupingCheckbox = getRecognitionCheckbox('spectral.series');
+    const scalarStokesRecognition = getRecognitionCheckbox('stokes.scalar');
+    const rgbStokesRecognition = getRecognitionCheckbox('stokes.rgb');
+    const spectralStokesRecognition = getRecognitionCheckbox('stokes.spectral');
+    const scalarMuellerRecognition = getRecognitionCheckbox('mueller.scalar');
+    const rgbMuellerRecognition = getRecognitionCheckbox('mueller.rgb');
+    const alphaCompanionsRecognition = getRecognitionCheckbox('fallback.alphaCompanions');
     const stokesMaskCheckbox = document.getElementById('stokes-invalid-vector-mask-checkbox') as HTMLInputElement;
     const aolpEnabled = document.getElementById('stokes-default-aolp-enabled-checkbox') as HTMLInputElement;
     const aolpSelect = document.getElementById('stokes-default-aolp-colormap-select') as HTMLSelectElement;
@@ -3561,12 +3593,21 @@ describe('view menu', () => {
     const closeButton = document.getElementById('settings-dialog-close-button') as HTMLButtonElement;
     const focusableSettingsControls = Array.from(
       settingsDialog.querySelectorAll<HTMLElement>('button, input, select, textarea')
-    );
+    ).filter((element) => !(element instanceof HTMLInputElement && element.disabled));
 
     expect(focusableSettingsControls).toEqual([
       themeSelect,
       spectrumMotionSelect,
+      rgbRecognition,
+      xyzRecognition,
+      uvRecognition,
       spectralGroupingCheckbox,
+      scalarStokesRecognition,
+      rgbStokesRecognition,
+      spectralStokesRecognition,
+      scalarMuellerRecognition,
+      rgbMuellerRecognition,
+      alphaCompanionsRecognition,
       stokesMaskCheckbox,
       aolpEnabled,
       aolpSelect,
@@ -11233,6 +11274,7 @@ function createUiCallbacksBase() {
     onStokesDefaultSettingChange: () => {},
     onStokesParameterVisibilityChange: () => {},
     onMaskInvalidStokesVectorsChange: () => {},
+    onChannelRecognitionSettingsChange: () => {},
     onSpectralRgbGroupingChange: () => {},
     onInvalidValueWarningChange: () => {},
     onClearRoi: () => {},

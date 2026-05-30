@@ -142,7 +142,8 @@ export function displayReducer(
         intent.activeLayer,
         {
           stokesParameterVisibility: state.stokesParameterVisibility,
-          spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+          spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+          channelRecognitionSettings: state.channelRecognitionSettings
         }
       );
       const nextLayer = activeSession.decoded.layers[nextSessionState.activeLayer] ?? null;

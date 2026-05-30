@@ -42,6 +42,11 @@ import {
   type MuellerMatrixDisplayOption,
   type RgbMuellerMatrixChannels
 } from './mueller';
+import {
+  normalizeChannelRecognitionSettings,
+  type ChannelRecognitionSettingId,
+  type ChannelRecognitionSettings
+} from './channel-recognition-settings';
 import type { DisplayChannelMapping } from './types';
 
 export type ComponentChannelGroupKind = 'rgb' | 'xyz' | 'uv';
@@ -70,6 +75,7 @@ export interface ChannelRecognitionConfig {
   stokesParameterVisibility?: StokesParameterVisibilitySettings;
   spectralRgbGroupingEnabled?: boolean;
   includeAlphaCompanions?: boolean;
+  channelRecognitionSettings?: ChannelRecognitionSettings;
 }
 
 export interface ChannelRecognitionAvailability {
@@ -229,10 +235,10 @@ export function recognizeLayerChannels(
   config: ChannelRecognitionConfig = {}
 ): ChannelRecognitionResult {
   const names = [...channelNames];
-  const spectralRgbGroupingEnabled = config.spectralRgbGroupingEnabled !== false;
-  const includeAlphaCompanions = config.includeAlphaCompanions !== false;
-  const componentGroups = extractComponentChannelGroups(names);
-  const spectralRecognition = buildSpectralSeriesCandidates(names, spectralRgbGroupingEnabled);
+  const settings = resolveChannelRecognitionSettings(config);
+  const includeAlphaCompanions = settings['fallback.alphaCompanions'];
+  const componentGroups = extractEnabledComponentChannelGroups(names, settings);
+  const spectralRecognition = buildSpectralSeriesCandidates(names, settings);
   const splitSingleCandidates = buildSplitSingleChannelCandidates(
     names,
     componentGroups,
@@ -253,8 +259,8 @@ export function recognizeLayerChannels(
       ...mergedSingleCandidates,
       ...splitSingleCandidates,
       ...spectralRecognition.candidates,
-      ...buildStokesCandidates(names, config),
-      ...buildMuellerCandidates(names)
+      ...buildStokesCandidates(names, config, settings),
+      ...buildMuellerCandidates(names, settings)
     ]
   };
 }
@@ -274,6 +280,15 @@ export function extractRgbChannelGroups(channelNames: string[]): RgbChannelGroup
 
 export function extractComponentChannelGroups(channelNames: string[]): ComponentChannelGroup[] {
   return COMPONENT_RULES.flatMap((rule) => extractComponentChannelGroupsForRule(channelNames, rule));
+}
+
+function extractEnabledComponentChannelGroups(
+  channelNames: string[],
+  settings: ChannelRecognitionSettings
+): ComponentChannelGroup[] {
+  return COMPONENT_RULES
+    .filter((rule) => isRecognitionSettingEnabled(settings, rule.id))
+    .flatMap((rule) => extractComponentChannelGroupsForRule(channelNames, rule));
 }
 
 export function findSelectedComponentChannelGroup(
@@ -630,10 +645,10 @@ function buildSingleChannelCandidate(args: {
 
 function buildSpectralSeriesCandidates(
   channelNames: string[],
-  spectralRgbGroupingEnabled: boolean
+  settings: ChannelRecognitionSettings
 ): { candidates: SpectralSeriesCandidate[]; parentKeyByChannel: Map<string, string> } {
   const parentKeyByChannel = new Map<string, string>();
-  if (!spectralRgbGroupingEnabled) {
+  if (!settings['spectral.series']) {
     return { candidates: [], parentKeyByChannel };
   }
 
@@ -688,9 +703,10 @@ function buildSpectralSeriesCandidate(
 
 function buildStokesCandidates(
   channelNames: string[],
-  config: ChannelRecognitionConfig
+  config: ChannelRecognitionConfig,
+  settings: ChannelRecognitionSettings
 ): StokesVectorCandidate[] {
-  const spectralRgbGroupingEnabled = config.spectralRgbGroupingEnabled !== false;
+  const spectralRgbGroupingEnabled = settings['stokes.spectral'];
   const mergedOptions = getStokesDisplayOptions(channelNames, {
     includeRgbGroups: true,
     includeSplitChannels: false,
@@ -719,7 +735,7 @@ function buildStokesCandidates(
       false,
       true
     ))
-  ];
+  ].filter((candidate) => isStokesCandidateEnabled(candidate, settings));
 }
 
 function buildStokesCandidate(
@@ -763,7 +779,10 @@ function buildStokesCandidate(
   };
 }
 
-function buildMuellerCandidates(channelNames: string[]): MuellerMatrixCandidate[] {
+function buildMuellerCandidates(
+  channelNames: string[],
+  settings: ChannelRecognitionSettings
+): MuellerMatrixCandidate[] {
   const mergedOptions = getMuellerMatrixDisplayOptions(channelNames, {
     includeRgbGroups: true,
     includeSplitChannels: false
@@ -788,7 +807,7 @@ function buildMuellerCandidates(channelNames: string[]): MuellerMatrixCandidate[
       false,
       true
     ))
-  ];
+  ].filter((candidate) => isRecognitionSettingEnabled(settings, candidate.ruleId));
 }
 
 function buildMuellerCandidate(
@@ -1029,6 +1048,9 @@ function getStokesRuleId(selection: StokesSelection): StokesVectorCandidate['rul
     case 'spectralRgb':
       return 'stokes.spectral';
     case 'scalar':
+      if (selection.source.suffix && isSpectralStokesSuffix(selection.source.suffix)) {
+        return 'stokes.spectral';
+      }
       return 'stokes.scalar';
   }
 }
@@ -1131,4 +1153,37 @@ export function isRecognizedSelectionType(selection: DisplaySelection | null): b
 
 export function getRecognizedSelectionLabel(selection: DisplaySelection): string {
   return getDisplaySelectionOptionLabel(selection);
+}
+
+function resolveChannelRecognitionSettings(config: ChannelRecognitionConfig): ChannelRecognitionSettings {
+  const settings = normalizeChannelRecognitionSettings(config.channelRecognitionSettings);
+  if (!config.channelRecognitionSettings && config.spectralRgbGroupingEnabled === false) {
+    settings['spectral.series'] = false;
+    settings['stokes.spectral'] = false;
+  }
+  if (config.includeAlphaCompanions !== undefined) {
+    settings['fallback.alphaCompanions'] = config.includeAlphaCompanions !== false;
+  }
+  settings['fallback.singleChannel'] = true;
+  return settings;
+}
+
+function isRecognitionSettingEnabled(
+  settings: ChannelRecognitionSettings,
+  id: ChannelRecognitionSettingId
+): boolean {
+  return settings[id] !== false;
+}
+
+function isStokesCandidateEnabled(
+  candidate: StokesVectorCandidate,
+  settings: ChannelRecognitionSettings
+): boolean {
+  if (candidate.ruleId === 'stokes.scalar') {
+    return settings['stokes.scalar'] !== false;
+  }
+  if (candidate.ruleId === 'stokes.rgb') {
+    return settings['stokes.rgb'] !== false;
+  }
+  return settings['stokes.spectral'] !== false;
 }

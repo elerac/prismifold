@@ -26,6 +26,7 @@ import type {
   StokesColormapDefaultSettings,
   StokesParameterVisibilitySettings
 } from '../stokes';
+import type { ChannelRecognitionSettings } from '../channel-recognition-settings';
 import type {
   ViewerPaneLayoutState,
   ViewerPaneRenderInfo
@@ -102,6 +103,7 @@ export interface ViewerRuntimeUi extends Disposable {
     visibility?: StokesParameterVisibilitySettings
   ): void;
   setMaskInvalidStokesVectors(enabled: boolean): void;
+  setChannelRecognitionSettings(settings: ChannelRecognitionSettings): void;
   setSpectralRgbGroupingEnabled(enabled: boolean, persist?: boolean): void;
   setInvalidValueWarningEnabled(enabled: boolean): void;
   setColormapGradient(lut: ColormapLut | null, reversed?: boolean): void;

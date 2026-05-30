@@ -234,7 +234,11 @@ function synchronizeCachedDisplayRange(
   sessionId: string,
   sessionState: ViewerRenderTransition['snapshot']['renderState']
 ): void {
-  const cachedRange = renderCache.getCachedLuminanceRange(sessionId, sessionState);
+  const displayState = {
+    ...sessionState,
+    channelRecognitionSettings: core.getState().channelRecognitionSettings
+  };
+  const cachedRange = renderCache.getCachedLuminanceRange(sessionId, displayState);
   const activeRange = selectActiveDisplayLuminanceRange(core.getState());
   if (
     cachedRange?.min === activeRange?.min &&
@@ -246,7 +250,7 @@ function synchronizeCachedDisplayRange(
   core.dispatch({
     type: 'displayLuminanceRangeResolved',
     requestId: null,
-    requestKey: `${sessionId}:${buildDisplayLuminanceRevisionKey(sessionState)}`,
+    requestKey: `${sessionId}:${buildDisplayLuminanceRevisionKey(displayState)}`,
     sessionId,
     activeLayer: sessionState.activeLayer,
     displaySelection: sessionState.displaySelection,

@@ -5,6 +5,7 @@ import {
   type ChannelRecognitionConfig,
   type RecognizedChannelCandidate
 } from '../src/channel-recognition';
+import { createDefaultChannelRecognitionSettings } from '../src/channel-recognition-settings';
 import { serializeDisplaySelectionKey } from '../src/display-model';
 import { MUELLER_MATRIX_ELEMENTS } from '../src/mueller';
 
@@ -44,6 +45,14 @@ function defaultSelectionKey(channelNames: string[], config: ChannelRecognitionC
   return candidate ? serializeDisplaySelectionKey(candidate.selection) : null;
 }
 
+function withRecognitionDisabled(...ids: Array<keyof ReturnType<typeof createDefaultChannelRecognitionSettings>>): ChannelRecognitionConfig {
+  const channelRecognitionSettings = createDefaultChannelRecognitionSettings();
+  for (const id of ids) {
+    channelRecognitionSettings[id] = false;
+  }
+  return { channelRecognitionSettings };
+}
+
 describe('channel recognition', () => {
   it('recognizes RGB/RGBA groups and split children without changing option identity', () => {
     const channelNames = ['beauty.R', 'beauty.G', 'beauty.B', 'beauty.A', 'depth.Z'];
@@ -70,6 +79,24 @@ describe('channel recognition', () => {
       ]
     });
     expect(selectionKey(group)).toBe('channelRgb:beauty.R:beauty.G:beauty.B:beauty.A');
+  });
+
+  it('gates component recognition rules independently and keeps single-channel fallback available', () => {
+    expect(visibleKeys(['R', 'G', 'B', 'normal.X', 'normal.Y', 'normal.Z'], false, withRecognitionDisabled('component.rgb'))).toEqual([
+      'groupXYZ:normal',
+      'channel:R',
+      'channel:G',
+      'channel:B'
+    ]);
+    expect(visibleKeys(['normal.X', 'normal.Y', 'normal.Z'], false, withRecognitionDisabled('component.xyz'))).toEqual([
+      'channel:normal.X',
+      'channel:normal.Y',
+      'channel:normal.Z'
+    ]);
+    expect(visibleKeys(['U', 'V'], false, withRecognitionDisabled('component.uv'))).toEqual([
+      'channel:U',
+      'channel:V'
+    ]);
   });
 
   it('recognizes declarative XYZ and UV component groups', () => {
@@ -200,7 +227,7 @@ describe('channel recognition', () => {
     expect(visibleKeys(channelNames, true)).toContain('stokesScalar:s1_over_s0:400nm');
   });
 
-  it('leaves spectral channels and spectral Stokes scalars visible when grouping is disabled', () => {
+  it('hides spectral channels and spectral Stokes candidates when legacy grouping is disabled', () => {
     expect(visibleKeys(['410nm', '500nm', '650nm'], false, {
       spectralRgbGroupingEnabled: false
     })).toEqual(['channel:410nm', 'channel:500nm', 'channel:650nm']);
@@ -213,7 +240,46 @@ describe('channel recognition', () => {
 
     expect(keys.some((key) => key.startsWith('spectralRgb:'))).toBe(false);
     expect(keys.some((key) => key.startsWith('stokesSpectralRgb:'))).toBe(false);
-    expect(keys).toContain('stokesScalar:s1_over_s0:400nm');
+    expect(keys).not.toContain('stokesScalar:s1_over_s0:400nm');
+  });
+
+  it('gates spectral series independently from spectral Stokes recognition', () => {
+    const channelNames = [
+      'S0.400nm', 'S1.400nm', 'S2.400nm', 'S3.400nm',
+      'S0.500nm', 'S1.500nm', 'S2.500nm', 'S3.500nm'
+    ];
+
+    expect(visibleKeys(channelNames, false, withRecognitionDisabled('spectral.series'))).toContain(
+      'stokesSpectralRgb:top:group'
+    );
+    expect(visibleKeys(channelNames, false, withRecognitionDisabled('spectral.series')).some((key) => key.startsWith('spectralRgb:')))
+      .toBe(false);
+    expect(visibleKeys(channelNames, false, withRecognitionDisabled('stokes.spectral'))).toContain('spectralRgb:S0');
+    expect(visibleKeys(channelNames, false, withRecognitionDisabled('stokes.spectral')).some((key) => key.startsWith('stokesSpectralRgb:')))
+      .toBe(false);
+    expect(visibleKeys(channelNames, false, withRecognitionDisabled('stokes.spectral')))
+      .not.toContain('stokesScalar:s1_over_s0:400nm');
+  });
+
+  it('gates Stokes, Mueller, and alpha companion recognition families', () => {
+    expect(visibleKeys(['S0', 'S1', 'S2', 'S3'], false, withRecognitionDisabled('stokes.scalar'))
+      .some((key) => key.startsWith('stokesScalar:'))).toBe(false);
+
+    const rgbStokes = [
+      'S0.R', 'S0.G', 'S0.B',
+      'S1.R', 'S1.G', 'S1.B',
+      'S2.R', 'S2.G', 'S2.B'
+    ];
+    expect(visibleKeys(rgbStokes, false, withRecognitionDisabled('stokes.rgb'))
+      .some((key) => key.startsWith('stokesRgb:'))).toBe(false);
+
+    expect(visibleKeys(MUELLER_MATRIX_ELEMENTS, false, withRecognitionDisabled('mueller.scalar'))
+      .some((key) => key === 'muellerMatrix:')).toBe(false);
+    expect(visibleKeys(MUELLER_MATRIX_ELEMENTS.flatMap((element) => [`${element}.R`, `${element}.G`, `${element}.B`]), false, withRecognitionDisabled('mueller.rgb'))
+      .some((key) => key === 'muellerMatrixRgb:')).toBe(false);
+
+    expect(selectionKey(findCandidate(['depth.Z', 'depth.A'], 'channel:depth.Z', withRecognitionDisabled('fallback.alphaCompanions'))))
+      .toBe('channelMono:depth.Z:');
   });
 
   it('recognizes scalar and RGB Mueller matrix candidates', () => {

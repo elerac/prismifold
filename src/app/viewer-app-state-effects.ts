@@ -4,6 +4,10 @@ import {
   serializeChannelThumbnailRequestKey
 } from '../channel-thumbnail-keys';
 import { sameDisplaySelection, type DisplaySelection } from '../display-model';
+import {
+  createDefaultChannelRecognitionSettings,
+  sameChannelRecognitionSettings
+} from '../channel-recognition-settings';
 import { samePixel, sameRoi, sameRoiInteractionState, sameViewState } from '../view-state';
 import { ViewerInteractionCoordinator } from '../interaction-coordinator';
 import { ChannelThumbnailService } from '../services/channel-thumbnail-service';
@@ -13,6 +17,7 @@ import type { DisplayController } from '../controllers/display-controller';
 import { ViewerAppCore } from './viewer-app-core';
 import type { ViewerStateTransition } from './viewer-app-types';
 import { selectActiveSession } from './viewer-app-selectors';
+import type { OpenedImageThumbnailOptions } from '../thumbnail';
 import type { ViewerSessionState } from '../types';
 
 export function applySessionResourceEffects(
@@ -142,13 +147,23 @@ function scheduleThumbnailGeneration(
     sessionId,
     stateSnapshot,
     token,
-    {
-      autoExposureEnabled: state.autoExposureEnabled,
-      autoExposurePercentile: state.autoExposurePercentile,
-      maskInvalidStokesVectors: state.maskInvalidStokesVectors,
-      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
-    }
+    buildOpenedImageThumbnailOptions(state)
   ).catch(() => undefined);
+}
+
+function buildOpenedImageThumbnailOptions(
+  state: ViewerStateTransition['state']
+): OpenedImageThumbnailOptions {
+  const options: OpenedImageThumbnailOptions = {
+    autoExposureEnabled: state.autoExposureEnabled,
+    autoExposurePercentile: state.autoExposurePercentile,
+    maskInvalidStokesVectors: state.maskInvalidStokesVectors,
+    spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+  };
+  if (!sameChannelRecognitionSettings(state.channelRecognitionSettings, createDefaultChannelRecognitionSettings())) {
+    options.channelRecognitionSettings = state.channelRecognitionSettings;
+  }
+  return options;
 }
 
 function scheduleAllOpenedThumbnailGeneration(
@@ -199,7 +214,8 @@ function scheduleActiveChannelThumbnailGeneration(
   for (const item of prioritizeSelectedChannelViewItem(
     buildChannelViewItems(layer.channelNames, {
       stokesParameterVisibility: state.stokesParameterVisibility,
-      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+      channelRecognitionSettings: state.channelRecognitionSettings
     }),
     state.sessionState.displaySelection
   )) {
@@ -211,7 +227,9 @@ function scheduleActiveChannelThumbnailGeneration(
       displayGamma: state.sessionState.channelThumbnailDisplayGamma,
       stokesDegreeModulation: state.sessionState.stokesDegreeModulation,
       stokesAolpDegreeModulationMode: state.sessionState.stokesAolpDegreeModulationMode,
-      maskInvalidStokesVectors: state.maskInvalidStokesVectors
+      maskInvalidStokesVectors: state.maskInvalidStokesVectors,
+      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+      channelRecognitionSettings: state.channelRecognitionSettings
     });
     if (
       Object.prototype.hasOwnProperty.call(state.channelThumbnailsByRequestKey, requestKey)
@@ -237,7 +255,8 @@ function scheduleActiveChannelThumbnailGeneration(
       stateSnapshot,
       selection: item.selection,
       maskInvalidStokesVectors: state.maskInvalidStokesVectors,
-      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+      channelRecognitionSettings: state.channelRecognitionSettings
     }).catch(() => undefined);
   }
 }
@@ -280,7 +299,11 @@ function shouldRefreshActiveChannelThumbnails(transition: ViewerStateTransition)
     transition.previousState.sessionState.stokesDegreeModulation.top !== transition.state.sessionState.stokesDegreeModulation.top ||
     transition.previousState.sessionState.stokesAolpDegreeModulationMode !== transition.state.sessionState.stokesAolpDegreeModulationMode ||
     transition.previousState.maskInvalidStokesVectors !== transition.state.maskInvalidStokesVectors ||
-    transition.previousState.spectralRgbGroupingEnabled !== transition.state.spectralRgbGroupingEnabled
+    transition.previousState.spectralRgbGroupingEnabled !== transition.state.spectralRgbGroupingEnabled ||
+    !sameChannelRecognitionSettings(
+      transition.previousState.channelRecognitionSettings,
+      transition.state.channelRecognitionSettings
+    )
   );
 }
 
@@ -306,6 +329,17 @@ function shouldRefreshOpenedImageThumbnails(transition: ViewerStateTransition): 
 
   if (transition.intent.type === 'spectralRgbGroupingSet') {
     return transition.previousState.spectralRgbGroupingEnabled !== transition.state.spectralRgbGroupingEnabled;
+  }
+
+  if (
+    transition.intent.type === 'channelRecognitionSettingsSet' ||
+    transition.intent.type === 'channelRecognitionSettingsGroupSet' ||
+    transition.intent.type === 'channelRecognitionSettingsReset'
+  ) {
+    return !sameChannelRecognitionSettings(
+      transition.previousState.channelRecognitionSettings,
+      transition.state.channelRecognitionSettings
+    );
   }
 
   return false;

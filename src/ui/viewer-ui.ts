@@ -150,6 +150,15 @@ import {
 } from '../image-load-workers';
 import { DEFAULT_INVALID_VALUE_WARNING_ENABLED } from '../invalid-value-warning-settings';
 import { DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED, saveStoredSpectralRgbGroupingSetting } from '../spectral-default-settings';
+import {
+  CHANNEL_RECOGNITION_SETTING_DESCRIPTORS,
+  cloneChannelRecognitionSettings,
+  createDefaultChannelRecognitionSettings,
+  deriveSpectralRgbGroupingEnabled,
+  withChannelRecognitionSetting,
+  type ChannelRecognitionSettingId,
+  type ChannelRecognitionSettings
+} from '../channel-recognition-settings';
 
 const AUTO_FIT_IMAGE_ON_SELECT_STORAGE_KEY = 'openexr-viewer:auto-fit-image-on-select:v1';
 const AUTO_EXPOSURE_STORAGE_KEY = 'openexr-viewer:auto-exposure:v1';
@@ -281,6 +290,7 @@ export interface UiCallbacks {
   onStokesDefaultSettingChange: (group: StokesColormapDefaultGroup, setting: StokesColormapDefaultSetting) => void;
   onStokesParameterVisibilityChange: (group: StokesColormapDefaultGroup, enabled: boolean) => void;
   onMaskInvalidStokesVectorsChange: (enabled: boolean) => void;
+  onChannelRecognitionSettingsChange: (settings: ChannelRecognitionSettings) => void;
   onSpectralRgbGroupingChange: (enabled: boolean) => void;
   onInvalidValueWarningChange: (enabled: boolean) => void;
   onClearRoi: () => void;
@@ -351,6 +361,7 @@ export class ViewerUi implements Disposable {
   private stokesColormapDefaults: StokesColormapDefaultSettings = createDefaultStokesColormapDefaultSettings();
   private stokesParameterVisibility: StokesParameterVisibilitySettings = createDefaultStokesParameterVisibilitySettings();
   private maskInvalidStokesVectors = DEFAULT_MASK_INVALID_STOKES_VECTORS;
+  private channelRecognitionSettings: ChannelRecognitionSettings = createDefaultChannelRecognitionSettings();
   private spectralRgbGroupingEnabled = DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED;
   private invalidValueWarningEnabled = DEFAULT_INVALID_VALUE_WARNING_ENABLED;
   private viewerMode: ViewerMode = 'image';
@@ -1144,13 +1155,34 @@ export class ViewerUi implements Disposable {
     this.elements.stokesInvalidVectorMaskCheckbox.checked = enabled;
   }
 
+  setChannelRecognitionSettings(settings: ChannelRecognitionSettings): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.channelRecognitionSettings = cloneChannelRecognitionSettings(settings);
+    this.spectralRgbGroupingEnabled = deriveSpectralRgbGroupingEnabled(this.channelRecognitionSettings);
+    for (const descriptor of CHANNEL_RECOGNITION_SETTING_DESCRIPTORS) {
+      const checkbox = this.getChannelRecognitionCheckbox(descriptor.id);
+      if (!checkbox) {
+        continue;
+      }
+      checkbox.checked = this.channelRecognitionSettings[descriptor.id] !== false;
+      checkbox.disabled = !descriptor.mutable;
+    }
+  }
+
   setSpectralRgbGroupingEnabled(enabled: boolean, persist = false): void {
     if (this.disposed) {
       return;
     }
 
     this.spectralRgbGroupingEnabled = enabled;
-    this.elements.spectralRgbGroupingCheckbox.checked = enabled;
+    this.setChannelRecognitionSettings({
+      ...this.channelRecognitionSettings,
+      'spectral.series': enabled,
+      'stokes.spectral': enabled
+    });
     if (persist) {
       saveStoredSpectralRgbGroupingSetting(enabled);
     }
@@ -1541,12 +1573,17 @@ export class ViewerUi implements Disposable {
     return selectStackedChannelViewItems(
       this.rgbGroupChannelNames,
       this.channelThumbnailItems,
-      this.getExpandedChannelStackKeys()
+      this.getExpandedChannelStackKeys(),
+      { channelRecognitionSettings: this.channelRecognitionSettings }
     );
   }
 
   private getChannelViewStacks(): ChannelViewStackInfo[] {
-    return buildChannelViewStacks(this.rgbGroupChannelNames, this.channelThumbnailItems);
+    return buildChannelViewStacks(
+      this.rgbGroupChannelNames,
+      this.channelThumbnailItems,
+      { channelRecognitionSettings: this.channelRecognitionSettings }
+    );
   }
 
   private getChannelThumbnailItemsByValue(): Map<string, ChannelThumbnailOptionItem> {
@@ -1570,7 +1607,12 @@ export class ViewerUi implements Disposable {
 
   private pruneExpandedChannelStackKeys(): void {
     const current = this.getExpandedChannelStackKeys();
-    const pruned = pruneExpandedChannelStackKeys(this.rgbGroupChannelNames, this.channelThumbnailItems, current);
+    const pruned = pruneExpandedChannelStackKeys(
+      this.rgbGroupChannelNames,
+      this.channelThumbnailItems,
+      current,
+      { channelRecognitionSettings: this.channelRecognitionSettings }
+    );
     if (!sameStringSet(current, pruned)) {
       this.setExpandedChannelStackKeys(pruned);
     }
@@ -2765,10 +2807,24 @@ export class ViewerUi implements Disposable {
       this.callbacks.onMaskInvalidStokesVectorsChange(this.maskInvalidStokesVectors);
     });
 
-    this.disposables.addEventListener(this.elements.spectralRgbGroupingCheckbox, 'change', () => {
-      this.setSpectralRgbGroupingEnabled(this.elements.spectralRgbGroupingCheckbox.checked, true);
-      this.callbacks.onSpectralRgbGroupingChange(this.spectralRgbGroupingEnabled);
-    });
+    for (const descriptor of CHANNEL_RECOGNITION_SETTING_DESCRIPTORS) {
+      if (!descriptor.mutable) {
+        continue;
+      }
+      const checkbox = this.getChannelRecognitionCheckbox(descriptor.id);
+      if (!checkbox) {
+        continue;
+      }
+      this.disposables.addEventListener(checkbox, 'change', () => {
+        this.channelRecognitionSettings = withChannelRecognitionSetting(
+          this.channelRecognitionSettings,
+          descriptor.id,
+          checkbox.checked
+        );
+        this.setChannelRecognitionSettings(this.channelRecognitionSettings);
+        this.callbacks.onChannelRecognitionSettingsChange(this.channelRecognitionSettings);
+      });
+    }
 
     this.disposables.addEventListener(this.elements.spectrumLatticeMotionSelect, 'change', () => {
       this.setSpectrumLatticeMotionPreference(
@@ -2803,8 +2859,9 @@ export class ViewerUi implements Disposable {
       );
       this.setMaskInvalidStokesVectors(DEFAULT_MASK_INVALID_STOKES_VECTORS);
       this.callbacks.onMaskInvalidStokesVectorsChange(this.maskInvalidStokesVectors);
-      this.setSpectralRgbGroupingEnabled(DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED, true);
-      this.callbacks.onSpectralRgbGroupingChange(this.spectralRgbGroupingEnabled);
+      this.setChannelRecognitionSettings(createDefaultChannelRecognitionSettings());
+      saveStoredSpectralRgbGroupingSetting(DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED);
+      this.callbacks.onChannelRecognitionSettingsChange(this.channelRecognitionSettings);
       this.setInvalidValueWarningEnabled(DEFAULT_INVALID_VALUE_WARNING_ENABLED);
       this.callbacks.onInvalidValueWarningChange(this.invalidValueWarningEnabled);
       this.callbacks.onResetSettings();
@@ -3122,6 +3179,12 @@ export class ViewerUi implements Disposable {
       aolpModeSelect,
       controls
     };
+  }
+
+  private getChannelRecognitionCheckbox(id: ChannelRecognitionSettingId): HTMLInputElement | null {
+    return this.elements.channelRecognitionSettingsControl.querySelector<HTMLInputElement>(
+      `input[data-channel-recognition-setting="${id}"]`
+    );
   }
 }
 

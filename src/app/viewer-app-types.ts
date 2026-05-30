@@ -2,6 +2,7 @@ import type { ChannelViewThumbnailItem } from '../channel-view-items';
 import type { AsyncResource, ViewerError } from '../async-resource';
 import type { AutoExposureResult } from '../analysis/auto-exposure';
 import type { ColormapLut, ColormapRegistry } from '../colormaps';
+import type { ChannelRecognitionSettingId, ChannelRecognitionSettings } from '../channel-recognition-settings';
 import type { ProbeColorPreview } from '../probe';
 import type { SpectralChannel, SpectralPlotPoint } from '../spectral';
 import type {
@@ -135,6 +136,7 @@ export interface ViewerResourceTarget {
   displaySelection: ViewerSessionState['displaySelection'];
   maskInvalidStokesVectors: boolean;
   spectralRgbGroupingEnabled: boolean;
+  channelRecognitionSettings: ChannelRecognitionSettings;
   decodedRef: OpenedImageSession['decoded'];
 }
 
@@ -185,6 +187,7 @@ export interface ViewerAppState {
   stokesDisplayRestoreStates: Record<string, RestorableVisualizationState>;
   stokesColormapDefaults: StokesColormapDefaultSettings;
   stokesParameterVisibility: StokesParameterVisibilitySettings;
+  channelRecognitionSettings: ChannelRecognitionSettings;
   maskInvalidStokesVectors: boolean;
   spectralRgbGroupingEnabled: boolean;
   invalidValueWarningEnabled: boolean;
@@ -240,6 +243,9 @@ export type ViewerIntent =
   | { type: 'stokesParameterVisibilitySet'; settings: StokesParameterVisibilitySettings }
   | { type: 'stokesParameterVisibilityGroupSet'; group: StokesColormapDefaultGroup; enabled: boolean }
   | { type: 'stokesParameterVisibilityReset' }
+  | { type: 'channelRecognitionSettingsSet'; settings: ChannelRecognitionSettings }
+  | { type: 'channelRecognitionSettingsGroupSet'; id: ChannelRecognitionSettingId; enabled: boolean }
+  | { type: 'channelRecognitionSettingsReset' }
   | { type: 'maskInvalidStokesVectorsSet'; enabled: boolean }
   | { type: 'spectralRgbGroupingSet'; enabled: boolean }
   | { type: 'invalidValueWarningSet'; enabled: boolean }
@@ -363,6 +369,7 @@ export interface ViewerUiSnapshot {
   stokesDegreeModulationControl: StokesDegreeModulationControlModel | null;
   stokesColormapDefaults: StokesColormapDefaultSettings;
   stokesParameterVisibility: StokesParameterVisibilitySettings;
+  channelRecognitionSettings: ChannelRecognitionSettings;
   maskInvalidStokesVectors: boolean;
   spectralRgbGroupingEnabled: boolean;
   invalidValueWarningEnabled: boolean;

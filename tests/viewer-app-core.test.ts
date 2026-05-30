@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AUTO_EXPOSURE_PERCENTILE } from '../src/auto-exposure';
 import { getSuccessValue } from '../src/async-resource';
+import { createDefaultChannelRecognitionSettings } from '../src/channel-recognition-settings';
 import { DEFAULT_DISPLAY_GAMMA } from '../src/color';
 import { ViewerAppCore } from '../src/app/viewer-app-core';
 import { createInteractionState } from '../src/view-state';
@@ -90,6 +91,22 @@ describe('viewer app core', () => {
 
     core.dispatch({ type: 'rulersVisibleSet', enabled: false });
     expect(core.getState().rulersVisible).toBe(false);
+  });
+
+  it('applies channel recognition settings and falls back from disabled candidates', () => {
+    const core = new ViewerAppCore();
+    core.dispatch({ type: 'sessionLoaded', session: createSession('session-1', createDecodedImage(['R', 'G', 'B', 'Y'])) });
+
+    core.dispatch({
+      type: 'channelRecognitionSettingsSet',
+      settings: {
+        ...createDefaultChannelRecognitionSettings(),
+        'component.rgb': false
+      }
+    });
+
+    expect(core.getState().channelRecognitionSettings['component.rgb']).toBe(false);
+    expect(core.getState().sessionState.displaySelection).toEqual(createChannelMonoSelection('Y'));
   });
 
   it('splits, activates, and resets viewer panes without changing view state', () => {

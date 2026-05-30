@@ -242,7 +242,8 @@ function buildDisabledActiveStokesFallbackPatch(
   const layer = activeSession?.decoded.layers[state.sessionState.activeLayer] ?? null;
   const fallbackSelection = layer
     ? pickDefaultDisplaySelection(layer.channelNames, {
-        spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+        spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+        channelRecognitionSettings: state.channelRecognitionSettings
       })
     : null;
   return {
@@ -264,7 +265,8 @@ function resolveSelectionForStokesVisibility(
   const layer = activeSession?.decoded.layers[state.sessionState.activeLayer] ?? null;
   return layer
     ? pickDefaultDisplaySelection(layer.channelNames, {
-        spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+        spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+        channelRecognitionSettings: state.channelRecognitionSettings
       })
     : null;
 }

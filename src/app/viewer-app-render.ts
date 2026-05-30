@@ -268,7 +268,8 @@ function selectPaneRenderSources(
       ...renderState,
       displaySelection: resolveDisplaySelectionForLayer(layer.channelNames, renderState.displaySelection, {
         stokesParameterVisibility: state.stokesParameterVisibility,
-        spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+        spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+        channelRecognitionSettings: state.channelRecognitionSettings
       }),
       depthChannel: resolveDepthChannelForLayer(
         layer.channelNames,
@@ -514,6 +515,7 @@ function createResourceTargetSelector(): (
           displaySelection: state.sessionState.displaySelection,
           maskInvalidStokesVectors: state.maskInvalidStokesVectors,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+          channelRecognitionSettings: state.channelRecognitionSettings,
           decodedRef: activeSession.decoded
         }
       : null;
@@ -639,13 +641,15 @@ function createDisplayRangeRequestSelector(): (
           displaySelection: state.sessionState.displaySelection,
           maskInvalidStokesVectors: state.maskInvalidStokesVectors,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+          channelRecognitionSettings: state.channelRecognitionSettings,
           decodedRef: activeSession.decoded,
           requestKey: `${activeSession.id}:${buildDisplayLuminanceRevisionKey({
             activeLayer: state.sessionState.activeLayer,
             displaySelection: state.sessionState.displaySelection,
             visualizationMode: effectiveVisualizationMode,
             maskInvalidStokesVectors: state.maskInvalidStokesVectors,
-            spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+            spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+            channelRecognitionSettings: state.channelRecognitionSettings
           })}`
         }
       : null;
@@ -673,13 +677,15 @@ function createImageStatsRequestSelector(): (
           displaySelection: state.sessionState.displaySelection,
           maskInvalidStokesVectors: state.maskInvalidStokesVectors,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+          channelRecognitionSettings: state.channelRecognitionSettings,
           decodedRef: activeSession.decoded,
           requestKey: `${activeSession.id}:${buildDisplayImageStatsRevisionKey({
             activeLayer: state.sessionState.activeLayer,
             displaySelection: state.sessionState.displaySelection,
             visualizationMode: state.sessionState.visualizationMode,
             maskInvalidStokesVectors: state.maskInvalidStokesVectors,
-            spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+            spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+            channelRecognitionSettings: state.channelRecognitionSettings
           })}`
         }
       : null;
@@ -708,6 +714,7 @@ function createAutoExposureRequestSelector(): (
           displaySelection: state.sessionState.displaySelection,
           maskInvalidStokesVectors: state.maskInvalidStokesVectors,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+          channelRecognitionSettings: state.channelRecognitionSettings,
           decodedRef: activeSession.decoded,
           percentile: state.autoExposurePercentile,
           source: AUTO_EXPOSURE_SOURCE,
@@ -716,7 +723,8 @@ function createAutoExposureRequestSelector(): (
             displaySelection: state.sessionState.displaySelection,
             visualizationMode: 'rgb',
             maskInvalidStokesVectors: state.maskInvalidStokesVectors,
-            spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+            spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+            channelRecognitionSettings: state.channelRecognitionSettings
           }, state.autoExposurePercentile)}`
         }
       : null;
@@ -803,12 +811,7 @@ function sameImageStatsRequest(
 ): boolean {
   return (
     a?.requestKey === b?.requestKey &&
-    a?.sessionId === b?.sessionId &&
-    a?.activeLayer === b?.activeLayer &&
-    a?.visualizationMode === b?.visualizationMode &&
-    a?.spectralRgbGroupingEnabled === b?.spectralRgbGroupingEnabled &&
-    a?.decodedRef === b?.decodedRef &&
-    sameDisplaySelection(a?.displaySelection ?? null, b?.displaySelection ?? null)
+    sameResourceTarget(a, b)
   );
 }
 
@@ -818,14 +821,9 @@ function sameAutoExposureRequest(
 ): boolean {
   return (
     a?.requestKey === b?.requestKey &&
-    a?.sessionId === b?.sessionId &&
-    a?.activeLayer === b?.activeLayer &&
-    a?.visualizationMode === b?.visualizationMode &&
-    a?.spectralRgbGroupingEnabled === b?.spectralRgbGroupingEnabled &&
-    a?.decodedRef === b?.decodedRef &&
     a?.percentile === b?.percentile &&
     a?.source === b?.source &&
-    sameDisplaySelection(a?.displaySelection ?? null, b?.displaySelection ?? null)
+    sameResourceTarget(a, b)
   );
 }
 

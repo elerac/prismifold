@@ -26,6 +26,8 @@ import {
   type DisplayEvaluationOptions,
   type DisplayPixelValues
 } from './display/evaluator';
+import { resolveDisplaySelectionForLayer } from './display-selection';
+import type { ChannelRecognitionSettings } from './channel-recognition-settings';
 import { isStokesDegreeModulationEnabled, resolveStokesDegreeModulationMode } from './stokes';
 import {
   DecodedExrImage,
@@ -50,6 +52,7 @@ export interface OpenedImageThumbnailOptions {
   autoExposurePercentile?: number;
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionSettings?: ChannelRecognitionSettings;
 }
 
 export interface ThumbnailPreviewOptions {
@@ -160,7 +163,12 @@ export function buildDisplaySelectionThumbnailPixels(
   preview: ThumbnailPreviewOptions | null = null,
   options: OpenedImageThumbnailOptions = {}
 ): OpenedImageThumbnailPixels {
-  const effectiveSelection = cloneDisplaySelection(selection);
+  const effectiveSelection = selection && (options.channelRecognitionSettings || options.spectralRgbGroupingEnabled !== undefined)
+    ? resolveDisplaySelectionForLayer(layer.channelNames, selection, {
+        spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled,
+        channelRecognitionSettings: options.channelRecognitionSettings
+      })
+    : cloneDisplaySelection(selection);
   const displaySize = resolveDisplayImageSize(width, height, effectiveSelection);
   const { width: thumbnailWidth, height: thumbnailHeight } = resolveThumbnailDimensions(
     displaySize.width,

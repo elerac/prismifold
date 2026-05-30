@@ -32,6 +32,7 @@ import type {
   StokesColormapDefaultSettings,
   StokesParameterVisibilitySettings
 } from '../stokes';
+import type { ChannelRecognitionSettings } from '../channel-recognition-settings';
 import type {
   ViewerPaneLayoutState,
   ViewerPaneRenderInfo
@@ -283,6 +284,7 @@ export class EmbedViewerUi implements ViewerRuntimeUi {
     _visibility?: StokesParameterVisibilitySettings
   ): void {}
   setMaskInvalidStokesVectors(_enabled: boolean): void {}
+  setChannelRecognitionSettings(_settings: ChannelRecognitionSettings): void {}
   setSpectralRgbGroupingEnabled(_enabled: boolean): void {}
   setInvalidValueWarningEnabled(_enabled: boolean): void {}
   setColormapGradient(_lut: ColormapLut | null, _reversed = false): void {}

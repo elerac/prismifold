@@ -8,15 +8,24 @@ import {
   serializeDisplaySelectionKey,
   type DisplaySelection
 } from '../display-model';
+import {
+  createDefaultChannelRecognitionSettings,
+  sameChannelRecognitionSettings,
+  serializeChannelRecognitionSettingsKey,
+  type ChannelRecognitionSettings
+} from '../channel-recognition-settings';
 import type { ViewerState, VisualizationMode } from '../types';
 
 type StokesMaskRevisionState = Partial<Pick<ViewerState, 'maskInvalidStokesVectors'>>;
 type SpectralRgbGroupingRevisionState = Partial<Pick<ViewerState, 'spectralRgbGroupingEnabled'>>;
+type ChannelRecognitionRevisionState = {
+  channelRecognitionSettings?: ChannelRecognitionSettings;
+};
 
 function serializeDisplaySelectionRevisionKey(
   selection: DisplaySelection | null,
   visualizationMode: VisualizationMode,
-  state: StokesMaskRevisionState & SpectralRgbGroupingRevisionState = {}
+  state: StokesMaskRevisionState & SpectralRgbGroupingRevisionState & ChannelRecognitionRevisionState = {}
 ): string {
   if (!selection) {
     return 'none';
@@ -26,23 +35,29 @@ function serializeDisplaySelectionRevisionKey(
   const key = isGroupedRgbStokesSelection(selection)
     ? `${baseKey}:${visualizationMode}`
     : baseKey;
-  return appendSpectralRgbGroupingRevisionKey(appendStokesMaskRevisionKey(key, selection, state), selection, state);
+  return appendChannelRecognitionRevisionKey(
+    appendSpectralRgbGroupingRevisionKey(appendStokesMaskRevisionKey(key, selection, state), selection, state),
+    state
+  );
 }
 
 export function serializeDisplaySelectionLuminanceKey(
   selection: DisplaySelection | null,
   visualizationMode: VisualizationMode = 'rgb',
-  state: StokesMaskRevisionState & SpectralRgbGroupingRevisionState = {}
+  state: StokesMaskRevisionState & SpectralRgbGroupingRevisionState & ChannelRecognitionRevisionState = {}
 ): string {
   if (!selection) {
-    return 'none';
+    return appendChannelRecognitionRevisionKey('none', state);
   }
 
   switch (selection.kind) {
     case 'channelRgb':
-      return `channelRgb:${selection.r}:${selection.g}:${selection.b ?? ''}`;
+      return appendChannelRecognitionRevisionKey(
+        `channelRgb:${selection.r}:${selection.g}:${selection.b ?? ''}`,
+        state
+      );
     case 'channelMono':
-      return `channelMono:${selection.channel}`;
+      return appendChannelRecognitionRevisionKey(`channelMono:${selection.channel}`, state);
     case 'spectralRgb':
       return serializeDisplaySelectionRevisionKey(selection, visualizationMode, state);
     case 'muellerMatrix':
@@ -51,11 +66,14 @@ export function serializeDisplaySelectionLuminanceKey(
     case 'stokesAngle':
       return serializeDisplaySelectionRevisionKey(selection, visualizationMode, state);
   }
+
+  return appendChannelRecognitionRevisionKey(serializeDisplaySelectionKey(selection), state);
 }
 
 export function buildDisplayTextureRevisionKey(
   state: Pick<ViewerState, 'activeLayer' | 'displaySelection'> &
-    Partial<Pick<ViewerState, 'visualizationMode' | 'viewerMode' | 'depthChannel' | 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>>
+    Partial<Pick<ViewerState, 'visualizationMode' | 'viewerMode' | 'depthChannel' | 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>> &
+    ChannelRecognitionRevisionState
 ): string {
   const parts = [
     state.activeLayer,
@@ -69,7 +87,8 @@ export function buildDisplayTextureRevisionKey(
 
 export function buildDisplayLuminanceRevisionKey(
   state: Pick<ViewerState, 'activeLayer' | 'displaySelection'> &
-    Partial<Pick<ViewerState, 'visualizationMode' | 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>>
+    Partial<Pick<ViewerState, 'visualizationMode' | 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>> &
+    ChannelRecognitionRevisionState
 ): string {
   return [
     state.activeLayer,
@@ -79,7 +98,8 @@ export function buildDisplayLuminanceRevisionKey(
 
 export function buildDisplayImageStatsRevisionKey(
   state: Pick<ViewerState, 'activeLayer' | 'displaySelection'> &
-    Partial<Pick<ViewerState, 'visualizationMode' | 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>>
+    Partial<Pick<ViewerState, 'visualizationMode' | 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>> &
+    ChannelRecognitionRevisionState
 ): string {
   return [
     state.activeLayer,
@@ -89,7 +109,8 @@ export function buildDisplayImageStatsRevisionKey(
 
 export function buildDisplayAutoExposureRevisionKey(
   state: Pick<ViewerState, 'activeLayer' | 'displaySelection'> &
-    Partial<Pick<ViewerState, 'visualizationMode' | 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>>,
+    Partial<Pick<ViewerState, 'visualizationMode' | 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>> &
+    ChannelRecognitionRevisionState,
   percentile = AUTO_EXPOSURE_PERCENTILE
 ): string {
   return [
@@ -122,4 +143,16 @@ function appendSpectralRgbGroupingRevisionKey(
   return affectsSelection
     ? `${key}:spectralRgbGrouping:${state.spectralRgbGroupingEnabled !== false}`
     : key;
+}
+
+function appendChannelRecognitionRevisionKey(
+  key: string,
+  state: ChannelRecognitionRevisionState
+): string {
+  const settings = state.channelRecognitionSettings;
+  if (!settings || sameChannelRecognitionSettings(settings, createDefaultChannelRecognitionSettings())) {
+    return key;
+  }
+
+  return `${key}:channelRecognition:${serializeChannelRecognitionSettingsKey(settings)}`;
 }

@@ -6,6 +6,10 @@ import {
   type ColormapRegistry
 } from '../colormaps';
 import { cloneDisplaySelection, type DisplaySelection } from '../display-model';
+import {
+  cloneChannelRecognitionSettings,
+  type ChannelRecognitionSettings
+} from '../channel-recognition-settings';
 import { createAbortError, isAbortError, throwIfAborted, type Disposable } from '../lifecycle';
 import {
   createChannelViewThumbnailDataUrl,
@@ -27,6 +31,7 @@ interface ChannelThumbnailJob {
   selection: DisplaySelection;
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionSettings?: ChannelRecognitionSettings;
 }
 
 type MaybePromise<T> = T | Promise<T>;
@@ -49,6 +54,7 @@ export interface ChannelThumbnailServiceDependencies {
     selection: DisplaySelection;
     maskInvalidStokesVectors?: boolean;
     spectralRgbGroupingEnabled?: boolean;
+    channelRecognitionSettings?: ChannelRecognitionSettings;
     colormapRegistry: ColormapRegistry | null;
     abortSignal: AbortSignal;
   }) => MaybePromise<string | null>;
@@ -234,6 +240,7 @@ export class ChannelThumbnailService implements Disposable {
         selection: job.selection,
         maskInvalidStokesVectors: job.maskInvalidStokesVectors,
         spectralRgbGroupingEnabled: job.spectralRgbGroupingEnabled,
+        channelRecognitionSettings: job.channelRecognitionSettings,
         colormapRegistry: this.getColormapRegistry(),
         abortSignal: this.abortController.signal
       });
@@ -340,6 +347,7 @@ function defaultCreateThumbnailDataUrl({
   selection,
   maskInvalidStokesVectors,
   spectralRgbGroupingEnabled,
+  channelRecognitionSettings,
   colormapRegistry,
   abortSignal,
   findColormapIdByLabel: resolveColormapId,
@@ -351,6 +359,7 @@ function defaultCreateThumbnailDataUrl({
   selection: DisplaySelection;
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionSettings?: ChannelRecognitionSettings;
   colormapRegistry: ColormapRegistry | null;
   abortSignal: AbortSignal;
   findColormapIdByLabel: typeof findColormapIdByLabel;
@@ -362,6 +371,7 @@ function defaultCreateThumbnailDataUrl({
     selection,
     maskInvalidStokesVectors,
     spectralRgbGroupingEnabled,
+    channelRecognitionSettings,
     colormapRegistry,
     abortSignal,
     findColormapIdByLabel: resolveColormapId,
@@ -375,6 +385,7 @@ async function createChannelViewThumbnailDataUrlWithPreview({
   selection,
   maskInvalidStokesVectors,
   spectralRgbGroupingEnabled,
+  channelRecognitionSettings,
   colormapRegistry,
   abortSignal,
   findColormapIdByLabel: resolveColormapId,
@@ -385,6 +396,7 @@ async function createChannelViewThumbnailDataUrlWithPreview({
   selection: DisplaySelection;
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionSettings?: ChannelRecognitionSettings;
   colormapRegistry: ColormapRegistry | null;
   abortSignal: AbortSignal;
   findColormapIdByLabel: typeof findColormapIdByLabel;
@@ -405,7 +417,7 @@ async function createChannelViewThumbnailDataUrlWithPreview({
     stateSnapshot,
     selection,
     preview,
-    { maskInvalidStokesVectors, spectralRgbGroupingEnabled }
+    { maskInvalidStokesVectors, spectralRgbGroupingEnabled, channelRecognitionSettings }
   );
 }
 
@@ -426,7 +438,10 @@ function cloneJob(job: ChannelThumbnailJob): ChannelThumbnailJob {
     ...job,
     stateSnapshot: cloneViewerState(job.stateSnapshot),
     selection: cloneDisplaySelection(job.selection) ?? job.selection,
-    spectralRgbGroupingEnabled: job.spectralRgbGroupingEnabled
+    spectralRgbGroupingEnabled: job.spectralRgbGroupingEnabled,
+    channelRecognitionSettings: job.channelRecognitionSettings
+      ? cloneChannelRecognitionSettings(job.channelRecognitionSettings)
+      : undefined
   };
 }
 

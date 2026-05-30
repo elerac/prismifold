@@ -165,7 +165,8 @@ export function sessionReducer(
           autoFitViewport: state.autoFitImageOnSelect ? intent.viewport ?? null : null,
           autoFitInsets: state.autoFitImageOnSelect ? intent.fitInsets ?? null : null,
           stokesParameterVisibility: state.stokesParameterVisibility,
-          spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+          spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+          channelRecognitionSettings: state.channelRecognitionSettings
         }
       );
       const sessionsWithCurrentState = updateActiveSessionStoredState(
@@ -199,7 +200,8 @@ export function sessionReducer(
         nextSession.state.activeLayer,
         {
           stokesParameterVisibility: state.stokesParameterVisibility,
-          spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+          spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+          channelRecognitionSettings: state.channelRecognitionSettings
         }
       );
       return {
@@ -314,7 +316,11 @@ export function sessionReducer(
         nextSession,
         state.sessionState,
         removedSession?.decoded ?? null,
-        { stokesParameterVisibility: state.stokesParameterVisibility }
+        {
+          stokesParameterVisibility: state.stokesParameterVisibility,
+          spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+          channelRecognitionSettings: state.channelRecognitionSettings
+        }
       );
       return {
         ...state,
@@ -353,7 +359,8 @@ export function sessionReducer(
         intent.fitInsets,
         {
           stokesParameterVisibility: state.stokesParameterVisibility,
-          spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+          spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+          channelRecognitionSettings: state.channelRecognitionSettings
         }
       );
       return patchSessionState(state, nextSessionState, {

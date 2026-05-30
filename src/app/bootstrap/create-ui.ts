@@ -378,6 +378,9 @@ export function createViewerUi({
     onMaskInvalidStokesVectorsChange: (enabled) => {
       getDisplayController().setMaskInvalidStokesVectors(enabled);
     },
+    onChannelRecognitionSettingsChange: (settings) => {
+      getDisplayController().setChannelRecognitionSettings(settings);
+    },
     onSpectralRgbGroupingChange: (enabled) => {
       getDisplayController().setSpectralRgbGroupingEnabled(enabled);
     },
@@ -396,7 +399,7 @@ export function createViewerUi({
       void getDisplayController().resetStokesColormapDefaults();
       getDisplayController().resetStokesParameterVisibility();
       getDisplayController().resetMaskInvalidStokesVectors();
-      getDisplayController().resetSpectralRgbGroupingEnabled();
+      getDisplayController().resetChannelRecognitionSettings();
       getDisplayController().resetInvalidValueWarning();
     },
     onResetView: () => {
@@ -427,7 +430,8 @@ function promoteActiveChannelThumbnail(
     stokesDegreeModulation: state.sessionState.stokesDegreeModulation,
     stokesAolpDegreeModulationMode: state.sessionState.stokesAolpDegreeModulationMode,
     maskInvalidStokesVectors: state.maskInvalidStokesVectors,
-    spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+    spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+    channelRecognitionSettings: state.channelRecognitionSettings
   });
 
   getChannelThumbnailService().promoteRequest(requestKey);
