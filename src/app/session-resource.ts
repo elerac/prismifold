@@ -520,7 +520,11 @@ function shouldCarryColormapState(previous: DisplaySelection | null, next: Displ
   }
 
   if (previous.kind === 'channelRgb') {
-    return next.kind === 'channelRgb' && previous.r === next.r && previous.g === next.g && previous.b === next.b;
+    return next.kind === 'channelRgb' &&
+      previous.r === next.r &&
+      previous.g === next.g &&
+      previous.b === next.b &&
+      (previous.colorMapping ?? null) === (next.colorMapping ?? null);
   }
 
   return sameDisplaySelection(previous, next);

@@ -5,7 +5,7 @@ import {
   modulateRgbBytesHsv,
   type ColormapLut
 } from '../colormaps';
-import { selectionUsesImageAlpha } from '../display-model';
+import { isNormalMapSelection, selectionUsesImageAlpha } from '../display-model';
 import { isStokesDegreeModulationEnabled, resolveStokesDegreeModulationMode } from '../stokes';
 import type { ExportColormapOrientation, ViewerSessionState } from '../types';
 
@@ -55,6 +55,7 @@ export function buildExportImagePixels({
   const pixelCount = width * height;
   const data = new Uint8ClampedArray(pixelCount * 4);
   const useImageAlpha = selectionUsesImageAlpha(state.displaySelection);
+  const useNormalMapDisplay = isNormalMapSelection(state.displaySelection);
   const useStokesDegreeModulation = isStokesDegreeModulationEnabled(
     state.displaySelection,
     state.stokesDegreeModulation
@@ -68,13 +69,22 @@ export function buildExportImagePixels({
   for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
     const textureIndex = pixelIndex * 4;
     const outputIndex = textureIndex;
-    const rawR = sanitizeDisplayValue(displayTexture[textureIndex + 0]);
-    const rawG = sanitizeDisplayValue(displayTexture[textureIndex + 1]);
-    const rawB = sanitizeDisplayValue(displayTexture[textureIndex + 2]);
+    const sourceR = displayTexture[textureIndex + 0];
+    const sourceG = displayTexture[textureIndex + 1];
+    const sourceB = displayTexture[textureIndex + 2];
+    const rawR = sanitizeDisplayValue(sourceR);
+    const rawG = sanitizeDisplayValue(sourceG);
+    const rawB = sanitizeDisplayValue(sourceB);
     const rawAlpha = clampAlpha(displayTexture[textureIndex + 3]);
 
     let rgb: [number, number, number];
-    if (state.visualizationMode === 'colormap') {
+    if (useNormalMapDisplay) {
+      rgb = [
+        normalMapDisplayByte(sourceR),
+        normalMapDisplayByte(sourceG),
+        normalMapDisplayByte(sourceB)
+      ];
+    } else if (state.visualizationMode === 'colormap') {
       rgb = mapValueToColormapRgbBytes(
         computeRec709Luminance(rawR, rawG, rawB),
         state.colormapRange,
@@ -155,6 +165,12 @@ function clampAlpha(value: number): number {
   }
 
   return Math.min(1, Math.max(0, value));
+}
+
+function normalMapDisplayByte(value: number): number {
+  return Number.isFinite(value)
+    ? Math.round(clampAlpha(value) * 255)
+    : 128;
 }
 
 function computeGradientPosition(index: number, length: number): number {

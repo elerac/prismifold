@@ -9,6 +9,7 @@ import {
   recognizeLayerChannels,
   resolveAlphaChannelForChannel,
   type ComponentGroupCandidate,
+  type NormalMapCandidate,
   type RecognizedChannelCandidate,
   type RgbChannelGroup,
   type SingleChannelCandidate
@@ -103,7 +104,7 @@ export function buildChannelDisplayOptions(
 
   return recognition.candidates
     .filter((candidate) => {
-      if (candidate.kind === 'componentGroup') {
+      if (candidate.kind === 'componentGroup' || candidate.kind === 'normalMap') {
         return includeRgbGroups;
       }
 
@@ -210,11 +211,24 @@ function normalizeChannelSelection(
     selection.g,
     selection.b
   );
+  const recognition = recognizeLayerChannels(channelNames, config);
+  const recognized = recognition.candidates.find((candidate) => (
+    (candidate.kind === 'componentGroup' || candidate.kind === 'normalMap') &&
+    candidate.selection.kind === 'channelRgb' &&
+    candidate.selection.r === selection.r &&
+    candidate.selection.g === selection.g &&
+    candidate.selection.b === selection.b &&
+    (candidate.selection.alpha ?? null) === (selection.alpha ?? null)
+  ));
+  if (recognized?.selection.kind === 'channelRgb') {
+    return recognized.selection;
+  }
+
   return group ? buildChannelRgbSelection(group) : null;
 }
 
 function isChannelDisplayCandidate(
   candidate: RecognizedChannelCandidate
-): candidate is ComponentGroupCandidate | SingleChannelCandidate {
+): candidate is ComponentGroupCandidate | NormalMapCandidate | SingleChannelCandidate {
   return candidate.selection.kind === 'channelMono' || candidate.selection.kind === 'channelRgb';
 }

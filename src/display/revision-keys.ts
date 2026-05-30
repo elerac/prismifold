@@ -4,6 +4,7 @@ import {
 } from '../analysis/auto-exposure';
 import {
   isGroupedRgbStokesSelection,
+  isNormalMapSelection,
   isStokesSelection,
   serializeDisplaySelectionKey,
   type DisplaySelection
@@ -60,7 +61,7 @@ export function serializeDisplaySelectionLuminanceKey(
   switch (selection.kind) {
     case 'channelRgb':
       return appendChannelRecognitionRevisionKey(
-        `channelRgb:${selection.r}:${selection.g}:${selection.b ?? ''}`,
+        `channelRgb:${selection.r}:${selection.g}:${selection.b ?? ''}${isNormalMapSelection(selection) ? ':normalMap' : ''}`,
         state
       );
     case 'channelMono':

@@ -59,6 +59,36 @@ describe('probe helpers', () => {
     });
   });
 
+  it('uses normal-map colors for the probe swatch while keeping raw channel values', () => {
+    const preview = buildProbeColorPreview(
+      {
+        x: 4,
+        y: 7,
+        values: {
+          'normal.X': -1,
+          'normal.Y': 0,
+          'normal.Z': 1
+        }
+      },
+      createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap'),
+      4,
+      {
+        mode: 'colormap',
+        colormapRange: { min: 0, max: 1 },
+        colormapLut: redBlackGreenLut
+      }
+    );
+
+    expect(preview).toEqual({
+      cssColor: 'rgb(0, 128, 255)',
+      displayValues: [
+        { label: 'R', value: '-1.00' },
+        { label: 'G', value: '0.00' },
+        { label: 'B', value: '1.00' }
+      ]
+    });
+  });
+
   it('includes active display alpha in probe preview swatches and values', () => {
     const preview = buildProbeColorPreview(
       {

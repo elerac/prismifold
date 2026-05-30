@@ -35,17 +35,10 @@ export function createDisplaySelectionStatsAccumulators(
     case 'empty':
       return [];
     case 'channelRgb': {
-      const rows: StatsAccumulator[] = [
-        createStatsAccumulator('R', (pixelIndex) => readChannelValue(evaluator.r, pixelIndex)),
-        createStatsAccumulator('G', (pixelIndex) => readChannelValue(evaluator.g, pixelIndex))
-      ];
-      if (!selection || selection.kind !== 'channelRgb' || selection.b) {
-        rows.push(createStatsAccumulator('B', (pixelIndex) => readChannelValue(evaluator.b, pixelIndex)));
-      }
-      if (selectionUsesImageAlpha(selection) && evaluator.a) {
-        rows.push(createStatsAccumulator('A', (pixelIndex) => readChannelValue(evaluator.a, pixelIndex)));
-      }
-      return rows;
+      return createRgbChannelStatsAccumulators(evaluator, selection);
+    }
+    case 'channelNormalMap': {
+      return createRgbChannelStatsAccumulators(evaluator, selection);
     }
     case 'channelMono': {
       const rows = [
@@ -218,6 +211,23 @@ export function createDisplaySelectionStatsAccumulators(
         )
       ];
   }
+}
+
+function createRgbChannelStatsAccumulators(
+  evaluator: Extract<DisplaySelectionEvaluator, { kind: 'channelRgb' | 'channelNormalMap' }>,
+  selection: DisplaySelection | null
+): StatsAccumulator[] {
+  const rows: StatsAccumulator[] = [
+    createStatsAccumulator('R', (pixelIndex) => readChannelValue(evaluator.r, pixelIndex)),
+    createStatsAccumulator('G', (pixelIndex) => readChannelValue(evaluator.g, pixelIndex))
+  ];
+  if (!selection || selection.kind !== 'channelRgb' || selection.b) {
+    rows.push(createStatsAccumulator('B', (pixelIndex) => readChannelValue(evaluator.b, pixelIndex)));
+  }
+  if (selectionUsesImageAlpha(selection) && evaluator.a) {
+    rows.push(createStatsAccumulator('A', (pixelIndex) => readChannelValue(evaluator.a, pixelIndex)));
+  }
+  return rows;
 }
 
 export function accumulateStatsValue(accumulator: StatsAccumulator, value: number): void {

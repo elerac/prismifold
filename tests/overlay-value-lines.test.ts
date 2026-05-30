@@ -37,6 +37,21 @@ describe('renderer overlay value helpers', () => {
     expect(lines).toHaveLength(3);
   });
 
+  it('keeps normal-map overlay labels as channel lines even in colormap mode', () => {
+    const lines = buildOverlayValueLines(
+      {
+        visualizationMode: 'colormap',
+        displaySelection: createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap')
+      },
+      0,
+      0.5,
+      1
+    );
+
+    expect(lines.map((line) => line.value)).toEqual(['0.00', '0.500', '1.00']);
+    expect(lines).toHaveLength(3);
+  });
+
   it('keeps two channel lines for non-colormap grouped UV displays', () => {
     const lines = buildOverlayValueLines(
       {

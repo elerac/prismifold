@@ -5,6 +5,7 @@ import {
   createDefaultChannelRecognitionNameRules,
   parseComponentChannelNameWithRules,
   parseMuellerMatrixChannelNameWithRules,
+  parseNormalMapChannelNameWithRules,
   parseRgbStokesChannelNameWithRules,
   parseScalarStokesChannelNameWithRules,
   parseSpectralChannelNameWithRules,
@@ -27,6 +28,9 @@ describe('channel recognition name rules', () => {
 
     expect(parseComponentChannelNameWithRules('beauty.R', 'rgb', compiled)).toEqual({ base: 'beauty', slot: 'r' });
     expect(parseComponentChannelNameWithRules('N.Z', 'xyz', compiled)).toEqual({ base: 'N', slot: 'z' });
+    expect(parseNormalMapChannelNameWithRules('N.Z', compiled)).toEqual({ base: 'N', component: 'z' });
+    expect(parseNormalMapChannelNameWithRules('normal.X', compiled)).toEqual({ base: 'normal', component: 'x' });
+    expect(parseNormalMapChannelNameWithRules('surface.X', compiled)).toBeNull();
     expect(parseComponentChannelNameWithRules('flow.U', 'uv', compiled)).toEqual({ base: 'flow', slot: 'u' });
     expect(parseSpectralChannelNameWithRules('FUGA500nm', compiled)).toMatchObject({
       wavelength: 500,
@@ -73,6 +77,29 @@ describe('channel recognition name rules', () => {
     });
   });
 
+  it('recognizes custom normal-map aliases after applying custom regexes', () => {
+    const rules = createDefaultChannelRecognitionNameRules();
+    rules['normal.map'] = {
+      pattern: '^(?<base>.+)_(?:(?<x>nx)|(?<y>ny)|(?<z>nz))$',
+      caseInsensitive: true
+    };
+
+    const result = recognizeLayerChannels(
+      ['surface_nx', 'surface_ny', 'surface_nz'],
+      { channelRecognitionNameRules: rules }
+    );
+
+    expect(result.candidates.find((candidate) => candidate.key === 'normalMap:surface')).toMatchObject({
+      kind: 'normalMap',
+      ruleId: 'normal.map',
+      channels: ['surface_nx', 'surface_ny', 'surface_nz'],
+      selection: {
+        kind: 'channelRgb',
+        colorMapping: 'normalMap'
+      }
+    });
+  });
+
   it('validates regex syntax and required named captures without losing input', () => {
     expect(validateChannelRecognitionNameRule('spectral.series', {
       pattern: '^(?<series>.+)$',
@@ -81,6 +108,19 @@ describe('channel recognition name rules', () => {
       {
         id: 'spectral.series',
         message: 'Add a named capture for (?<wavelength>...).'
+      }
+    ]);
+    expect(validateChannelRecognitionNameRule('normal.map', {
+      pattern: '^(?<base>.+)_(?<x>nx)$',
+      caseInsensitive: true
+    })).toEqual([
+      {
+        id: 'normal.map',
+        message: 'Add a named capture for (?<y>...).'
+      },
+      {
+        id: 'normal.map',
+        message: 'Add a named capture for (?<z>...).'
       }
     ]);
 

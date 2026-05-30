@@ -77,6 +77,27 @@ describe('display image stats', () => {
     ]);
   });
 
+  it('keeps normal-map image stats on the raw source channel values', () => {
+    const layer = createLayerFromChannels({
+      'normal.X': [-1, 0, 1],
+      'normal.Y': [0, 1, Number.NaN],
+      'normal.Z': [1, Number.POSITIVE_INFINITY, -1]
+    });
+
+    const stats = computeDisplaySelectionImageStats(
+      layer,
+      3,
+      1,
+      createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap')
+    );
+
+    expect(stats?.channels).toEqual([
+      createExpectedStatsChannel('R', -1, 0, 1, 3, 0, 0, 0),
+      createExpectedStatsChannel('G', 0, 0.5, 1, 2, 1, 0, 0),
+      createExpectedStatsChannel('B', -1, 0, 1, 2, 0, 0, 1)
+    ]);
+  });
+
   it('computes Mueller matrix stats over the 4x display grid', () => {
     const layer = createLayerFromChannels(Object.fromEntries(
       MUELLER_MATRIX_ELEMENTS.map((element, index) => [element, [index + 1]])

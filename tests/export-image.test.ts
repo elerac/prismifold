@@ -17,7 +17,7 @@ import {
 } from '../src/export-image';
 import { MUELLER_MATRIX_ELEMENTS } from '../src/mueller';
 import { createDefaultStokesDegreeModulation } from '../src/stokes';
-import { createLayerFromChannels, createMuellerMatrixSelection } from './helpers/state-fixtures';
+import { createChannelRgbSelection, createLayerFromChannels, createMuellerMatrixSelection } from './helpers/state-fixtures';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -57,6 +57,43 @@ describe('export image pixels', () => {
       linearToDisplayGammaByte(1),
       linearToDisplayGammaByte(2),
       255
+    ]);
+  });
+
+  it('exports normal-map display colors without exposure, gamma, or colormap mapping', () => {
+    const state = {
+      exposureEv: 4,
+      displayGamma: 4,
+      visualizationMode: 'colormap' as const,
+      colormapExposureEv: 0,
+      colormapGamma: 1,
+      colormapZeroCentered: false,
+      colormapReversed: false,
+      colormapRange: { min: 0, max: 1 },
+      displaySelection: createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap'),
+      stokesDegreeModulation: createDefaultStokesDegreeModulation(),
+      stokesAolpDegreeModulationMode: 'value' as const
+    };
+
+    const pixels = buildExportImagePixels({
+      displayTexture: new Float32Array([
+        0.5, 0.5, 1, 1,
+        Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 1
+      ]),
+      width: 2,
+      height: 1,
+      state,
+      colormapLut: {
+        id: '0',
+        label: 'Test',
+        entryCount: 2,
+        rgba8: new Uint8Array([0, 0, 255, 255, 255, 0, 0, 255])
+      }
+    });
+
+    expect(Array.from(pixels.data)).toEqual([
+      128, 128, 255, 255,
+      128, 128, 128, 255
     ]);
   });
 

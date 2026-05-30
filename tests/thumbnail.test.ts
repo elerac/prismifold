@@ -117,6 +117,41 @@ describe('thumbnail rendering', () => {
     ]);
   });
 
+  it('renders normal-map thumbnails without exposure, gamma, auto-exposure, or colormap preview', () => {
+    const layer = createLayerFromChannels({
+      'normal.X': [0],
+      'normal.Y': [0],
+      'normal.Z': [1]
+    }, 'normal');
+    const state = createThumbnailState({
+      exposureEv: 4,
+      displayGamma: 4,
+      displaySelection: createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap')
+    });
+
+    const thumbnail = buildOpenedImageThumbnailPixels(layer, 1, 1, state, {
+      autoExposureEnabled: true,
+      autoExposurePercentile: 99.5
+    });
+    const colormapThumbnail = buildDisplaySelectionThumbnailPixels(
+      layer,
+      1,
+      1,
+      state,
+      state.displaySelection,
+      40,
+      {
+        visualizationMode: 'colormap',
+        colormapRange: { min: 0, max: 1 },
+        colormapLut: redBlackGreenLut,
+        stokesDegreeModulation: state.stokesDegreeModulation
+      }
+    );
+
+    expect(readPixel(thumbnail.data, thumbnail.width, 20, 20)).toEqual([128, 128, 255, 255]);
+    expect(readPixel(colormapThumbnail.data, colormapThumbnail.width, 20, 20)).toEqual([128, 128, 255, 255]);
+  });
+
   it('applies sampled auto exposure to opened rgb thumbnails without using the outlier max', () => {
     const layer = createLayerFromChannels({
       R: [1, 2, 4, 8, 1000],

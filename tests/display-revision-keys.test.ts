@@ -21,6 +21,11 @@ describe('display revision keys', () => {
     })).toBe('0:channelRgb:R:G:B:');
 
     expect(buildDisplayTextureRevisionKey({
+      activeLayer: 0,
+      displaySelection: createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap')
+    })).toBe('0:channelRgb:normal.X:normal.Y:normal.Z::normalMap');
+
+    expect(buildDisplayTextureRevisionKey({
       activeLayer: 1,
       displaySelection: createStokesSelection('aolp', 'stokesRgb', 'G')
     })).toBe('1:stokesAngle:aolp:rgbComponent:G:maskInvalidStokesVectors:true');
@@ -61,6 +66,11 @@ describe('display revision keys', () => {
     })).toBe('0:channelRgb:R:G:B');
 
     expect(buildDisplayLuminanceRevisionKey({
+      activeLayer: 0,
+      displaySelection: createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', 'normal.A', 'normalMap')
+    })).toBe('0:channelRgb:normal.X:normal.Y:normal.Z:normalMap');
+
+    expect(buildDisplayLuminanceRevisionKey({
       activeLayer: 2,
       displaySelection: createChannelMonoSelection('Y', 'A')
     })).toBe('2:channelMono:Y');
@@ -94,6 +104,11 @@ describe('display revision keys', () => {
       activeLayer: 0,
       displaySelection: createChannelRgbSelection('R', 'G', 'B')
     })).toBe('0:channelRgb:R:G:B::autoExposure:rgbAbsMax:p99.5');
+
+    expect(buildDisplayAutoExposureRevisionKey({
+      activeLayer: 0,
+      displaySelection: createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap')
+    })).toBe('0:channelRgb:normal.X:normal.Y:normal.Z::normalMap:autoExposure:rgbAbsMax:p99.5');
   });
 
   it('includes Stokes invalid-vector masking in Stokes revision keys only', () => {

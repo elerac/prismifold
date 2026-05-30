@@ -53,6 +53,26 @@ describe('display CPU materialization', () => {
     expect(Array.from(texture)).toEqual([0.25, 0.75, 0, 0.5]);
   });
 
+  it('builds normal-map display textures with signed components biased to RGB colors', () => {
+    const layer = createLayerFromChannels({
+      'normal.X': [-1, 0, Number.NaN],
+      'normal.Y': [0, 1, Number.POSITIVE_INFINITY],
+      'normal.Z': [1, -1, Number.NEGATIVE_INFINITY],
+      'normal.A': [0.25, 2, Number.NaN]
+    }, 'normal');
+
+    const texture = buildSelectedDisplayTexture(
+      layer,
+      3,
+      1,
+      createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', 'normal.A', 'normalMap')
+    );
+
+    expect(Array.from(texture.slice(0, 4))).toEqual([0, 0.5, 1, 0.25]);
+    expect(Array.from(texture.slice(4, 8))).toEqual([0.5, 1, 0, 1]);
+    expect(Array.from(texture.slice(8, 12))).toEqual([0.5, 0.5, 0.5, 0]);
+  });
+
   it('builds grayscale display textures for mono selections', () => {
     const layer = createLayerFromChannels({
       Y: [0.25, 0.5, 0.75, 1]

@@ -82,13 +82,18 @@ describe('channel recognition', () => {
   });
 
   it('gates component recognition rules independently and keeps single-channel fallback available', () => {
-    expect(visibleKeys(['R', 'G', 'B', 'normal.X', 'normal.Y', 'normal.Z'], false, withRecognitionDisabled('component.rgb'))).toEqual([
-      'groupXYZ:normal',
+    expect(visibleKeys(['R', 'G', 'B', 'vector.X', 'vector.Y', 'vector.Z'], false, withRecognitionDisabled('component.rgb'))).toEqual([
+      'groupXYZ:vector',
       'channel:R',
       'channel:G',
       'channel:B'
     ]);
-    expect(visibleKeys(['normal.X', 'normal.Y', 'normal.Z'], false, withRecognitionDisabled('component.xyz'))).toEqual([
+    expect(visibleKeys(['vector.X', 'vector.Y', 'vector.Z'], false, withRecognitionDisabled('component.xyz'))).toEqual([
+      'channel:vector.X',
+      'channel:vector.Y',
+      'channel:vector.Z'
+    ]);
+    expect(visibleKeys(['normal.X', 'normal.Y', 'normal.Z'], false, withRecognitionDisabled('normal.map', 'component.xyz'))).toEqual([
       'channel:normal.X',
       'channel:normal.Y',
       'channel:normal.Z'
@@ -101,30 +106,82 @@ describe('channel recognition', () => {
 
   it('recognizes declarative XYZ and UV component groups', () => {
     const channelNames = [
-      'normal.X',
-      'normal.Y',
-      'normal.Z',
+      'vector.X',
+      'vector.Y',
+      'vector.Z',
       'motion.U',
       'motion.V',
       'motion.A',
       'depth.Z'
     ];
-    const xyz = findCandidate(channelNames, 'groupXYZ:normal');
+    const xyz = findCandidate(channelNames, 'groupXYZ:vector');
     const uv = findCandidate(channelNames, 'groupUV:motion');
 
-    expect(visibleKeys(channelNames)).toEqual(['groupXYZ:normal', 'groupUV:motion', 'channel:depth.Z']);
+    expect(visibleKeys(channelNames)).toEqual(['groupXYZ:vector', 'groupUV:motion', 'channel:depth.Z']);
     expect(visibleKeys(channelNames, true)).toEqual([
-      'channel:normal.X',
-      'channel:normal.Y',
-      'channel:normal.Z',
+      'channel:vector.X',
+      'channel:vector.Y',
+      'channel:vector.Z',
       'channel:motion.U',
       'channel:motion.V',
       'channel:motion.A',
       'channel:depth.Z'
     ]);
-    expect(selectionKey(xyz)).toBe('channelRgb:normal.X:normal.Y:normal.Z:');
+    expect(selectionKey(xyz)).toBe('channelRgb:vector.X:vector.Y:vector.Z:');
     expect(selectionKey(uv)).toBe('channelRgb:motion.U:motion.V::motion.A');
     expect(selectionKey(findCandidate(['U', 'V'], 'groupUV:'))).toBe('channelRgb:U:V::');
+  });
+
+  it('recognizes normal maps and suppresses duplicate XYZ groups while enabled', () => {
+    const channelNames = ['R', 'G', 'B', 'N.X', 'N.Y', 'N.Z', 'normal.X', 'normal.Y', 'normal.Z', 'normal.A', 'vector.X', 'vector.Y', 'vector.Z'];
+    const n = findCandidate(channelNames, 'normalMap:N');
+    const normal = findCandidate(channelNames, 'normalMap:normal');
+
+    expect(visibleKeys(channelNames)).toEqual([
+      'group:',
+      'normalMap:N',
+      'normalMap:normal',
+      'groupXYZ:vector'
+    ]);
+    expect(visibleKeys(channelNames)).not.toContain('groupXYZ:N');
+    expect(visibleKeys(channelNames)).not.toContain('groupXYZ:normal');
+    expect(visibleKeys(channelNames, true)).toEqual([
+      'channel:R',
+      'channel:G',
+      'channel:B',
+      'channel:N.X',
+      'channel:N.Y',
+      'channel:N.Z',
+      'channel:normal.X',
+      'channel:normal.Y',
+      'channel:normal.Z',
+      'channel:normal.A',
+      'channel:vector.X',
+      'channel:vector.Y',
+      'channel:vector.Z'
+    ]);
+    expect(n).toMatchObject({
+      kind: 'normalMap',
+      ruleId: 'normal.map',
+      label: 'N Normal Map',
+      priority: 40,
+      splitChildren: ['channel:N.X', 'channel:N.Y', 'channel:N.Z']
+    });
+    expect(selectionKey(n)).toBe('channelRgb:N.X:N.Y:N.Z::normalMap');
+    expect(normal).toMatchObject({
+      kind: 'normalMap',
+      channels: ['normal.X', 'normal.Y', 'normal.Z', 'normal.A']
+    });
+    expect(selectionKey(normal)).toBe('channelRgb:normal.X:normal.Y:normal.Z:normal.A:normalMap');
+  });
+
+  it('falls back to generic XYZ grouping when normal-map recognition is disabled', () => {
+    const config = withRecognitionDisabled('normal.map');
+
+    expect(visibleKeys(['normal.X', 'normal.Y', 'normal.Z'], false, config)).toEqual(['groupXYZ:normal']);
+    expect(selectionKey(findCandidate(['normal.X', 'normal.Y', 'normal.Z'], 'groupXYZ:normal', config))).toBe(
+      'channelRgb:normal.X:normal.Y:normal.Z:'
+    );
   });
 
   it('recognizes spectral RGB series and hides wavelength children from merged channel view', () => {
@@ -318,7 +375,7 @@ describe('channel recognition', () => {
 
     expect(defaultSelectionKey(['R', 'G', 'B', 'Y'])).toBe('channelRgb:R:G:B:');
     expect(defaultSelectionKey(['normal.X', 'normal.Y', 'normal.Z', 'Y'])).toBe(
-      'channelRgb:normal.X:normal.Y:normal.Z:'
+      'channelRgb:normal.X:normal.Y:normal.Z::normalMap'
     );
     expect(defaultSelectionKey(['400nm', '500nm', 'Y'])).toBe('spectralRgb:');
     expect(defaultSelectionKey(['Z', 'Y', 'mask'])).toBe('channelMono:Y:');

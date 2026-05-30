@@ -2,6 +2,7 @@ export type ChannelRecognitionNameRuleId =
   | 'component.rgb'
   | 'component.xyz'
   | 'component.uv'
+  | 'normal.map'
   | 'spectral.series'
   | 'stokes.scalar'
   | 'stokes.rgb'
@@ -12,6 +13,7 @@ export type ChannelRecognitionNameRuleId =
 
 export type ComponentNameRuleKind = 'rgb' | 'xyz' | 'uv';
 export type ComponentNameRuleSlot = 'r' | 'g' | 'b' | 'x' | 'y' | 'z' | 'u' | 'v' | 'a';
+export type NormalMapNameRuleComponent = 'x' | 'y' | 'z';
 export type StokesNameRuleComponent = 'S0' | 'S1' | 'S2' | 'S3';
 export type RgbNameRuleComponent = 'R' | 'G' | 'B';
 
@@ -55,6 +57,11 @@ export interface ParsedComponentChannelName {
 
 export interface ParsedAlphaChannelName {
   base: string;
+}
+
+export interface ParsedNormalMapChannelName {
+  base: string;
+  component: NormalMapNameRuleComponent;
 }
 
 export interface ParsedSpectralChannelName {
@@ -113,6 +120,12 @@ export const CHANNEL_RECOGNITION_NAME_RULE_DESCRIPTORS: readonly ChannelRecognit
     requiredCaptures: ['u', 'v', 'a']
   },
   {
+    id: 'normal.map',
+    label: 'Normal maps',
+    hint: 'Use named captures x, y, z, and optional base.',
+    requiredCaptures: ['x', 'y', 'z']
+  },
+  {
     id: 'spectral.series',
     label: 'Spectral RGB series',
     hint: 'Use wavelength and optional series captures. Wavelength values may use decimal commas or points.',
@@ -169,6 +182,10 @@ const DEFAULT_CHANNEL_RECOGNITION_NAME_RULES: ChannelRecognitionNameRules = {
   },
   'component.uv': {
     pattern: '^(?:(?<base>.+)\\.)?(?:(?<u>U)|(?<v>V)|(?<a>A))$',
+    caseInsensitive: false
+  },
+  'normal.map': {
+    pattern: '^(?<base>N|normal)\\.(?:(?<x>X)|(?<y>Y)|(?<z>Z))$',
     caseInsensitive: false
   },
   'spectral.series': {
@@ -403,6 +420,21 @@ export function parseAlphaChannelNameWithRules(
   return {
     base: match.groups.base ?? ''
   };
+}
+
+export function parseNormalMapChannelNameWithRules(
+  channelName: string,
+  compiled = compileChannelRecognitionNameRules()
+): ParsedNormalMapChannelName | null {
+  const match = execNamedRule(compiled.rules['normal.map'], channelName);
+  if (!match) {
+    return null;
+  }
+
+  const component = findCapturedSlot(match.groups, ['x', 'y', 'z'] as const);
+  return component
+    ? { base: match.groups.base ?? '', component }
+    : null;
 }
 
 export function parseSpectralChannelNameWithRules(

@@ -30,6 +30,7 @@ export type ChannelRgbSelection = {
   g: string;
   b: string | null;
   alpha: string | null;
+  colorMapping?: 'normalMap';
 };
 
 export type ChannelMonoSelection = {
@@ -125,7 +126,11 @@ export function sameDisplaySelection(
   switch (a.kind) {
     case 'channelRgb': {
       const next = b as ChannelRgbSelection;
-      return a.r === next.r && a.g === next.g && a.b === next.b && a.alpha === next.alpha;
+      return a.r === next.r &&
+        a.g === next.g &&
+        a.b === next.b &&
+        a.alpha === next.alpha &&
+        (a.colorMapping ?? null) === (next.colorMapping ?? null);
     }
     case 'channelMono': {
       const next = b as ChannelMonoSelection;
@@ -154,7 +159,10 @@ export function serializeDisplaySelectionKey(selection: DisplaySelection | null)
 
   switch (selection.kind) {
     case 'channelRgb':
-      return `channelRgb:${selection.r}:${selection.g}:${selection.b ?? ''}:${selection.alpha ?? ''}`;
+      return [
+        `channelRgb:${selection.r}:${selection.g}:${selection.b ?? ''}:${selection.alpha ?? ''}`,
+        selection.colorMapping ? `:${selection.colorMapping}` : ''
+      ].join('');
     case 'channelMono':
       return `channelMono:${selection.channel}:${selection.alpha ?? ''}`;
     case 'spectralRgb':
@@ -211,6 +219,12 @@ export function isMonoSelection(selection: DisplaySelection | null): boolean {
     isStokesSelection(selection) &&
     selection.source.kind === 'rgbComponent'
   ) || (isMuellerMatrixSelection(selection) && !selection.rgb);
+}
+
+export function isNormalMapSelection(
+  selection: DisplaySelection | null
+): selection is ChannelRgbSelection & { colorMapping: 'normalMap' } {
+  return Boolean(selection && selection.kind === 'channelRgb' && selection.colorMapping === 'normalMap');
 }
 
 export function selectionUsesImageAlpha(selection: DisplaySelection | null): boolean {
@@ -320,6 +334,13 @@ export function isAlphaChannel(channelName: string): boolean {
 }
 
 function formatChannelRgbSelectionLabel(selection: ChannelRgbSelection): string {
+  if (selection.colorMapping === 'normalMap') {
+    const normalGroup = matchComponentGroupSelection(selection, ['X', 'Y', 'Z']);
+    return normalGroup?.base
+      ? `${normalGroup.base} Normal Map`
+      : 'Normal Map';
+  }
+
   const rgbGroup = matchComponentGroupSelection(selection, ['R', 'G', 'B']);
   if (rgbGroup) {
     return buildComponentGroupLabel(rgbGroup.base, ['R', 'G', 'B'], Boolean(selection.alpha));

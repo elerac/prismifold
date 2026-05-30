@@ -171,6 +171,26 @@ describe('display auto exposure', () => {
     expect(autoExposure.exposureEv).toBe(0);
   });
 
+  it('returns neutral auto exposure for normal-map selections', () => {
+    const layer = createLayerFromChannels({
+      'normal.X': [-32],
+      'normal.Y': [0],
+      'normal.Z': [32]
+    }, 'normal');
+    const selection = createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap');
+
+    expect(computeDisplaySelectionAutoExposure(layer, 1, 1, selection, 'rgb', 100)).toMatchObject({
+      scalar: 1,
+      exposureEv: 0,
+      percentile: 100
+    });
+    expect(computeDisplaySelectionAutoExposurePreview(layer, 1, 1, selection, 'rgb', 100)).toMatchObject({
+      scalar: 1,
+      exposureEv: 0,
+      percentile: 100
+    });
+  });
+
   it('aborts chunked auto exposure work before completion', async () => {
     const layer = createLayerFromChannels({
       R: [1, 2, 3, 4],

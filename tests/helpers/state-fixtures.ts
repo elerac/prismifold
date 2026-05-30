@@ -184,14 +184,16 @@ export function createChannelRgbSelection(
   r = 'R',
   g = 'G',
   b: string | null = 'B',
-  alpha: string | null = null
+  alpha: string | null = null,
+  colorMapping?: ChannelRgbSelection['colorMapping']
 ): ChannelRgbSelection {
   return {
     kind: 'channelRgb',
     r,
     g,
     b,
-    alpha
+    alpha,
+    ...(colorMapping ? { colorMapping } : {})
   };
 }
 

@@ -10,6 +10,7 @@ export const DISPLAY_MODE_SPECTRAL_RGB = 6;
 export const DISPLAY_MODE_STOKES_SPECTRAL_RGB = 7;
 export const DISPLAY_MODE_STOKES_SPECTRAL_RGB_LUMINANCE = 8;
 export const DISPLAY_MODE_MUELLER_MATRIX = 9;
+export const DISPLAY_MODE_CHANNEL_NORMAL_MAP = 10;
 
 export const ALPHA_OUTPUT_OPAQUE = 0;
 export const ALPHA_OUTPUT_STRAIGHT = 1;
@@ -23,6 +24,8 @@ export function resolveDisplaySourceModeUniformValue(mode: DisplaySourceMode): n
       return DISPLAY_MODE_EMPTY;
     case 'channelRgb':
       return DISPLAY_MODE_CHANNEL_RGB;
+    case 'channelNormalMap':
+      return DISPLAY_MODE_CHANNEL_NORMAL_MAP;
     case 'channelMono':
       return DISPLAY_MODE_CHANNEL_MONO;
     case 'spectralRgb':

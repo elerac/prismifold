@@ -43,6 +43,7 @@ const int DISPLAY_MODE_SPECTRAL_RGB = 6;
 const int DISPLAY_MODE_STOKES_SPECTRAL_RGB = 7;
 const int DISPLAY_MODE_STOKES_SPECTRAL_RGB_LUMINANCE = 8;
 const int DISPLAY_MODE_MUELLER_MATRIX = 9;
+const int DISPLAY_MODE_CHANNEL_NORMAL_MAP = 10;
 const int ALPHA_OUTPUT_OPAQUE = 0;
 const int ALPHA_OUTPUT_STRAIGHT = 1;
 const int ALPHA_OUTPUT_PREMULTIPLIED = 2;
@@ -137,6 +138,18 @@ vec3 sanitizeDisplayColor(vec3 color) {
 
 float sanitizeAlphaValue(float value) {
   return isFiniteValue(value) ? clamp(value, 0.0, 1.0) : 0.0;
+}
+
+float mapNormalComponentToDisplayValue(float value) {
+  return isFiniteValue(value) ? clamp(value * 0.5 + 0.5, 0.0, 1.0) : 0.5;
+}
+
+vec3 mapNormalToDisplayColor(vec3 normal) {
+  return vec3(
+    mapNormalComponentToDisplayValue(normal.r),
+    mapNormalComponentToDisplayValue(normal.g),
+    mapNormalComponentToDisplayValue(normal.b)
+  );
 }
 
 float computeRec709Luminance(float r, float g, float b) {
@@ -590,6 +603,17 @@ DisplaySample readDisplaySample(ivec2 pixel) {
     );
   }
 
+  if (uDisplayMode == DISPLAY_MODE_CHANNEL_NORMAL_MAP) {
+    vec3 normal = vec3(readSource0(pixel), readSource1(pixel), readSource2(pixel));
+    float alpha = readSource3(pixel);
+    return DisplaySample(
+      mapNormalToDisplayColor(normal),
+      uUseImageAlpha ? sanitizeAlphaValue(alpha) : 1.0,
+      vec4(0.0),
+      hasInvalidValue(normal) || (uUseImageAlpha && !isFiniteValue(alpha))
+    );
+  }
+
   if (uDisplayMode == DISPLAY_MODE_CHANNEL_MONO) {
     float value = readSource0(pixel);
     float alpha = readSource3(pixel);
@@ -665,6 +689,11 @@ void main() {
   DisplaySample displaySample = readDisplaySample(pixel);
   vec3 linear = displaySample.linear;
   float imageAlpha = displaySample.alpha;
+
+  if (uDisplayMode == DISPLAY_MODE_CHANNEL_NORMAL_MAP) {
+    outColor = applyInvalidValueWarning(encodeOutputColor(screen, linear, imageAlpha), displaySample.invalidValue);
+    return;
+  }
 
   if (uUseColormap) {
     float luminance = computeRec709Luminance(linear.r, linear.g, linear.b);

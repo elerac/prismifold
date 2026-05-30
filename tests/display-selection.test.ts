@@ -126,6 +126,9 @@ describe('display selection', () => {
 
   it('builds grouped XYZ and UV display options with split components', () => {
     const defaultOptions = buildChannelDisplayOptions([
+      'vector.X',
+      'vector.Y',
+      'vector.Z',
       'normal.X',
       'normal.Y',
       'normal.Z',
@@ -139,15 +142,18 @@ describe('display selection', () => {
     });
 
     expect(defaultOptions.map((option) => option.label)).toEqual([
-      'normal.(X,Y,Z)',
+      'normal Normal Map',
+      'vector.(X,Y,Z)',
       'motion.(U,V,A)',
       'mask'
     ]);
-    expect(defaultOptions[0]?.key).toBe('groupXYZ:normal');
-    expect(defaultOptions[0]?.selection).toEqual(createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z'));
-    expect(defaultOptions[1]?.key).toBe('groupUV:motion');
-    expect(defaultOptions[1]?.selection).toEqual(createChannelRgbSelection('motion.U', 'motion.V', null, 'motion.A'));
-    expect(defaultOptions[1]?.mapping).toEqual({
+    expect(defaultOptions[0]?.key).toBe('normalMap:normal');
+    expect(defaultOptions[0]?.selection).toEqual(createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap'));
+    expect(defaultOptions[1]?.key).toBe('groupXYZ:vector');
+    expect(defaultOptions[1]?.selection).toEqual(createChannelRgbSelection('vector.X', 'vector.Y', 'vector.Z'));
+    expect(defaultOptions[2]?.key).toBe('groupUV:motion');
+    expect(defaultOptions[2]?.selection).toEqual(createChannelRgbSelection('motion.U', 'motion.V', null, 'motion.A'));
+    expect(defaultOptions[2]?.mapping).toEqual({
       displayR: 'motion.U',
       displayG: 'motion.V',
       displayB: null,
@@ -161,6 +167,19 @@ describe('display selection', () => {
     ]);
   });
 
+  it('keeps RGB channel display options before recognized normal maps', () => {
+    const options = buildChannelDisplayOptions(['normal.X', 'normal.Y', 'normal.Z', 'R', 'G', 'B']);
+
+    expect(options.map((option) => option.key)).toEqual([
+      'group:',
+      'normalMap:normal'
+    ]);
+    expect(options.map((option) => option.label)).toEqual([
+      'R,G,B',
+      'normal Normal Map'
+    ]);
+  });
+
   it('prioritizes exact Y after grouped channel options', () => {
     const scalarOptions = buildChannelDisplayOptions(['Z', 'Y', 'A', 'mask']);
     const splitScalarOptions = buildChannelDisplayOptions(['Z', 'Y', 'mask'], {
@@ -168,7 +187,7 @@ describe('display selection', () => {
       includeSplitChannels: true
     });
     const rgbOptions = buildChannelDisplayOptions(['R', 'G', 'B', 'Y', 'mask']);
-    const xyzOptions = buildChannelDisplayOptions(['normal.X', 'normal.Y', 'normal.Z', 'Y'], {
+    const xyzOptions = buildChannelDisplayOptions(['vector.X', 'vector.Y', 'vector.Z', 'Y'], {
       includeSplitChannels: true
     });
     const namespacedOptions = buildChannelDisplayOptions(['foo.Z', 'foo.Y', 'Y']);
@@ -177,10 +196,10 @@ describe('display selection', () => {
     expect(splitScalarOptions.map((option) => option.label)).toEqual(['Y', 'Z', 'mask']);
     expect(rgbOptions.map((option) => option.label)).toEqual(['R,G,B', 'Y', 'mask']);
     expect(xyzOptions.map((option) => option.label)).toEqual([
-      'normal.(X,Y,Z)',
-      'normal.X',
-      'normal.Y',
-      'normal.Z',
+      'vector.(X,Y,Z)',
+      'vector.X',
+      'vector.Y',
+      'vector.Z',
       'Y'
     ]);
     expect(namespacedOptions.map((option) => option.label)).toEqual(['Y', 'foo.Z', 'foo.Y']);
@@ -241,15 +260,15 @@ describe('display selection', () => {
   });
 
   it('remaps grouped and split XYZ/UV selections when toggling split mode', () => {
-    const xyzChannels = ['normal.X', 'normal.Y', 'normal.Z'];
+    const xyzChannels = ['vector.X', 'vector.Y', 'vector.Z'];
     const uvChannels = ['motion.U', 'motion.V', 'motion.A'];
-    const xyzGrouped = createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z');
+    const xyzGrouped = createChannelRgbSelection('vector.X', 'vector.Y', 'vector.Z');
     const uvGrouped = createChannelRgbSelection('motion.U', 'motion.V', null, 'motion.A');
 
     expect(findSplitSelectionForMergedDisplay(xyzChannels, xyzGrouped)).toEqual(
-      createChannelMonoSelection('normal.X')
+      createChannelMonoSelection('vector.X')
     );
-    expect(findMergedSelectionForSplitDisplay(xyzChannels, createChannelMonoSelection('normal.Z'))).toEqual(
+    expect(findMergedSelectionForSplitDisplay(xyzChannels, createChannelMonoSelection('vector.Z'))).toEqual(
       xyzGrouped
     );
     expect(findSplitSelectionForMergedDisplay(uvChannels, uvGrouped)).toEqual(
@@ -260,6 +279,18 @@ describe('display selection', () => {
     );
     expect(findMergedSelectionForSplitDisplay(uvChannels, createChannelMonoSelection('motion.A'))).toEqual(
       uvGrouped
+    );
+  });
+
+  it('remaps grouped and split normal-map selections while preserving color mapping', () => {
+    const channelNames = ['normal.X', 'normal.Y', 'normal.Z'];
+    const grouped = createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap');
+
+    expect(findSplitSelectionForMergedDisplay(channelNames, grouped)).toEqual(
+      createChannelMonoSelection('normal.X')
+    );
+    expect(findMergedSelectionForSplitDisplay(channelNames, createChannelMonoSelection('normal.Z'))).toEqual(
+      grouped
     );
   });
 
@@ -325,9 +356,17 @@ describe('display selection', () => {
 
   it('uses XYZ and UV groups as defaults when RGB is unavailable', () => {
     expect(pickDefaultDisplaySelection(['normal.X', 'normal.Y', 'normal.Z'])).toEqual(
-      createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z')
+      createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap')
     );
     expect(pickDefaultDisplaySelection(['normal.X', 'normal.Y', 'normal.Z', 'Y'])).toEqual(
+      createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap')
+    );
+    expect(pickDefaultDisplaySelection(['normal.X', 'normal.Y', 'normal.Z'], {
+      channelRecognitionSettings: {
+        ...createDefaultChannelRecognitionSettings(),
+        'normal.map': false
+      }
+    })).toEqual(
       createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z')
     );
     expect(pickDefaultDisplaySelection(['motion.U', 'motion.V'])).toEqual(

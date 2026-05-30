@@ -12,6 +12,7 @@ import {
 } from './colormaps';
 import {
   cloneDisplaySelection,
+  isNormalMapSelection,
   isMonoSelection,
   selectionUsesImageAlpha,
   type DisplaySelection,
@@ -184,7 +185,9 @@ export function buildDisplaySelectionThumbnailPixels(
   );
   const thumbnailData = new Uint8ClampedArray(thumbnailWidth * thumbnailHeight * 4);
   const scalarThumbnail = isMonoSelection(effectiveSelection);
+  const normalMapThumbnail = isNormalMapSelection(effectiveSelection);
   const useColormapPreview = Boolean(
+    !normalMapThumbnail &&
     preview?.visualizationMode === 'colormap' &&
     preview.colormapRange &&
     preview.colormapRange.max > preview.colormapRange.min &&
@@ -211,6 +214,7 @@ export function buildDisplaySelectionThumbnailPixels(
     ? computeThumbnailStats(evaluator, displaySize.width, displaySize.height, sample)
     : null;
   const sampledAutoExposure = !scalarThumbnail && !useColormapPreview && options.autoExposureEnabled
+    && !normalMapThumbnail
     ? computeSampledThumbnailAutoExposure(
         evaluator,
         displaySize.width,
@@ -278,6 +282,12 @@ export function buildDisplaySelectionThumbnailPixels(
           r = value;
           g = value;
           b = value;
+        } else if (normalMapThumbnail) {
+          thumbnailData[outIndex + 0] = normalMapDisplayByte(r);
+          thumbnailData[outIndex + 1] = normalMapDisplayByte(g);
+          thumbnailData[outIndex + 2] = normalMapDisplayByte(b);
+          thumbnailData[outIndex + 3] = Math.round(alpha * 255);
+          continue;
         } else if (!scalarThumbnail) {
           r *= exposureScale;
           g *= exposureScale;
@@ -421,4 +431,10 @@ function clamp01(value: number): number {
   }
 
   return Math.min(1, Math.max(0, value));
+}
+
+function normalMapDisplayByte(value: number): number {
+  return Number.isFinite(value)
+    ? Math.round(clamp01(value) * 255)
+    : 128;
 }

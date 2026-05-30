@@ -1,4 +1,5 @@
 import {
+  isNormalMapSelection,
   isGroupedRgbStokesSelection,
   type DisplaySelection,
   type StokesParameter
@@ -31,6 +32,7 @@ export const DISPLAY_SOURCE_SLOT_COUNT = 12;
 export type DisplaySourceMode =
   | 'empty'
   | 'channelRgb'
+  | 'channelNormalMap'
   | 'channelMono'
   | 'muellerMatrix'
   | 'spectralRgb'
@@ -78,7 +80,7 @@ export function buildDisplaySourceBinding(
   switch (selection.kind) {
     case 'channelRgb':
       return createDisplaySourceBinding(
-        'channelRgb',
+        isNormalMapSelection(selection) ? 'channelNormalMap' : 'channelRgb',
         [selection.r, selection.g, selection.b, selection.alpha],
         selection.alpha !== null,
         null

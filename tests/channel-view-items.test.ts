@@ -44,7 +44,7 @@ describe('channel view items', () => {
   it('prioritizes exact Y channel view items without changing grouped component order', () => {
     const scalarItems = buildChannelViewItems(['Z', 'Y', 'mask']);
     const rgbItems = buildChannelViewItems(['R', 'G', 'B', 'Y', 'mask']);
-    const xyzItems = buildChannelViewItems(['normal.X', 'normal.Y', 'normal.Z', 'Y']);
+    const xyzItems = buildChannelViewItems(['vector.X', 'vector.Y', 'vector.Z', 'Y']);
     const namespacedItems = buildChannelViewItems(['foo.Z', 'foo.Y', 'Y']);
 
     expect(selectVisibleChannelViewItems(scalarItems, false).map((item) => item.value)).toEqual([
@@ -63,13 +63,13 @@ describe('channel view items', () => {
       'channel:mask'
     ]);
     expect(selectVisibleChannelViewItems(xyzItems, false).map((item) => item.value)).toEqual([
-      'groupXYZ:normal',
+      'groupXYZ:vector',
       'channel:Y'
     ]);
     expect(selectVisibleChannelViewItems(xyzItems, true).map((item) => item.value)).toEqual([
-      'channel:normal.X',
-      'channel:normal.Y',
-      'channel:normal.Z',
+      'channel:vector.X',
+      'channel:vector.Y',
+      'channel:vector.Z',
       'channel:Y'
     ]);
     expect(selectVisibleChannelViewItems(namespacedItems, false).map((item) => item.value)).toEqual([
@@ -98,11 +98,27 @@ describe('channel view items', () => {
     ]);
   });
 
-  it('derives XYZ and UV stack children from existing split descriptors', () => {
+  it('keeps RGB channel strip items before recognized normal maps', () => {
+    const items = buildChannelViewItems(['normal.X', 'normal.Y', 'normal.Z', 'R', 'G', 'B']);
+
+    expect(selectVisibleChannelViewItems(items, false).map((item) => item.value)).toEqual([
+      'group:',
+      'normalMap:normal'
+    ]);
+    expect(selectVisibleChannelViewItems(items, false).map((item) => item.label)).toEqual([
+      'RGB',
+      'normal Normal Map'
+    ]);
+  });
+
+  it('derives normal-map, XYZ, and UV stack children from existing split descriptors', () => {
     const channelNames = [
       'normal.X',
       'normal.Y',
       'normal.Z',
+      'vector.X',
+      'vector.Y',
+      'vector.Z',
       'motion.U',
       'motion.V',
       'motion.A',
@@ -116,8 +132,14 @@ describe('channel view items', () => {
     expect(merged.map((item) => ({ value: item.value, label: item.label, meta: item.meta, swatches: item.swatches })))
       .toEqual([
         {
-          value: 'groupXYZ:normal',
-          label: 'normal.XYZ',
+          value: 'normalMap:normal',
+          label: 'normal Normal Map',
+          meta: '32f x 3',
+          swatches: ['#ff6570', '#6bd66f', '#51aefe']
+        },
+        {
+          value: 'groupXYZ:vector',
+          label: 'vector.XYZ',
           meta: '32f x 3',
           swatches: ['#ff6570', '#6bd66f', '#51aefe']
         },
@@ -138,6 +160,9 @@ describe('channel view items', () => {
       'channel:normal.X',
       'channel:normal.Y',
       'channel:normal.Z',
+      'channel:vector.X',
+      'channel:vector.Y',
+      'channel:vector.Z',
       'channel:motion.U',
       'channel:motion.V',
       'channel:motion.A',
@@ -145,12 +170,21 @@ describe('channel view items', () => {
     ]);
     expect(stacks).toEqual([
       {
-        key: 'stack:groupXYZ:normal:channelRgb:normal.X:normal.Y:normal.Z:',
-        parentValue: 'groupXYZ:normal',
+        key: 'stack:normalMap:normal:channelRgb:normal.X:normal.Y:normal.Z::normalMap',
+        parentValue: 'normalMap:normal',
         childValues: [
           'channel:normal.X',
           'channel:normal.Y',
           'channel:normal.Z'
+        ]
+      },
+      {
+        key: 'stack:groupXYZ:vector:channelRgb:vector.X:vector.Y:vector.Z:',
+        parentValue: 'groupXYZ:vector',
+        childValues: [
+          'channel:vector.X',
+          'channel:vector.Y',
+          'channel:vector.Z'
         ]
       },
       {

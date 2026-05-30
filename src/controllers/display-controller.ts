@@ -871,7 +871,8 @@ export class DisplayController implements Disposable {
     return resolveDisplaySelectionForLayer(layer.channelNames, selection, {
       stokesParameterVisibility: state.stokesParameterVisibility,
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-      channelRecognitionSettings: state.channelRecognitionSettings
+      channelRecognitionSettings: state.channelRecognitionSettings,
+      channelRecognitionNameRules: state.channelRecognitionNameRules
     });
   }
 

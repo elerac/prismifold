@@ -9,6 +9,7 @@ import {
   isGroupedRgbMuellerMatrixSelection,
   isChannelSelection,
   isMonoSelection,
+  isNormalMapSelection,
   isMuellerMatrixSelection,
   isSpectralRgbSelection,
   isStokesSelection,
@@ -24,6 +25,7 @@ import {
   isStokesDegreeModulationEnabled,
   resolveStokesDegreeModulationMode
 } from './stokes';
+import { mapNormalComponentToDisplayValue } from './display/evaluator';
 import {
   DisplayLuminanceRange,
   ImagePixel,
@@ -103,7 +105,14 @@ export function buildProbeColorPreview(
   let bytes: [number, number, number];
   const monoValue = computeRec709Luminance(rawR, rawG, rawB);
   let displayValues: ProbeDisplayValue[];
-  if (resolvedVisualization.mode === 'colormap') {
+  if (isNormalMapSelection(selection)) {
+    bytes = [
+      normalMapDisplayByte(rawR),
+      normalMapDisplayByte(rawG),
+      normalMapDisplayByte(rawB)
+    ];
+    displayValues = buildProbeRgbDisplayValues(selection, rawR, rawG, rawB);
+  } else if (resolvedVisualization.mode === 'colormap') {
     bytes = mapValueToColormapRgbBytes(
       monoValue,
       resolvedVisualization.colormapRange,
@@ -153,6 +162,10 @@ export function buildProbeColorPreview(
       : `rgba(${bytes[0]}, ${bytes[1]}, ${bytes[2]}, ${formatCssAlpha(rawA)})`,
     displayValues
   };
+}
+
+function normalMapDisplayByte(value: number): number {
+  return Math.round(mapNormalComponentToDisplayValue(value) * 255);
 }
 
 function readProbeDisplayValues(

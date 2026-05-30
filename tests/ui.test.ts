@@ -3637,6 +3637,7 @@ describe('view menu', () => {
     const editNameRulesButton = document.getElementById('channel-recognition-edit-name-rules-button') as HTMLButtonElement;
     const rgbRecognition = getRecognitionCheckbox('component.rgb');
     const xyzRecognition = getRecognitionCheckbox('component.xyz');
+    const normalMapRecognition = getRecognitionCheckbox('normal.map');
     const uvRecognition = getRecognitionCheckbox('component.uv');
     const spectralGroupingCheckbox = getRecognitionCheckbox('spectral.series');
     const scalarStokesRecognition = getRecognitionCheckbox('stokes.scalar');
@@ -3689,6 +3690,7 @@ describe('view menu', () => {
       editNameRulesButton,
       rgbRecognition,
       xyzRecognition,
+      normalMapRecognition,
       uvRecognition,
       spectralGroupingCheckbox,
       scalarStokesRecognition,

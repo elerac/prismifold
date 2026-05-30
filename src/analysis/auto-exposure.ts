@@ -1,4 +1,4 @@
-import type { DisplaySelection } from '../display-model';
+import { isNormalMapSelection, type DisplaySelection } from '../display-model';
 import { resolveDisplayImageSize } from '../display-size';
 import type { DecodedLayer, VisualizationMode } from '../types';
 import {
@@ -97,6 +97,10 @@ export function computeDisplaySelectionAutoExposure(
   percentile = AUTO_EXPOSURE_PERCENTILE,
   stokesOptions: DisplayEvaluationOptions = {}
 ): AutoExposureResult {
+  if (isNormalMapSelection(selection)) {
+    return createAutoExposureResult(1, percentile);
+  }
+
   const displaySize = resolveDisplayImageSize(width, height, selection);
   const pixelCount = Math.max(0, displaySize.width * displaySize.height);
   if (pixelCount === 0) {
@@ -140,6 +144,10 @@ export function computeDisplaySelectionAutoExposurePreview(
   percentile = AUTO_EXPOSURE_PERCENTILE,
   stokesOptions: DisplayEvaluationOptions = {}
 ): AutoExposureResult {
+  if (isNormalMapSelection(selection)) {
+    return createAutoExposureResult(1, percentile);
+  }
+
   const displaySize = resolveDisplayImageSize(width, height, selection);
   const sampleWidth = resolveAutoExposurePreviewSampleSize(displaySize.width);
   const sampleHeight = resolveAutoExposurePreviewSampleSize(displaySize.height);
@@ -191,6 +199,10 @@ export async function computeDisplaySelectionAutoExposureAsync(
   options: CooperativeComputeOptions & DisplayEvaluationOptions = {}
 ): Promise<AutoExposureResult> {
   throwIfCooperativeComputeAborted(options);
+  if (isNormalMapSelection(selection)) {
+    return createAutoExposureResult(1, percentile);
+  }
+
   const displaySize = resolveDisplayImageSize(width, height, selection);
   const pixelCount = Math.max(0, displaySize.width * displaySize.height);
   if (pixelCount === 0) {

@@ -2,7 +2,8 @@ import { computeRec709Luminance } from '../color';
 import {
   getSelectionAlpha,
   isChannelSelection,
-  isMonoSelection
+  isMonoSelection,
+  isNormalMapSelection
 } from '../display-model';
 import type { ViewerState } from '../types';
 import { formatOverlayValue } from '../value-format';
@@ -30,8 +31,9 @@ export function buildOverlayValueLines(
 ): OverlayValueLine[] {
   const selection = state.displaySelection;
   const alphaChannel = isChannelSelection(selection) ? getSelectionAlpha(selection) : null;
+  const useScalarColormap = state.visualizationMode === 'colormap' && !isNormalMapSelection(selection);
   let lines: OverlayValueLine[];
-  if (state.visualizationMode === 'colormap') {
+  if (useScalarColormap) {
     lines = [
       {
         color: OVERLAY_MONO_LABEL_COLOR,
@@ -63,7 +65,8 @@ export function buildOverlayValueLines(
 }
 
 export function getOverlayValueLineCount(state: OverlayLabelState): number {
-  const colorLineCount = state.visualizationMode === 'colormap' || isMonoSelection(state.displaySelection)
+  const useScalarColormap = state.visualizationMode === 'colormap' && !isNormalMapSelection(state.displaySelection);
+  const colorLineCount = useScalarColormap || isMonoSelection(state.displaySelection)
     ? 1
     : isTwoComponentChannelRgbSelection(state.displaySelection)
       ? 2

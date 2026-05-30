@@ -21,6 +21,7 @@ describe('channel recognition settings', () => {
       'component.rgb': true,
       'component.xyz': true,
       'component.uv': true,
+      'normal.map': true,
       'spectral.series': true,
       'stokes.scalar': true,
       'stokes.rgb': true,
@@ -38,6 +39,7 @@ describe('channel recognition settings', () => {
     })).toEqual({
       ...createDefaultChannelRecognitionSettings(),
       'component.rgb': false,
+      'normal.map': true,
       'fallback.singleChannel': true
     });
   });
@@ -59,6 +61,7 @@ describe('channel recognition settings', () => {
   it('persists non-default settings and removes the storage key for defaults', () => {
     const settings = {
       ...createDefaultChannelRecognitionSettings(),
+      'normal.map': false,
       'component.xyz': false,
       'mueller.rgb': false
     };
@@ -81,5 +84,9 @@ describe('channel recognition settings', () => {
       ...createDefaultChannelRecognitionSettings(),
       'stokes.rgb': false
     })).toContain('stokes.rgb:0');
+    expect(serializeChannelRecognitionSettingsKey({
+      ...createDefaultChannelRecognitionSettings(),
+      'normal.map': false
+    })).toContain('normal.map:0');
   });
 });

@@ -880,6 +880,13 @@ describe('gl image renderer', () => {
         expectedPixel: [0.75, 0.75, 0.75, 0.5]
       },
       {
+        label: 'normal map',
+        layer: createLayerFromChannels({ 'normal.X': [0], 'normal.Y': [0], 'normal.Z': [1] }),
+        selection: createChannelRgbSelection('normal.X', 'normal.Y', 'normal.Z', null, 'normalMap'),
+        visualizationMode: 'colormap' as const,
+        expectedPixel: [0.5, 0.5, 1, 1]
+      },
+      {
         label: 'scalar stokes',
         layer: createLayerFromChannels({ S0: [1], S1: [0], S2: [1], S3: [0] }),
         selection: createStokesSelection('aolp'),

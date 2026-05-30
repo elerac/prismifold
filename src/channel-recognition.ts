@@ -49,6 +49,7 @@ import {
   compileChannelRecognitionNameRules,
   parseAlphaChannelNameWithRules,
   parseComponentChannelNameWithRules,
+  parseNormalMapChannelNameWithRules,
   type ChannelRecognitionNameRules,
   type CompiledChannelRecognitionNameRules
 } from './channel-recognition-name-rules';
@@ -73,6 +74,17 @@ export interface ComponentChannelGroup {
   r: string;
   g: string;
   b: string | null;
+  a?: string;
+}
+
+export interface NormalMapChannelGroup {
+  kind: 'normalMap';
+  optionKey: string;
+  key: string;
+  label: string;
+  r: string;
+  g: string;
+  b: string;
   a?: string;
 }
 
@@ -134,6 +146,16 @@ export interface ComponentGroupCandidate extends BaseRecognizedChannelCandidate 
   };
 }
 
+export interface NormalMapCandidate extends BaseRecognizedChannelCandidate {
+  kind: 'normalMap';
+  ruleId: 'normal.map';
+  selection: ChannelRgbSelection & { colorMapping: 'normalMap' };
+  metadata: ChannelRecognitionMetadata & {
+    componentKind: 'xyz';
+    displayKind: 'component';
+  };
+}
+
 export interface SpectralSeriesCandidate extends BaseRecognizedChannelCandidate {
   kind: 'spectralSeries';
   ruleId: 'spectral.series';
@@ -175,6 +197,7 @@ export interface SingleChannelCandidate extends BaseRecognizedChannelCandidate {
 
 export type RecognizedChannelCandidate =
   | ComponentGroupCandidate
+  | NormalMapCandidate
   | SpectralSeriesCandidate
   | StokesVectorCandidate
   | MuellerMatrixCandidate
@@ -198,11 +221,15 @@ interface ResolvedChannelRecognitionConfig {
   nameRules: CompiledChannelRecognitionNameRules;
 }
 
-const COMPONENT_SOURCE_ORDER_BASE = 0;
-const SINGLE_SOURCE_ORDER_BASE = 5_000;
-const SPECTRAL_SOURCE_ORDER_BASE = 10_000;
-const STOKES_SOURCE_ORDER_BASE = 20_000;
-const MUELLER_SOURCE_ORDER_BASE = 30_000;
+type ComponentLikeChannelGroup = Pick<ComponentChannelGroup | NormalMapChannelGroup, 'kind' | 'optionKey' | 'r' | 'g' | 'b' | 'a'>;
+
+const RGB_COMPONENT_SOURCE_ORDER_BASE = 0;
+const NORMAL_MAP_SOURCE_ORDER_BASE = 100_000;
+const COMPONENT_SOURCE_ORDER_BASE = 200_000;
+const SINGLE_SOURCE_ORDER_BASE = 500_000;
+const SPECTRAL_SOURCE_ORDER_BASE = 1_000_000;
+const STOKES_SOURCE_ORDER_BASE = 2_000_000;
+const MUELLER_SOURCE_ORDER_BASE = 3_000_000;
 
 const DEFAULT_PRIORITY_NORMAL_RGB = 10;
 const DEFAULT_PRIORITY_RGB_MUELLER = 20;
@@ -249,18 +276,28 @@ export function recognizeLayerChannels(
   const resolved = resolveChannelRecognitionConfig(config);
   const { settings, nameRules } = resolved;
   const includeAlphaCompanions = settings['fallback.alphaCompanions'];
-  const componentGroups = extractEnabledComponentChannelGroups(names, settings, nameRules);
+  const normalMapGroups = extractEnabledNormalMapChannelGroups(
+    names,
+    settings,
+    includeAlphaCompanions,
+    nameRules
+  );
+  const componentGroups = excludeNormalMapComponentDuplicates(
+    extractEnabledComponentChannelGroups(names, settings, nameRules),
+    normalMapGroups
+  );
+  const groupedDisplays = [...normalMapGroups, ...componentGroups];
   const spectralRecognition = buildSpectralSeriesCandidates(names, settings, nameRules);
   const splitSingleCandidates = buildSplitSingleChannelCandidates(
     names,
-    componentGroups,
+    groupedDisplays,
     spectralRecognition.parentKeyByChannel,
     includeAlphaCompanions,
     nameRules
   );
   const mergedSingleCandidates = buildMergedSingleChannelCandidates(
     names,
-    componentGroups,
+    groupedDisplays,
     spectralRecognition.parentKeyByChannel,
     includeAlphaCompanions,
     nameRules
@@ -269,6 +306,7 @@ export function recognizeLayerChannels(
   return {
     channelNames: names,
     candidates: [
+      ...normalMapGroups.map(buildNormalMapCandidate),
       ...componentGroups.map(buildComponentGroupCandidate),
       ...mergedSingleCandidates,
       ...splitSingleCandidates,
@@ -311,6 +349,70 @@ function extractEnabledComponentChannelGroups(
   return COMPONENT_RULES
     .filter((rule) => isRecognitionSettingEnabled(settings, rule.id))
     .flatMap((rule) => extractComponentChannelGroupsForRule(channelNames, rule, nameRules));
+}
+
+function extractEnabledNormalMapChannelGroups(
+  channelNames: string[],
+  settings: ChannelRecognitionSettings,
+  includeAlphaCompanions: boolean,
+  nameRules: CompiledChannelRecognitionNameRules
+): NormalMapChannelGroup[] {
+  if (!isRecognitionSettingEnabled(settings, 'normal.map')) {
+    return [];
+  }
+
+  const grouped = new Map<string, Partial<Record<'X' | 'Y' | 'Z', string>>>();
+  for (const channelName of channelNames) {
+    const parsed = parseNormalMapChannelNameWithRules(channelName, nameRules);
+    if (!parsed) {
+      continue;
+    }
+
+    const group = grouped.get(parsed.base) ?? {};
+    const component = parsed.component.toUpperCase() as 'X' | 'Y' | 'Z';
+    if (!group[component]) {
+      group[component] = channelName;
+      grouped.set(parsed.base, group);
+    }
+  }
+
+  const groups: NormalMapChannelGroup[] = [];
+  for (const [base, channels] of grouped.entries()) {
+    if (!channels.X || !channels.Y || !channels.Z) {
+      continue;
+    }
+
+    const alpha = includeAlphaCompanions
+      ? findAlphaChannelForBase(channelNames, base, nameRules) ?? undefined
+      : undefined;
+    groups.push({
+      kind: 'normalMap',
+      optionKey: `normalMap:${base}`,
+      key: base,
+      label: base ? `${base} Normal Map` : 'Normal Map',
+      r: channels.X,
+      g: channels.Y,
+      b: channels.Z,
+      ...(alpha ? { a: alpha } : {})
+    });
+  }
+
+  groups.sort(compareComponentChannelGroups);
+  return groups;
+}
+
+function excludeNormalMapComponentDuplicates(
+  componentGroups: ComponentChannelGroup[],
+  normalMapGroups: readonly NormalMapChannelGroup[]
+): ComponentChannelGroup[] {
+  if (normalMapGroups.length === 0) {
+    return componentGroups;
+  }
+
+  const normalMapChannelTriples = new Set(normalMapGroups.map((group) => getChannelTripleKey(group)));
+  return componentGroups.filter((group) => (
+    group.kind !== 'xyz' || !normalMapChannelTriples.has(getChannelTripleKey(group))
+  ));
 }
 
 export function findSelectedComponentChannelGroup(
@@ -476,7 +578,7 @@ function buildComponentGroupCandidate(
       displayA: group.a ?? null
     },
     priority,
-    sourceOrder: COMPONENT_SOURCE_ORDER_BASE + groupIndex * 100,
+    sourceOrder: getComponentLikeSourceOrderBase(group) + groupIndex * 100,
     splitChildren: channels.map((channelName) => `channel:${channelName}`),
     mergedParentKey: null,
     availability: {
@@ -495,9 +597,52 @@ function buildComponentGroupCandidate(
   };
 }
 
+function buildNormalMapCandidate(
+  group: NormalMapChannelGroup,
+  groupIndex: number
+): NormalMapCandidate {
+  const channels = [group.r, group.g, group.b, ...(group.a ? [group.a] : [])];
+  const selection = {
+    ...buildChannelRgbSelection(group),
+    colorMapping: 'normalMap' as const
+  };
+
+  return {
+    kind: 'normalMap',
+    ruleId: 'normal.map',
+    key: group.optionKey,
+    label: group.label,
+    channels,
+    selection,
+    mapping: {
+      displayR: group.r,
+      displayG: group.g,
+      displayB: group.b,
+      displayA: group.a ?? null
+    },
+    priority: DEFAULT_PRIORITY_VECTOR,
+    sourceOrder: NORMAL_MAP_SOURCE_ORDER_BASE + groupIndex * 100,
+    splitChildren: channels.map((channelName) => `channel:${channelName}`),
+    mergedParentKey: null,
+    availability: {
+      available: true,
+      merged: true,
+      split: false,
+      defaultEligible: true
+    },
+    metadata: {
+      componentKind: 'xyz',
+      displayKind: 'component',
+      alpha: group.a ?? null,
+      channelCount: channels.length,
+      defaultReason: 'component'
+    }
+  };
+}
+
 function buildMergedSingleChannelCandidates(
   channelNames: string[],
-  componentGroups: readonly ComponentChannelGroup[],
+  componentGroups: readonly ComponentLikeChannelGroup[],
   spectralParentKeyByChannel: ReadonlyMap<string, string>,
   includeAlphaCompanions: boolean,
   nameRules: CompiledChannelRecognitionNameRules
@@ -574,7 +719,7 @@ function buildMergedSingleChannelCandidates(
 
 function buildSplitSingleChannelCandidates(
   channelNames: string[],
-  componentGroups: readonly ComponentChannelGroup[],
+  componentGroups: readonly ComponentLikeChannelGroup[],
   spectralParentKeyByChannel: ReadonlyMap<string, string>,
   includeAlphaCompanions: boolean,
   nameRules: CompiledChannelRecognitionNameRules
@@ -614,7 +759,7 @@ function buildSplitSingleChannelCandidates(
       pushSplitCandidate(
         channelName,
         group.optionKey,
-        COMPONENT_SOURCE_ORDER_BASE + groupIndex * 100 + channelIndex + 1
+        getComponentLikeSourceOrderBase(group) + groupIndex * 100 + channelIndex + 1
       );
     });
   });
@@ -1057,6 +1202,18 @@ function getComponentGroupPriority(group: ComponentChannelGroup): number {
   return DEFAULT_PRIORITY_VECTOR;
 }
 
+function getComponentLikeSourceOrderBase(group: Pick<ComponentChannelGroup | NormalMapChannelGroup, 'kind'>): number {
+  if (group.kind === 'rgb') {
+    return RGB_COMPONENT_SOURCE_ORDER_BASE;
+  }
+
+  if (group.kind === 'normalMap') {
+    return NORMAL_MAP_SOURCE_ORDER_BASE;
+  }
+
+  return COMPONENT_SOURCE_ORDER_BASE;
+}
+
 function getSingleChannelDefaultPriority(
   channelName: string,
   grayscaleChannel: string | null,
@@ -1177,6 +1334,10 @@ function cloneMapping(mapping: DisplayChannelMapping): DisplayChannelMapping {
     displayB: mapping.displayB,
     displayA: mapping.displayA ?? null
   };
+}
+
+function getChannelTripleKey(group: Pick<ComponentChannelGroup | NormalMapChannelGroup, 'r' | 'g' | 'b'>): string {
+  return `${group.r}\u0000${group.g}\u0000${group.b ?? ''}`;
 }
 
 function compareComponentChannelGroups(

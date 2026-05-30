@@ -84,6 +84,14 @@ export type DisplaySelectionEvaluator =
       a: ChannelReadView | null;
     }
   | {
+      kind: 'channelNormalMap';
+      binding: DisplaySourceBinding;
+      r: ChannelReadView | null;
+      g: ChannelReadView | null;
+      b: ChannelReadView | null;
+      a: ChannelReadView | null;
+    }
+  | {
       kind: 'channelMono';
       binding: DisplaySourceBinding;
       channel: ChannelReadView | null;
@@ -177,8 +185,9 @@ export function createDisplaySelectionEvaluator(
         binding
       };
     case 'channelRgb':
+    case 'channelNormalMap':
       return {
-        kind: 'channelRgb',
+        kind: binding.mode,
         binding,
         r: getOptionalChannelReadView(layer, binding.slots[0]),
         g: getOptionalChannelReadView(layer, binding.slots[1]),
@@ -237,6 +246,14 @@ export function readDisplaySelectionPixelValuesAtIndex(
         sanitizeDisplayValue(readChannelValue(evaluator.r, pixelIndex)),
         sanitizeDisplayValue(readChannelValue(evaluator.g, pixelIndex)),
         sanitizeDisplayValue(readChannelValue(evaluator.b, pixelIndex)),
+        evaluator.a ? sanitizeAlphaValue(readChannelValue(evaluator.a, pixelIndex)) : 1
+      );
+    case 'channelNormalMap':
+      return setDisplayPixelValues(
+        out,
+        mapNormalComponentToDisplayValue(readChannelValue(evaluator.r, pixelIndex)),
+        mapNormalComponentToDisplayValue(readChannelValue(evaluator.g, pixelIndex)),
+        mapNormalComponentToDisplayValue(readChannelValue(evaluator.b, pixelIndex)),
         evaluator.a ? sanitizeAlphaValue(readChannelValue(evaluator.a, pixelIndex)) : 1
       );
     case 'channelMono': {
@@ -328,6 +345,14 @@ export function readDisplaySelectionOverlayPixelValuesAtIndex(
         readChannelValue(evaluator.b, pixelIndex),
         evaluator.a ? readChannelValue(evaluator.a, pixelIndex) : 1
       );
+    case 'channelNormalMap':
+      return setDisplayPixelValues(
+        out,
+        mapNormalComponentToDisplayValue(readChannelValue(evaluator.r, pixelIndex)),
+        mapNormalComponentToDisplayValue(readChannelValue(evaluator.g, pixelIndex)),
+        mapNormalComponentToDisplayValue(readChannelValue(evaluator.b, pixelIndex)),
+        evaluator.a ? readChannelValue(evaluator.a, pixelIndex) : 1
+      );
     case 'channelMono': {
       const value = readChannelValue(evaluator.channel, pixelIndex);
       return setDisplayPixelValues(
@@ -417,6 +442,14 @@ export function readDisplaySelectionSnapshotPixelValuesAtIndex(
         sanitizeDisplayValue(readChannelValue(evaluator.b, pixelIndex)),
         evaluator.a ? sanitizeAlphaValue(readChannelValue(evaluator.a, pixelIndex)) : 1
       );
+    case 'channelNormalMap':
+      return setDisplayPixelValues(
+        out,
+        mapNormalComponentToDisplayValue(readChannelValue(evaluator.r, pixelIndex)),
+        mapNormalComponentToDisplayValue(readChannelValue(evaluator.g, pixelIndex)),
+        mapNormalComponentToDisplayValue(readChannelValue(evaluator.b, pixelIndex)),
+        evaluator.a ? sanitizeAlphaValue(readChannelValue(evaluator.a, pixelIndex)) : 1
+      );
     case 'channelMono': {
       const value = sanitizeDisplayValue(readChannelValue(evaluator.channel, pixelIndex));
       return setDisplayPixelValues(
@@ -498,6 +531,12 @@ export function sanitizeAlphaValue(value: number): number {
   }
 
   return Math.min(1, Math.max(0, value));
+}
+
+export function mapNormalComponentToDisplayValue(value: number): number {
+  return Number.isFinite(value)
+    ? Math.min(1, Math.max(0, value * 0.5 + 0.5))
+    : 0.5;
 }
 
 export function createDisplayPixelValues(): DisplayPixelValues {
