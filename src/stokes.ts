@@ -16,6 +16,14 @@ import {
   type StokesSelection
 } from './display-model';
 import { DisplayChannelMapping, DisplayLuminanceRange } from './types';
+import {
+  compileChannelRecognitionNameRules,
+  parseRgbStokesChannelNameWithRules,
+  parseScalarStokesChannelNameWithRules,
+  parseSpectralStokesChannelNameWithRules,
+  type ChannelRecognitionNameRules,
+  type CompiledChannelRecognitionNameRules
+} from './channel-recognition-name-rules';
 
 export type StokesColormapDefaultGroup = 'aolp' | 'degree' | 'cop' | 'top' | 'normalized';
 export interface StokesColormapDefaultModulation {
@@ -34,6 +42,7 @@ export type RgbStokesComponent = 'R' | 'G' | 'B';
 
 export interface StokesComputationOptions {
   maskInvalidStokesVectors?: boolean;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }
 
 export interface StokesColormapDefault {
@@ -48,6 +57,8 @@ export interface StokesDisplayOptionsConfig {
   includeSplitChannels?: boolean;
   parameterVisibility?: StokesParameterVisibilitySettings;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
+  compiledChannelRecognitionNameRules?: CompiledChannelRecognitionNameRules;
 }
 
 export interface ScalarStokesChannels {
@@ -220,18 +231,27 @@ export function isStokesColormapDefaultGroup(value: string): value is StokesColo
 
 export function detectScalarStokesChannels(
   channelNames: string[],
-  suffix: string | null = null
+  suffix: string | null = null,
+  config: StokesDisplayOptionsConfig = {}
 ): ScalarStokesChannels | null {
   const normalizedSuffix = suffix || null;
-  return detectScalarStokesChannelSets(channelNames)
+  return detectScalarStokesChannelSets(channelNames, config)
     .find((channels) => (channels.suffix ?? null) === normalizedSuffix) ?? null;
 }
 
-export function detectScalarStokesChannelSets(channelNames: string[]): ScalarStokesChannels[] {
+export function detectScalarStokesChannelSets(
+  channelNames: string[],
+  config: StokesDisplayOptionsConfig = {}
+): ScalarStokesChannels[] {
+  const compiled = resolveCompiledNameRules(config);
   const groups = new Map<string, ScalarStokesChannelGroup>();
 
   channelNames.forEach((channelName, index) => {
-    const parsed = parseScalarStokesChannelName(channelName);
+    if (parseRgbStokesChannelNameWithRules(channelName, compiled)) {
+      return;
+    }
+
+    const parsed = parseScalarStokesChannelName(channelName, { compiledChannelRecognitionNameRules: compiled });
     if (!parsed || isRgbStokesScalarSuffix(parsed.suffix)) {
       return;
     }
@@ -261,17 +281,32 @@ export function detectScalarStokesChannelSets(channelNames: string[]): ScalarSto
   return bare ? [bare, ...suffixed] : suffixed;
 }
 
-export function detectRgbStokesChannels(channelNames: string[]): RgbStokesChannels | null {
-  const channels = new Set(channelNames);
-  const build = (suffix: RgbStokesComponent): ScalarStokesChannels | null => {
-    const s0 = `S0.${suffix}`;
-    const s1 = `S1.${suffix}`;
-    const s2 = `S2.${suffix}`;
-    const s3 = `S3.${suffix}`;
-    return channels.has(s0) && channels.has(s1) && channels.has(s2)
-      ? { s0, s1, s2, s3: channels.has(s3) ? s3 : null }
-      : null;
+export function detectRgbStokesChannels(
+  channelNames: string[],
+  config: StokesDisplayOptionsConfig = {}
+): RgbStokesChannels | null {
+  const compiled = resolveCompiledNameRules(config);
+  const groups: Record<RgbStokesComponent, Partial<Record<StokesChannelComponent, string>>> = {
+    R: {},
+    G: {},
+    B: {}
   };
+
+  for (const channelName of channelNames) {
+    const parsed = parseRgbStokesChannelNameWithRules(channelName, compiled);
+    if (!parsed) {
+      continue;
+    }
+
+    groups[parsed.rgb][parsed.component] ??= channelName;
+  }
+
+  const build = (component: RgbStokesComponent): ScalarStokesChannels | null =>
+    buildScalarStokesChannelsFromGroup({
+      suffix: null,
+      channels: groups[component],
+      firstIndex: 0
+    });
 
   const r = build('R');
   const g = build('G');
@@ -351,19 +386,24 @@ export function getStokesDisplayOptions(
   channelNames: string[],
   config: StokesDisplayOptionsConfig = {}
 ): StokesDisplayOption[] {
+  const compiled = resolveCompiledNameRules(config);
+  const nameRuleConfig = { compiledChannelRecognitionNameRules: compiled };
   const options: StokesDisplayOption[] = [];
   const includeRgbGroups = config.includeRgbGroups ?? true;
   const includeSplitChannels = config.includeSplitChannels ?? false;
   const parameterVisibility = config.parameterVisibility ?? DEFAULT_STOKES_PARAMETER_VISIBILITY_SETTINGS;
   const spectralRgbGroupingEnabled = config.spectralRgbGroupingEnabled !== false;
-  const spectralStokesCapabilities = getSpectralStokesRgbCapabilitiesForChannelNames(channelNames);
+  const spectralStokesCapabilities = getSpectralStokesRgbCapabilitiesForChannelNames(channelNames, nameRuleConfig);
   const hasSpectralStokesRgbOptions = spectralRgbGroupingEnabled && spectralStokesCapabilities.available;
-  const scalarChannelSets = detectScalarStokesChannelSets(channelNames);
+  const scalarChannelSets = detectScalarStokesChannelSets(channelNames, nameRuleConfig);
+  const spectralStokesSuffixes = new Set(
+    detectSpectralStokesSuffixValues(channelNames, nameRuleConfig)
+  );
   for (const scalarChannels of scalarChannelSets) {
     const isSplitSpectralStokesSet = Boolean(
       scalarChannels.suffix &&
       hasSpectralStokesRgbOptions &&
-      isSpectralStokesSuffixValue(scalarChannels.suffix)
+      isSpectralStokesSuffixValue(scalarChannels.suffix, spectralStokesSuffixes)
     );
     if (isSplitSpectralStokesSet && !includeSplitChannels) {
       continue;
@@ -374,7 +414,7 @@ export function getStokesDisplayOptions(
     }
   }
 
-  const rgbChannels = detectRgbStokesChannels(channelNames);
+  const rgbChannels = detectRgbStokesChannels(channelNames, nameRuleConfig);
   if (rgbChannels) {
     for (const parameter of getAvailableStokesParameters(hasCompleteRgbStokesS3(rgbChannels), parameterVisibility)) {
       if (includeRgbGroups) {
@@ -478,7 +518,8 @@ export function isStokesDisplayAvailable(
   channelNames: string[],
   selection: DisplaySelection | null,
   parameterVisibility: StokesParameterVisibilitySettings = DEFAULT_STOKES_PARAMETER_VISIBILITY_SETTINGS,
-  spectralRgbGroupingEnabled = true
+  spectralRgbGroupingEnabled = true,
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
 ): boolean {
   if (!isStokesSelection(selection)) {
     return true;
@@ -489,7 +530,9 @@ export function isStokesDisplayAvailable(
   }
 
   if (selection.source.kind === 'scalar') {
-    const channels = detectScalarStokesChannels(channelNames, selection.source.suffix ?? null);
+    const channels = detectScalarStokesChannels(channelNames, selection.source.suffix ?? null, {
+      channelRecognitionNameRules
+    });
     return Boolean(channels && isStokesParameterAvailable(selection.parameter, hasCompleteScalarStokesS3(channels)));
   }
 
@@ -498,11 +541,15 @@ export function isStokesDisplayAvailable(
       return false;
     }
 
-    const capabilities = getSpectralStokesRgbCapabilitiesForChannelNames(channelNames);
+    const capabilities = getSpectralStokesRgbCapabilitiesForChannelNames(channelNames, {
+      channelRecognitionNameRules
+    });
     return capabilities.available && isStokesParameterAvailable(selection.parameter, capabilities.hasS3);
   }
 
-  const rgbChannels = detectRgbStokesChannels(channelNames);
+  const rgbChannels = detectRgbStokesChannels(channelNames, {
+    channelRecognitionNameRules
+  });
   return Boolean(rgbChannels && isStokesParameterAvailable(selection.parameter, hasCompleteRgbStokesS3(rgbChannels)));
 }
 
@@ -755,18 +802,21 @@ function buildScalarStokesDisplayOption(
   };
 }
 
-function parseScalarStokesChannelName(channelName: string): {
+function parseScalarStokesChannelName(
+  channelName: string,
+  config: StokesDisplayOptionsConfig = {}
+): {
   component: StokesChannelComponent;
   suffix: string | null;
 } | null {
-  const match = channelName.match(/^(S[0-3])(?:\.(.+))?$/);
-  if (!match) {
+  const parsed = parseScalarStokesChannelNameWithRules(channelName, resolveCompiledNameRules(config));
+  if (!parsed) {
     return null;
   }
 
   return {
-    component: match[1] as StokesChannelComponent,
-    suffix: match[2] ?? null
+    component: parsed.component,
+    suffix: parsed.suffix
   };
 }
 
@@ -850,26 +900,25 @@ function hasCompleteRgbStokesS3(channels: RgbStokesChannels): boolean {
   return channels.r.s3 !== null && channels.g.s3 !== null && channels.b.s3 !== null;
 }
 
-function getSpectralStokesRgbCapabilitiesForChannelNames(channelNames: string[]): {
+function getSpectralStokesRgbCapabilitiesForChannelNames(
+  channelNames: string[],
+  config: StokesDisplayOptionsConfig = {}
+): {
   available: boolean;
   hasS3: boolean;
 } {
+  const compiled = resolveCompiledNameRules(config);
   const componentsByWavelength = new Map<string, Set<StokesChannelComponent>>();
 
   for (const channelName of channelNames) {
-    const match = channelName.match(/^(S[0-3])\.(\d+(?:,\d+)?(?:[eE][-+]?\d+)?)nm$/i);
-    if (!match) {
+    const parsed = parseSpectralStokesChannelNameWithRules(channelName, compiled);
+    if (!parsed) {
       continue;
     }
 
-    const wavelength = Number(match[2]?.replace(',', '.'));
-    if (!Number.isFinite(wavelength)) {
-      continue;
-    }
-
-    const key = String(wavelength);
+    const key = String(parsed.wavelength);
     const components = componentsByWavelength.get(key) ?? new Set<StokesChannelComponent>();
-    components.add(match[1]!.toUpperCase() as StokesChannelComponent);
+    components.add(parsed.component);
     componentsByWavelength.set(key, components);
   }
 
@@ -894,6 +943,28 @@ function getSpectralStokesRgbCapabilitiesForChannelNames(channelNames: string[])
   };
 }
 
-function isSpectralStokesSuffixValue(value: string | null | undefined): boolean {
-  return Boolean(value && /^\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?nm$/i.test(value));
+function detectSpectralStokesSuffixValues(
+  channelNames: readonly string[],
+  config: StokesDisplayOptionsConfig = {}
+): string[] {
+  const compiled = resolveCompiledNameRules(config);
+  const suffixes = new Set<string>();
+  for (const channelName of channelNames) {
+    const parsed = parseSpectralStokesChannelNameWithRules(channelName, compiled);
+    if (parsed) {
+      suffixes.add(parsed.suffix);
+    }
+  }
+  return [...suffixes];
+}
+
+function isSpectralStokesSuffixValue(
+  value: string | null | undefined,
+  suffixes?: ReadonlySet<string>
+): boolean {
+  return Boolean(value && (suffixes?.has(value) || /^\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?nm$/i.test(value)));
+}
+
+function resolveCompiledNameRules(config: StokesDisplayOptionsConfig): CompiledChannelRecognitionNameRules {
+  return config.compiledChannelRecognitionNameRules ?? compileChannelRecognitionNameRules(config.channelRecognitionNameRules);
 }

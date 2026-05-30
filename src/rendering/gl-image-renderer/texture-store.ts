@@ -32,6 +32,7 @@ import {
   type MuellerMatrixElement
 } from '../../mueller';
 import type { ResidentChannelUpload } from '../../display-cache';
+import type { ChannelRecognitionNameRules } from '../../channel-recognition-name-rules';
 import type { DecodedLayer } from '../../types';
 import { DEPTH_TEXTURE_UNIT } from './constants';
 import type { GlImageRendererState, LayerSourceTextures } from './types';
@@ -67,7 +68,8 @@ export function ensureLayerChannelsResident(
   width: number,
   height: number,
   layer: DecodedLayer,
-  channelNames: string[]
+  channelNames: string[],
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
 ): ResidentChannelUpload[] {
   const layerTextures = getOrCreateLayerSourceTextures(state, sessionId, layerIndex, width, height, layer);
   const uploads: ResidentChannelUpload[] = [];
@@ -86,7 +88,8 @@ export function ensureLayerChannelsResident(
         height,
         layer,
         channelName,
-        spectralSeriesKey
+        spectralSeriesKey,
+        channelRecognitionNameRules
       ));
       continue;
     }
@@ -100,7 +103,8 @@ export function ensureLayerChannelsResident(
         height,
         layer,
         channelName,
-        spectralStokesComponent
+        spectralStokesComponent,
+        channelRecognitionNameRules
       ));
       continue;
     }
@@ -114,7 +118,8 @@ export function ensureLayerChannelsResident(
         height,
         layer,
         channelName,
-        muellerMatrixSource
+        muellerMatrixSource,
+        channelRecognitionNameRules
       ));
       continue;
     }
@@ -176,10 +181,11 @@ function uploadMuellerMatrixSourceTexture(
   height: number,
   layer: DecodedLayer,
   sourceName: string,
-  source: NonNullable<ReturnType<typeof parseMuellerMatrixSourceName>>
+  source: NonNullable<ReturnType<typeof parseMuellerMatrixSourceName>>,
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
 ): ResidentChannelUpload {
   const displaySize = resolveMuellerMatrixDisplaySize(width, height);
-  const pixels = buildMuellerMatrixPixels(layer, width, height, source);
+  const pixels = buildMuellerMatrixPixels(layer, width, height, source, channelRecognitionNameRules);
   let texture: WebGLTexture | null = null;
   try {
     texture = state.gl.createTexture();
@@ -218,13 +224,18 @@ function buildMuellerMatrixPixels(
   layer: DecodedLayer,
   width: number,
   height: number,
-  source: NonNullable<ReturnType<typeof parseMuellerMatrixSourceName>>
+  source: NonNullable<ReturnType<typeof parseMuellerMatrixSourceName>>,
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
 ): Float32Array {
   const displaySize = resolveMuellerMatrixDisplaySize(width, height);
   const out = new Float32Array(displaySize.width * displaySize.height * 4);
-  const scalarChannels = source.rgb ? null : detectMuellerMatrixChannels(layer.channelNames, source.suffix);
+  const scalarChannels = source.rgb ? null : detectMuellerMatrixChannels(layer.channelNames, source.suffix, {
+    channelRecognitionNameRules
+  });
   const rgbChannels = source.rgb
-    ? resolveRgbMuellerMatrixChannelArrays(layer, detectRgbMuellerMatrixChannels(layer.channelNames))
+    ? resolveRgbMuellerMatrixChannelArrays(layer, detectRgbMuellerMatrixChannels(layer.channelNames, {
+        channelRecognitionNameRules
+      }))
     : null;
   if ((!scalarChannels && !rgbChannels) || width <= 0 || height <= 0) {
     return out;
@@ -280,9 +291,10 @@ function uploadSpectralStokesRgbSourceTexture(
   height: number,
   layer: DecodedLayer,
   sourceName: string,
-  component: SpectralStokesComponent
+  component: SpectralStokesComponent,
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
 ): ResidentChannelUpload {
-  const pixels = buildSignedSpectralStokesRgbPixels(layer, width, height, component);
+  const pixels = buildSignedSpectralStokesRgbPixels(layer, width, height, component, channelRecognitionNameRules);
   let texture: WebGLTexture | null = null;
   try {
     texture = state.gl.createTexture();
@@ -321,11 +333,14 @@ function buildSignedSpectralStokesRgbPixels(
   layer: DecodedLayer,
   width: number,
   height: number,
-  component: SpectralStokesComponent
+  component: SpectralStokesComponent,
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
 ): Float32Array {
   const pixelCount = width * height;
   const out = new Float32Array(pixelCount * 4);
-  const groups = detectSpectralStokesChannelGroups(layer.channelNames);
+  const groups = detectSpectralStokesChannelGroups(layer.channelNames, {
+    channelRecognitionNameRules
+  });
   const channels = resolveSpectralRgbChannels(
     layer,
     buildReflectanceSpectralRgbCoefficients(buildSpectralStokesComponentChannels(groups, component))
@@ -350,12 +365,13 @@ function uploadSpectralRgbSourceTexture(
   height: number,
   layer: DecodedLayer,
   sourceName: string,
-  seriesKey: string
+  seriesKey: string,
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
 ): ResidentChannelUpload {
   const pixels = buildSelectedDisplayTexture(layer, width, height, {
     kind: 'spectralRgb',
     seriesKey
-  });
+  }, 'rgb', undefined, { channelRecognitionNameRules });
   let texture: WebGLTexture | null = null;
   try {
     texture = state.gl.createTexture();

@@ -60,8 +60,9 @@ export function normalizeChannelRecognitionSettings(input: unknown): ChannelReco
       continue;
     }
 
-    if (typeof record[descriptor.id] === 'boolean') {
-      settings[descriptor.id] = record[descriptor.id];
+    const value = record[descriptor.id];
+    if (typeof value === 'boolean') {
+      settings[descriptor.id] = value;
     }
   }
 

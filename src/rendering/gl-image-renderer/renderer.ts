@@ -1,6 +1,7 @@
 import { createEmptyDisplaySourceBinding, type DisplaySourceBinding } from '../../display/bindings';
 import type { ResidentChannelUpload } from '../../display-cache';
 import type { ExportImagePixels } from '../../export/export-pixels';
+import type { ChannelRecognitionNameRules } from '../../channel-recognition-name-rules';
 import type { Disposable } from '../../lifecycle';
 import type { DecodedLayer, ViewerState, ViewportInfo } from '../../types';
 import type { ViewerPaneRenderInfo } from '../../viewer-pane-layout';
@@ -68,13 +69,23 @@ export class GlImageRenderer implements Disposable {
     width: number,
     height: number,
     layer: DecodedLayer,
-    channelNames: string[]
+    channelNames: string[],
+    channelRecognitionNameRules?: ChannelRecognitionNameRules
   ): ResidentChannelUpload[] {
     if (this.state.disposed) {
       return [];
     }
 
-    return ensureLayerChannelsResident(this.state, sessionId, layerIndex, width, height, layer, channelNames);
+    return ensureLayerChannelsResident(
+      this.state,
+      sessionId,
+      layerIndex,
+      width,
+      height,
+      layer,
+      channelNames,
+      channelRecognitionNameRules
+    );
   }
 
   setDisplaySelectionBindings(

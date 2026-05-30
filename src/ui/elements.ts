@@ -41,6 +41,20 @@ export interface Elements {
   spectrumLatticeMotionSelect: HTMLSelectElement;
   channelRecognitionSettingsControl: HTMLElement;
   spectralRgbGroupingCheckbox: HTMLInputElement;
+  channelRecognitionSummary: HTMLElement;
+  channelRecognitionEditNameRulesButton: HTMLButtonElement;
+  channelRecognitionNameRuleEditor: HTMLElement;
+  channelRecognitionRulesList: HTMLElement;
+  channelRecognitionPreviewSourceNote: HTMLElement;
+  channelRecognitionPreviewStatus: HTMLElement;
+  channelRecognitionPreviewSampleField: HTMLElement;
+  channelRecognitionPreviewSampleTextarea: HTMLTextAreaElement;
+  channelRecognitionRuleErrorSummary: HTMLElement;
+  channelRecognitionPreviewWarnings: HTMLElement;
+  channelRecognitionPreviewResults: HTMLElement;
+  channelRecognitionApplyRulesButton: HTMLButtonElement;
+  channelRecognitionCancelRulesButton: HTMLButtonElement;
+  channelRecognitionResetRulesButton: HTMLButtonElement;
   imageLoadWorkersInput: HTMLInputElement;
   autoExposurePercentileInput: HTMLInputElement;
   stokesInvalidVectorMaskCheckbox: HTMLInputElement;
@@ -581,6 +595,26 @@ export function resolveElements(): Elements {
     spectrumLatticeMotionSelect: requireElement('spectrum-lattice-motion-select', HTMLSelectElement),
     channelRecognitionSettingsControl: requireElement('channel-recognition-settings-control', HTMLElement),
     spectralRgbGroupingCheckbox: requireElement('spectral-rgb-grouping-checkbox', HTMLInputElement),
+    channelRecognitionSummary: requireElement('channel-recognition-summary', HTMLElement),
+    channelRecognitionEditNameRulesButton: requireElement(
+      'channel-recognition-edit-name-rules-button',
+      HTMLButtonElement
+    ),
+    channelRecognitionNameRuleEditor: requireElement('channel-recognition-name-rule-editor', HTMLElement),
+    channelRecognitionRulesList: requireElement('channel-recognition-rules-list', HTMLElement),
+    channelRecognitionPreviewSourceNote: requireElement('channel-recognition-preview-source-note', HTMLElement),
+    channelRecognitionPreviewStatus: requireElement('channel-recognition-preview-status', HTMLElement),
+    channelRecognitionPreviewSampleField: requireElement('channel-recognition-preview-sample-field', HTMLElement),
+    channelRecognitionPreviewSampleTextarea: requireElement(
+      'channel-recognition-preview-sample-textarea',
+      HTMLTextAreaElement
+    ),
+    channelRecognitionRuleErrorSummary: requireElement('channel-recognition-rule-error-summary', HTMLElement),
+    channelRecognitionPreviewWarnings: requireElement('channel-recognition-preview-warnings', HTMLElement),
+    channelRecognitionPreviewResults: requireElement('channel-recognition-preview-results', HTMLElement),
+    channelRecognitionApplyRulesButton: requireElement('channel-recognition-apply-rules-button', HTMLButtonElement),
+    channelRecognitionCancelRulesButton: requireElement('channel-recognition-cancel-rules-button', HTMLButtonElement),
+    channelRecognitionResetRulesButton: requireElement('channel-recognition-reset-rules-button', HTMLButtonElement),
     imageLoadWorkersInput: requireElement('image-load-workers-input', HTMLInputElement),
     autoExposurePercentileInput: requireElement('auto-exposure-percentile-input', HTMLInputElement),
     stokesInvalidVectorMaskCheckbox: requireElement('stokes-invalid-vector-mask-checkbox', HTMLInputElement),

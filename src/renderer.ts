@@ -7,6 +7,7 @@ import type { ExportImagePixels } from './export/export-pixels';
 import type { Disposable } from './lifecycle';
 import type { DisplaySourceBinding } from './display/bindings';
 import type { ResidentChannelUpload } from './display-cache';
+import type { ChannelRecognitionNameRules } from './channel-recognition-name-rules';
 import type { DecodedLayer, ViewerRenderState, ViewerState, ViewportInfo } from './types';
 import type { ViewerPaneRenderInfo } from './viewer-pane-layout';
 import type { ReadExportPixelsArgs } from './rendering/gl-image-renderer';
@@ -71,13 +72,22 @@ export class WebGlExrRenderer implements Disposable {
     width: number,
     height: number,
     layer: DecodedLayer,
-    channelNames: string[]
+    channelNames: string[],
+    channelRecognitionNameRules?: ChannelRecognitionNameRules
   ): ResidentChannelUpload[] {
     if (this.disposed) {
       return [];
     }
 
-    return this.imageRenderer.ensureLayerChannelsResident(sessionId, layerIndex, width, height, layer, channelNames);
+    return this.imageRenderer.ensureLayerChannelsResident(
+      sessionId,
+      layerIndex,
+      width,
+      height,
+      layer,
+      channelNames,
+      channelRecognitionNameRules
+    );
   }
 
   setDisplaySelectionBindings(
@@ -91,7 +101,8 @@ export class WebGlExrRenderer implements Disposable {
     maskInvalidStokesVectors: ViewerState['maskInvalidStokesVectors'] | undefined,
     spectralRgbGroupingEnabled: ViewerState['spectralRgbGroupingEnabled'] | undefined,
     _textureRevisionKey: string,
-    binding: DisplaySourceBinding
+    binding: DisplaySourceBinding,
+    channelRecognitionNameRules?: ViewerState['channelRecognitionNameRules']
   ): void {
     if (this.disposed) {
       return;
@@ -101,7 +112,8 @@ export class WebGlExrRenderer implements Disposable {
     const displaySize = resolveDisplayImageSize(width, height, selection);
     this.overlayRenderer.setDisplaySelectionContext(width, height, layer, selection, visualizationMode, {
       maskInvalidStokesVectors,
-      spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled,
+      channelRecognitionNameRules
     });
     this.probeOverlayRenderer.setImagePresent(true);
     this.probeOverlayRenderer.setSourceContext(width, height, layer);

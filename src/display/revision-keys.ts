@@ -14,12 +14,19 @@ import {
   serializeChannelRecognitionSettingsKey,
   type ChannelRecognitionSettings
 } from '../channel-recognition-settings';
+import {
+  createDefaultChannelRecognitionNameRules,
+  sameChannelRecognitionNameRules,
+  serializeChannelRecognitionNameRulesKey,
+  type ChannelRecognitionNameRules
+} from '../channel-recognition-name-rules';
 import type { ViewerState, VisualizationMode } from '../types';
 
 type StokesMaskRevisionState = Partial<Pick<ViewerState, 'maskInvalidStokesVectors'>>;
 type SpectralRgbGroupingRevisionState = Partial<Pick<ViewerState, 'spectralRgbGroupingEnabled'>>;
 type ChannelRecognitionRevisionState = {
   channelRecognitionSettings?: ChannelRecognitionSettings;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 };
 
 function serializeDisplaySelectionRevisionKey(
@@ -150,9 +157,12 @@ function appendChannelRecognitionRevisionKey(
   state: ChannelRecognitionRevisionState
 ): string {
   const settings = state.channelRecognitionSettings;
-  if (!settings || sameChannelRecognitionSettings(settings, createDefaultChannelRecognitionSettings())) {
-    return key;
-  }
-
-  return `${key}:channelRecognition:${serializeChannelRecognitionSettingsKey(settings)}`;
+  const settingsKey = settings && !sameChannelRecognitionSettings(settings, createDefaultChannelRecognitionSettings())
+    ? `:channelRecognition:${serializeChannelRecognitionSettingsKey(settings)}`
+    : '';
+  const nameRules = state.channelRecognitionNameRules;
+  const nameRulesKey = nameRules && !sameChannelRecognitionNameRules(nameRules, createDefaultChannelRecognitionNameRules())
+    ? `:channelRecognitionRules:${serializeChannelRecognitionNameRulesKey(nameRules)}`
+    : '';
+  return `${key}${settingsKey}${nameRulesKey}`;
 }

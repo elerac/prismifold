@@ -4,6 +4,7 @@ import type { SettingsDialogElements } from './elements';
 
 interface SettingsDialogCallbacks {
   onBeforeOpen: () => void;
+  onAfterClose?: () => void;
 }
 
 export class SettingsDialogController implements Disposable {
@@ -71,6 +72,7 @@ export class SettingsDialogController implements Disposable {
     this.open = false;
     this.elements.settingsDialogBackdrop.classList.add('hidden');
     this.elements.settingsDialogButton.setAttribute('aria-expanded', 'false');
+    this.callbacks.onAfterClose?.();
 
     if (restoreFocus) {
       this.elements.settingsDialogButton.focus();

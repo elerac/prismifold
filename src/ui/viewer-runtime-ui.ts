@@ -27,6 +27,7 @@ import type {
   StokesParameterVisibilitySettings
 } from '../stokes';
 import type { ChannelRecognitionSettings } from '../channel-recognition-settings';
+import type { ChannelRecognitionNameRules } from '../channel-recognition-name-rules';
 import type {
   ViewerPaneLayoutState,
   ViewerPaneRenderInfo
@@ -104,6 +105,7 @@ export interface ViewerRuntimeUi extends Disposable {
   ): void;
   setMaskInvalidStokesVectors(enabled: boolean): void;
   setChannelRecognitionSettings(settings: ChannelRecognitionSettings): void;
+  setChannelRecognitionNameRules(rules: ChannelRecognitionNameRules): void;
   setSpectralRgbGroupingEnabled(enabled: boolean, persist?: boolean): void;
   setInvalidValueWarningEnabled(enabled: boolean): void;
   setColormapGradient(lut: ColormapLut | null, reversed?: boolean): void;

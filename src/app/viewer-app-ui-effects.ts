@@ -106,6 +106,10 @@ export function applyUiEffects(ui: ViewerRuntimeUi, transition: ViewerUiTransiti
     ui.setChannelRecognitionSettings(snapshot.channelRecognitionSettings);
   }
 
+  if (invalidation & ViewerUiInvalidationFlags.ChannelRecognitionNameRules) {
+    ui.setChannelRecognitionNameRules(snapshot.channelRecognitionNameRules);
+  }
+
   if (invalidation & ViewerUiInvalidationFlags.InvalidValueWarning) {
     ui.setInvalidValueWarningEnabled(snapshot.invalidValueWarningEnabled);
   }

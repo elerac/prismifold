@@ -261,6 +261,7 @@ export function createViewerUi({
       const renderState = mergeRenderState(state.sessionState, state.interactionState, {
         maskInvalidStokesVectors: state.maskInvalidStokesVectors,
         spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+        channelRecognitionNameRules: state.channelRecognitionNameRules,
         invalidValueWarningEnabled: state.invalidValueWarningEnabled
       });
       return {
@@ -296,6 +297,7 @@ export function createViewerUi({
       const renderState = mergeRenderState(state.sessionState, state.interactionState, {
         maskInvalidStokesVectors: state.maskInvalidStokesVectors,
         spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+        channelRecognitionNameRules: state.channelRecognitionNameRules,
         invalidValueWarningEnabled: state.invalidValueWarningEnabled
       });
       if (renderState.viewerMode === 'panorama') {
@@ -381,6 +383,9 @@ export function createViewerUi({
     onChannelRecognitionSettingsChange: (settings) => {
       getDisplayController().setChannelRecognitionSettings(settings);
     },
+    onChannelRecognitionNameRulesChange: (rules) => {
+      getDisplayController().setChannelRecognitionNameRules(rules);
+    },
     onSpectralRgbGroupingChange: (enabled) => {
       getDisplayController().setSpectralRgbGroupingEnabled(enabled);
     },
@@ -400,6 +405,7 @@ export function createViewerUi({
       getDisplayController().resetStokesParameterVisibility();
       getDisplayController().resetMaskInvalidStokesVectors();
       getDisplayController().resetChannelRecognitionSettings();
+      getDisplayController().resetChannelRecognitionNameRules();
       getDisplayController().resetInvalidValueWarning();
     },
     onResetView: () => {

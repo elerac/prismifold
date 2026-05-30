@@ -90,7 +90,7 @@ export function samplePixelValuesForDisplay(
   stokesOptions: DisplayEvaluationOptions = {}
 ): PixelSample | null {
   if (isMuellerMatrixSelection(selection)) {
-    return sampleMuellerMatrixPixelValuesForDisplay(layer, width, height, pixel, selection);
+    return sampleMuellerMatrixPixelValuesForDisplay(layer, width, height, pixel, selection, stokesOptions);
   }
 
   const sample = samplePixelValues(layer, width, height, pixel);
@@ -105,7 +105,8 @@ export function samplePixelValuesForDisplay(
       layer.channelNames,
       selection,
       undefined,
-      stokesOptions.spectralRgbGroupingEnabled !== false
+      stokesOptions.spectralRgbGroupingEnabled !== false,
+      stokesOptions.channelRecognitionNameRules
     )
   ) {
     if (selection.source.kind === 'spectralRgb') {
@@ -118,7 +119,9 @@ export function samplePixelValuesForDisplay(
   if (
     isSpectralRgbSelection(selection) &&
     stokesOptions.spectralRgbGroupingEnabled !== false &&
-    isSpectralRgbDisplayAvailable(layer.channelNames, selection)
+    isSpectralRgbDisplayAvailable(layer.channelNames, selection, {
+      channelRecognitionNameRules: stokesOptions.channelRecognitionNameRules
+    })
   ) {
     const values = readDisplaySelectionPixelValuesAtIndex(
       resolveDisplaySelectionEvaluator(layer, selection, visualizationMode, {
@@ -142,7 +145,8 @@ function sampleMuellerMatrixPixelValuesForDisplay(
   width: number,
   height: number,
   pixel: ImagePixel,
-  selection: Extract<DisplaySelection, { kind: 'muellerMatrix' }>
+  selection: Extract<DisplaySelection, { kind: 'muellerMatrix' }>,
+  options: DisplayEvaluationOptions = {}
 ): PixelSample | null {
   const resolvedPixel = resolveMuellerMatrixDisplayPixel(pixel, width, height);
   if (!resolvedPixel) {
@@ -156,7 +160,9 @@ function sampleMuellerMatrixPixelValuesForDisplay(
 
   const values = { ...sourceSample.values };
   if (isGroupedRgbMuellerMatrixSelection(selection)) {
-    const channels = detectRgbMuellerMatrixChannels(layer.channelNames);
+    const channels = detectRgbMuellerMatrixChannels(layer.channelNames, {
+      channelRecognitionNameRules: options.channelRecognitionNameRules
+    });
     if (!channels) {
       return null;
     }
@@ -187,7 +193,9 @@ function sampleMuellerMatrixPixelValuesForDisplay(
     };
   }
 
-  const channels = detectMuellerMatrixChannels(layer.channelNames, selection.suffix ?? null);
+  const channels = detectMuellerMatrixChannels(layer.channelNames, selection.suffix ?? null, {
+    channelRecognitionNameRules: options.channelRecognitionNameRules
+  });
   if (!channels) {
     return null;
   }

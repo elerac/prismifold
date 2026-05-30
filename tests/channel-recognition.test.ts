@@ -10,18 +10,18 @@ import { serializeDisplaySelectionKey } from '../src/display-model';
 import { MUELLER_MATRIX_ELEMENTS } from '../src/mueller';
 
 function visibleCandidates(
-  channelNames: string[],
+  channelNames: readonly string[],
   split = false,
   config: ChannelRecognitionConfig = {}
 ): RecognizedChannelCandidate[] {
-  return recognizeLayerChannels(channelNames, config).candidates
+  return recognizeLayerChannels([...channelNames], config).candidates
     .filter((candidate) => split ? candidate.availability.split : candidate.availability.merged)
     .filter((candidate) => split || !candidate.metadata.hiddenInMergedChannelView)
     .sort((a, b) => a.sourceOrder - b.sourceOrder);
 }
 
 function visibleKeys(
-  channelNames: string[],
+  channelNames: readonly string[],
   split = false,
   config: ChannelRecognitionConfig = {}
 ): string[] {
@@ -29,19 +29,19 @@ function visibleKeys(
 }
 
 function findCandidate(
-  channelNames: string[],
+  channelNames: readonly string[],
   key: string,
   config: ChannelRecognitionConfig = {}
 ): RecognizedChannelCandidate | null {
-  return recognizeLayerChannels(channelNames, config).candidates.find((candidate) => candidate.key === key) ?? null;
+  return recognizeLayerChannels([...channelNames], config).candidates.find((candidate) => candidate.key === key) ?? null;
 }
 
 function selectionKey(candidate: RecognizedChannelCandidate | null): string | null {
   return candidate ? serializeDisplaySelectionKey(candidate.selection) : null;
 }
 
-function defaultSelectionKey(channelNames: string[], config: ChannelRecognitionConfig = {}): string | null {
-  const candidate = pickDefaultRecognizedCandidate(recognizeLayerChannels(channelNames, config));
+function defaultSelectionKey(channelNames: readonly string[], config: ChannelRecognitionConfig = {}): string | null {
+  const candidate = pickDefaultRecognizedCandidate(recognizeLayerChannels([...channelNames], config));
   return candidate ? serializeDisplaySelectionKey(candidate.selection) : null;
 }
 

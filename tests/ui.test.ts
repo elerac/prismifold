@@ -41,6 +41,7 @@ import {
   createDefaultChannelRecognitionSettings,
   type ChannelRecognitionSettingId
 } from '../src/channel-recognition-settings';
+import { createDefaultChannelRecognitionNameRules } from '../src/channel-recognition-name-rules';
 import { AUTO_EXPOSURE_PERCENTILE } from '../src/auto-exposure';
 import {
   getDefaultImageLoadWorkers,
@@ -2832,7 +2833,7 @@ describe('view menu', () => {
       'Image Load Workers',
       'Memory Budget'
     ]);
-    expect(Array.from(document.querySelectorAll('#channel-recognition-settings-control input'))
+    expect(Array.from(document.querySelectorAll('#channel-recognition-settings-control input[data-channel-recognition-setting]'))
       .map((input) => (input as HTMLInputElement).dataset.channelRecognitionSetting)).toEqual(
       CHANNEL_RECOGNITION_SETTING_DESCRIPTORS.map((descriptor) => descriptor.id)
     );
@@ -3055,6 +3056,97 @@ describe('view menu', () => {
     ui.setChannelRecognitionSettings(createDefaultChannelRecognitionSettings());
 
     expect(checkbox.checked).toBe(true);
+  });
+
+  it('edits Channel Recognition name rules as a validated draft with preview', () => {
+    installUiFixture();
+
+    const onChannelRecognitionNameRulesChange = vi.fn();
+    new ViewerUi(createUiCallbacks({ onChannelRecognitionNameRulesChange }));
+    const defaults = createDefaultChannelRecognitionNameRules();
+    const editButton = document.getElementById('channel-recognition-edit-name-rules-button') as HTMLButtonElement;
+    const editor = document.getElementById('channel-recognition-name-rule-editor') as HTMLElement;
+    const patternInput = document.getElementById('channel-recognition-rule-component-rgb-pattern') as HTMLInputElement;
+    const caseCheckbox = document.getElementById('channel-recognition-rule-component-rgb-case') as HTMLInputElement;
+    const sampleTextarea = document.getElementById('channel-recognition-preview-sample-textarea') as HTMLTextAreaElement;
+    const previewResults = document.getElementById('channel-recognition-preview-results') as HTMLElement;
+    const applyButton = document.getElementById('channel-recognition-apply-rules-button') as HTMLButtonElement;
+    const resetRowButton = editor.querySelector<HTMLButtonElement>('[aria-label="Reset RGB component groups name rule"]')!;
+
+    editButton.click();
+
+    expect(editor.classList.contains('hidden')).toBe(false);
+    expect(patternInput.disabled).toBe(false);
+    expect(patternInput.value).toBe(defaults['component.rgb'].pattern);
+
+    patternInput.value = '(?<r>R';
+    patternInput.dispatchEvent(new Event('input', { bubbles: true }));
+    applyButton.click();
+
+    expect(onChannelRecognitionNameRulesChange).not.toHaveBeenCalled();
+    expect(patternInput.value).toBe('(?<r>R');
+    expect(patternInput.getAttribute('aria-invalid')).toBe('true');
+    expect(document.activeElement).toBe(patternInput);
+
+    patternInput.value = '^(?<base>.+)_(?:(?<r>red)|(?<g>green)|(?<b>blue)|(?<a>alpha))$';
+    patternInput.dispatchEvent(new Event('input', { bubbles: true }));
+    caseCheckbox.checked = true;
+    caseCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+    sampleTextarea.value = [
+      'beauty_red',
+      'beauty_green',
+      'beauty_blue',
+      'beauty_alpha'
+    ].join('\n');
+    sampleTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(patternInput.getAttribute('aria-invalid')).toBe('false');
+    expect(previewResults.textContent).toContain('beauty_red');
+
+    resetRowButton.click();
+
+    expect(patternInput.value).toBe(defaults['component.rgb'].pattern);
+    expect(caseCheckbox.checked).toBe(defaults['component.rgb'].caseInsensitive);
+
+    patternInput.value = '^(?<base>.+)_(?:(?<r>red)|(?<g>green)|(?<b>blue)|(?<a>alpha))$';
+    patternInput.dispatchEvent(new Event('input', { bubbles: true }));
+    caseCheckbox.checked = true;
+    caseCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+    applyButton.click();
+
+    expect(onChannelRecognitionNameRulesChange).toHaveBeenCalledTimes(1);
+    expect(onChannelRecognitionNameRulesChange.mock.calls[0]?.[0]['component.rgb']).toEqual({
+      pattern: '^(?<base>.+)_(?:(?<r>red)|(?<g>green)|(?<b>blue)|(?<a>alpha))$',
+      caseInsensitive: true
+    });
+  });
+
+  it('discards unapplied Channel Recognition name-rule drafts when Settings closes', () => {
+    installUiFixture();
+
+    const onChannelRecognitionNameRulesChange = vi.fn();
+    new ViewerUi(createUiCallbacks({ onChannelRecognitionNameRulesChange }));
+    const defaults = createDefaultChannelRecognitionNameRules();
+    const settingsButton = document.getElementById('settings-dialog-button') as HTMLButtonElement;
+    const closeButton = document.getElementById('settings-dialog-close-button') as HTMLButtonElement;
+    const editButton = document.getElementById('channel-recognition-edit-name-rules-button') as HTMLButtonElement;
+    const editor = document.getElementById('channel-recognition-name-rule-editor') as HTMLElement;
+    const patternInput = document.getElementById('channel-recognition-rule-component-rgb-pattern') as HTMLInputElement;
+
+    settingsButton.click();
+    editButton.click();
+    patternInput.value = '^(?<base>.+)_(?:(?<r>red)|(?<g>green)|(?<b>blue)|(?<a>alpha))$';
+    patternInput.dispatchEvent(new Event('input', { bubbles: true }));
+    closeButton.click();
+
+    expect(editor.classList.contains('hidden')).toBe(true);
+    expect(patternInput.disabled).toBe(true);
+    expect(onChannelRecognitionNameRulesChange).not.toHaveBeenCalled();
+
+    settingsButton.click();
+    editButton.click();
+
+    expect(patternInput.value).toBe(defaults['component.rgb'].pattern);
   });
 
   it('keeps the invalid value warning setting out of Settings', () => {
@@ -3542,6 +3634,7 @@ describe('view menu', () => {
     const settingsDialog = document.getElementById('settings-dialog') as HTMLElement;
     const themeSelect = document.getElementById('theme-select') as HTMLSelectElement;
     const spectrumMotionSelect = document.getElementById('spectrum-lattice-motion-select') as HTMLSelectElement;
+    const editNameRulesButton = document.getElementById('channel-recognition-edit-name-rules-button') as HTMLButtonElement;
     const rgbRecognition = getRecognitionCheckbox('component.rgb');
     const xyzRecognition = getRecognitionCheckbox('component.xyz');
     const uvRecognition = getRecognitionCheckbox('component.uv');
@@ -3554,31 +3647,26 @@ describe('view menu', () => {
     const alphaCompanionsRecognition = getRecognitionCheckbox('fallback.alphaCompanions');
     const stokesMaskCheckbox = document.getElementById('stokes-invalid-vector-mask-checkbox') as HTMLInputElement;
     const aolpEnabled = document.getElementById('stokes-default-aolp-enabled-checkbox') as HTMLInputElement;
-    const aolpSelect = document.getElementById('stokes-default-aolp-colormap-select') as HTMLSelectElement;
     const aolpVmin = document.getElementById('stokes-default-aolp-vmin-input') as HTMLInputElement;
     const aolpVmax = document.getElementById('stokes-default-aolp-vmax-input') as HTMLInputElement;
     const aolpZeroCenter = document.getElementById('stokes-default-aolp-zero-center-checkbox') as HTMLInputElement;
     const aolpModulation = document.getElementById('stokes-default-aolp-modulation-checkbox') as HTMLInputElement;
     const aolpMode = document.getElementById('stokes-default-aolp-modulation-mode-select') as HTMLSelectElement;
     const degreeEnabled = document.getElementById('stokes-default-degree-enabled-checkbox') as HTMLInputElement;
-    const degreeSelect = document.getElementById('stokes-default-degree-colormap-select') as HTMLSelectElement;
     const degreeVmin = document.getElementById('stokes-default-degree-vmin-input') as HTMLInputElement;
     const degreeVmax = document.getElementById('stokes-default-degree-vmax-input') as HTMLInputElement;
     const degreeZeroCenter = document.getElementById('stokes-default-degree-zero-center-checkbox') as HTMLInputElement;
     const copEnabled = document.getElementById('stokes-default-cop-enabled-checkbox') as HTMLInputElement;
-    const copSelect = document.getElementById('stokes-default-cop-colormap-select') as HTMLSelectElement;
     const copVmin = document.getElementById('stokes-default-cop-vmin-input') as HTMLInputElement;
     const copVmax = document.getElementById('stokes-default-cop-vmax-input') as HTMLInputElement;
     const copZeroCenter = document.getElementById('stokes-default-cop-zero-center-checkbox') as HTMLInputElement;
     const copModulation = document.getElementById('stokes-default-cop-modulation-checkbox') as HTMLInputElement;
     const topEnabled = document.getElementById('stokes-default-top-enabled-checkbox') as HTMLInputElement;
-    const topSelect = document.getElementById('stokes-default-top-colormap-select') as HTMLSelectElement;
     const topVmin = document.getElementById('stokes-default-top-vmin-input') as HTMLInputElement;
     const topVmax = document.getElementById('stokes-default-top-vmax-input') as HTMLInputElement;
     const topZeroCenter = document.getElementById('stokes-default-top-zero-center-checkbox') as HTMLInputElement;
     const topModulation = document.getElementById('stokes-default-top-modulation-checkbox') as HTMLInputElement;
     const normalizedEnabled = document.getElementById('stokes-default-normalized-enabled-checkbox') as HTMLInputElement;
-    const normalizedSelect = document.getElementById('stokes-default-normalized-colormap-select') as HTMLSelectElement;
     const normalizedVmin = document.getElementById('stokes-default-normalized-vmin-input') as HTMLInputElement;
     const normalizedVmax = document.getElementById('stokes-default-normalized-vmax-input') as HTMLInputElement;
     const normalizedZeroCenter = document.getElementById(
@@ -3593,11 +3681,12 @@ describe('view menu', () => {
     const closeButton = document.getElementById('settings-dialog-close-button') as HTMLButtonElement;
     const focusableSettingsControls = Array.from(
       settingsDialog.querySelectorAll<HTMLElement>('button, input, select, textarea')
-    ).filter((element) => !(element instanceof HTMLInputElement && element.disabled));
+    ).filter((element) => !('disabled' in element && element.disabled));
 
     expect(focusableSettingsControls).toEqual([
       themeSelect,
       spectrumMotionSelect,
+      editNameRulesButton,
       rgbRecognition,
       xyzRecognition,
       uvRecognition,
@@ -3610,31 +3699,26 @@ describe('view menu', () => {
       alphaCompanionsRecognition,
       stokesMaskCheckbox,
       aolpEnabled,
-      aolpSelect,
       aolpVmin,
       aolpVmax,
       aolpZeroCenter,
       aolpModulation,
       aolpMode,
       degreeEnabled,
-      degreeSelect,
       degreeVmin,
       degreeVmax,
       degreeZeroCenter,
       copEnabled,
-      copSelect,
       copVmin,
       copVmax,
       copZeroCenter,
       copModulation,
       topEnabled,
-      topSelect,
       topVmin,
       topVmax,
       topZeroCenter,
       topModulation,
       normalizedEnabled,
-      normalizedSelect,
       normalizedVmin,
       normalizedVmax,
       normalizedZeroCenter,
@@ -11275,6 +11359,7 @@ function createUiCallbacksBase() {
     onStokesParameterVisibilityChange: () => {},
     onMaskInvalidStokesVectorsChange: () => {},
     onChannelRecognitionSettingsChange: () => {},
+    onChannelRecognitionNameRulesChange: () => {},
     onSpectralRgbGroupingChange: () => {},
     onInvalidValueWarningChange: () => {},
     onClearRoi: () => {},

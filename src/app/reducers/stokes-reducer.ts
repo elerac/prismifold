@@ -243,7 +243,8 @@ function buildDisabledActiveStokesFallbackPatch(
   const fallbackSelection = layer
     ? pickDefaultDisplaySelection(layer.channelNames, {
         spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-        channelRecognitionSettings: state.channelRecognitionSettings
+        channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules
       })
     : null;
   return {
@@ -266,7 +267,8 @@ function resolveSelectionForStokesVisibility(
   return layer
     ? pickDefaultDisplaySelection(layer.channelNames, {
         spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-        channelRecognitionSettings: state.channelRecognitionSettings
+        channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules
       })
     : null;
 }

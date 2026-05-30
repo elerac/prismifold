@@ -9,6 +9,7 @@ import {
 import {
   buildSpectralStokesComponentChannels,
   detectSpectralStokesChannelGroups,
+  type SpectralRecognitionConfig,
   type SpectralStokesComponent
 } from '../spectral';
 import {
@@ -45,9 +46,10 @@ type SpectralRgbComponent = keyof SpectralRgbSample;
 const SPECTRAL_STOKES_COMPONENTS: readonly SpectralStokesComponent[] = ['S0', 'S1', 'S2', 'S3'];
 
 export function resolveSpectralStokesRgbChannelArrays(
-  layer: DecodedLayer
+  layer: DecodedLayer,
+  config: SpectralRecognitionConfig = {}
 ): ResolvedSpectralStokesRgbChannels {
-  const groups = detectSpectralStokesChannelGroups(layer.channelNames);
+  const groups = detectSpectralStokesChannelGroups(layer.channelNames, config);
   return {
     s0: resolveSpectralStokesComponentChannels(layer, 'S0', groups),
     s1: resolveSpectralStokesComponentChannels(layer, 'S1', groups),
@@ -152,7 +154,9 @@ export function appendSpectralStokesRgbSampleValues(
     return;
   }
 
-  const channels = resolveSpectralStokesRgbChannelArrays(layer);
+  const channels = resolveSpectralStokesRgbChannelArrays(layer, {
+    channelRecognitionNameRules: options.channelRecognitionNameRules
+  });
   const valueLabel = getDisplaySelectionValueLabel(selection) ?? `${getStokesParameterLabel(selection.parameter)} Spectral RGB`;
   const degreeLabel = getDisplaySelectionDegreeModulationValueLabel(selection);
 

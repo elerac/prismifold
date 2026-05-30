@@ -165,7 +165,9 @@ export function appendStokesSampleValues(
   const label = getStokesParameterLabel(selection.parameter);
 
   if (selection.source.kind === 'scalar') {
-    const channels = detectScalarStokesChannels(layer.channelNames, selection.source.suffix ?? null);
+    const channels = detectScalarStokesChannels(layer.channelNames, selection.source.suffix ?? null, {
+      channelRecognitionNameRules: options.channelRecognitionNameRules
+    });
     if (!channels) {
       return;
     }
@@ -183,7 +185,9 @@ export function appendStokesSampleValues(
     return;
   }
 
-  const channels = detectRgbStokesChannels(layer.channelNames);
+  const channels = detectRgbStokesChannels(layer.channelNames, {
+    channelRecognitionNameRules: options.channelRecognitionNameRules
+  });
   if (!channels) {
     return;
   }

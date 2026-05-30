@@ -159,6 +159,16 @@ import {
   type ChannelRecognitionSettingId,
   type ChannelRecognitionSettings
 } from '../channel-recognition-settings';
+import {
+  CHANNEL_RECOGNITION_NAME_RULE_DESCRIPTORS,
+  cloneChannelRecognitionNameRules,
+  createDefaultChannelRecognitionNameRules,
+  validateChannelRecognitionNameRules,
+  validateChannelRecognitionNameRule,
+  type ChannelRecognitionNameRuleId,
+  type ChannelRecognitionNameRules
+} from '../channel-recognition-name-rules';
+import { recognizeLayerChannels, type RecognizedChannelCandidate } from '../channel-recognition';
 
 const AUTO_FIT_IMAGE_ON_SELECT_STORAGE_KEY = 'openexr-viewer:auto-fit-image-on-select:v1';
 const AUTO_EXPOSURE_STORAGE_KEY = 'openexr-viewer:auto-exposure:v1';
@@ -291,6 +301,7 @@ export interface UiCallbacks {
   onStokesParameterVisibilityChange: (group: StokesColormapDefaultGroup, enabled: boolean) => void;
   onMaskInvalidStokesVectorsChange: (enabled: boolean) => void;
   onChannelRecognitionSettingsChange: (settings: ChannelRecognitionSettings) => void;
+  onChannelRecognitionNameRulesChange: (rules: ChannelRecognitionNameRules) => void;
   onSpectralRgbGroupingChange: (enabled: boolean) => void;
   onInvalidValueWarningChange: (enabled: boolean) => void;
   onClearRoi: () => void;
@@ -309,6 +320,14 @@ interface StokesDefaultSettingRowElements {
   modulationCheckbox: HTMLInputElement | null;
   aolpModeSelect: HTMLSelectElement | null;
   controls: Array<HTMLInputElement | HTMLSelectElement>;
+}
+
+interface ChannelRecognitionRuleRowElements {
+  patternInput: HTMLInputElement;
+  caseInsensitiveCheckbox: HTMLInputElement;
+  resetButton: HTMLButtonElement;
+  hint: HTMLElement;
+  error: HTMLElement;
 }
 
 export class ViewerUi implements Disposable {
@@ -362,6 +381,9 @@ export class ViewerUi implements Disposable {
   private stokesParameterVisibility: StokesParameterVisibilitySettings = createDefaultStokesParameterVisibilitySettings();
   private maskInvalidStokesVectors = DEFAULT_MASK_INVALID_STOKES_VECTORS;
   private channelRecognitionSettings: ChannelRecognitionSettings = createDefaultChannelRecognitionSettings();
+  private channelRecognitionNameRules: ChannelRecognitionNameRules = createDefaultChannelRecognitionNameRules();
+  private channelRecognitionNameRuleDraft: ChannelRecognitionNameRules | null = null;
+  private readonly channelRecognitionRuleRows = new Map<ChannelRecognitionNameRuleId, ChannelRecognitionRuleRowElements>();
   private spectralRgbGroupingEnabled = DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED;
   private invalidValueWarningEnabled = DEFAULT_INVALID_VALUE_WARNING_ENABLED;
   private viewerMode: ViewerMode = 'image';
@@ -489,6 +511,9 @@ export class ViewerUi implements Disposable {
         this.clearViewerKeyboardNavigationInput();
         this.metadataDialog.close(false);
         this.topMenuController.closeAll(false);
+      },
+      onAfterClose: () => {
+        this.setChannelRecognitionRuleEditorOpen(false);
       }
     });
     this.metadataDialog = new MetadataDialogController(this.elements, {
@@ -698,6 +723,9 @@ export class ViewerUi implements Disposable {
     this.updateViewerModeMenuItemsDisabled();
     this.updateWindowPaneMenuItemsDisabled();
     this.updateFileMenuItemsDisabled();
+    this.renderChannelRecognitionRuleRows(true);
+    this.setChannelRecognitionRuleEditorControlsEnabled(false);
+    this.renderChannelRecognitionCustomizationSummary();
     this.bindEvents();
   }
 
@@ -1170,6 +1198,22 @@ export class ViewerUi implements Disposable {
       checkbox.checked = this.channelRecognitionSettings[descriptor.id] !== false;
       checkbox.disabled = !descriptor.mutable;
     }
+    this.renderChannelRecognitionRulePreview();
+  }
+
+  setChannelRecognitionNameRules(rules: ChannelRecognitionNameRules): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.channelRecognitionNameRules = cloneChannelRecognitionNameRules(rules);
+    this.channelRecognitionNameRuleDraft = this.isChannelRecognitionRuleEditorOpen()
+      ? cloneChannelRecognitionNameRules(this.channelRecognitionNameRules)
+      : null;
+    this.renderChannelRecognitionCustomizationSummary();
+    this.renderChannelRecognitionRuleRows(true);
+    this.renderChannelRecognitionRulePreview();
+    this.renderChannelViewControls();
   }
 
   setSpectralRgbGroupingEnabled(enabled: boolean, persist = false): void {
@@ -1487,6 +1531,7 @@ export class ViewerUi implements Disposable {
     this.currentChannelSelection = null;
     this.channelStackScopeKey = 'default';
     this.channelThumbnailStrip.clearForNoImage();
+    this.renderChannelRecognitionRulePreview();
     this.globalKeyboardController.normalizeVerticalNavigationTarget();
   }
 
@@ -1514,6 +1559,7 @@ export class ViewerUi implements Disposable {
     this.expandChannelStackForSelection(selected);
     this.currentChannelSelection = cloneDisplaySelection(selected);
     this.renderChannelViewControls();
+    this.renderChannelRecognitionRulePreview();
   }
 
   private handleChannelViewValueChange(value: string): void {
@@ -1574,7 +1620,10 @@ export class ViewerUi implements Disposable {
       this.rgbGroupChannelNames,
       this.channelThumbnailItems,
       this.getExpandedChannelStackKeys(),
-      { channelRecognitionSettings: this.channelRecognitionSettings }
+      {
+        channelRecognitionSettings: this.channelRecognitionSettings,
+        channelRecognitionNameRules: this.channelRecognitionNameRules
+      }
     );
   }
 
@@ -1582,7 +1631,10 @@ export class ViewerUi implements Disposable {
     return buildChannelViewStacks(
       this.rgbGroupChannelNames,
       this.channelThumbnailItems,
-      { channelRecognitionSettings: this.channelRecognitionSettings }
+      {
+        channelRecognitionSettings: this.channelRecognitionSettings,
+        channelRecognitionNameRules: this.channelRecognitionNameRules
+      }
     );
   }
 
@@ -1611,7 +1663,10 @@ export class ViewerUi implements Disposable {
       this.rgbGroupChannelNames,
       this.channelThumbnailItems,
       current,
-      { channelRecognitionSettings: this.channelRecognitionSettings }
+      {
+        channelRecognitionSettings: this.channelRecognitionSettings,
+        channelRecognitionNameRules: this.channelRecognitionNameRules
+      }
     );
     if (!sameStringSet(current, pruned)) {
       this.setExpandedChannelStackKeys(pruned);
@@ -2826,6 +2881,22 @@ export class ViewerUi implements Disposable {
       });
     }
 
+    this.disposables.addEventListener(this.elements.channelRecognitionEditNameRulesButton, 'click', () => {
+      this.setChannelRecognitionRuleEditorOpen(!this.isChannelRecognitionRuleEditorOpen());
+    });
+    this.disposables.addEventListener(this.elements.channelRecognitionApplyRulesButton, 'click', () => {
+      this.applyChannelRecognitionRuleDraft();
+    });
+    this.disposables.addEventListener(this.elements.channelRecognitionCancelRulesButton, 'click', () => {
+      this.cancelChannelRecognitionRuleDraft();
+    });
+    this.disposables.addEventListener(this.elements.channelRecognitionResetRulesButton, 'click', () => {
+      this.resetChannelRecognitionRuleDraft();
+    });
+    this.disposables.addEventListener(this.elements.channelRecognitionPreviewSampleTextarea, 'input', () => {
+      this.renderChannelRecognitionRulePreview();
+    });
+
     this.disposables.addEventListener(this.elements.spectrumLatticeMotionSelect, 'change', () => {
       this.setSpectrumLatticeMotionPreference(
         parseSpectrumLatticeMotionPreference(this.elements.spectrumLatticeMotionSelect.value)
@@ -2860,8 +2931,10 @@ export class ViewerUi implements Disposable {
       this.setMaskInvalidStokesVectors(DEFAULT_MASK_INVALID_STOKES_VECTORS);
       this.callbacks.onMaskInvalidStokesVectorsChange(this.maskInvalidStokesVectors);
       this.setChannelRecognitionSettings(createDefaultChannelRecognitionSettings());
+      this.setChannelRecognitionNameRules(createDefaultChannelRecognitionNameRules());
       saveStoredSpectralRgbGroupingSetting(DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED);
       this.callbacks.onChannelRecognitionSettingsChange(this.channelRecognitionSettings);
+      this.callbacks.onChannelRecognitionNameRulesChange(this.channelRecognitionNameRules);
       this.setInvalidValueWarningEnabled(DEFAULT_INVALID_VALUE_WARNING_ENABLED);
       this.callbacks.onInvalidValueWarningChange(this.invalidValueWarningEnabled);
       this.callbacks.onResetSettings();
@@ -3181,11 +3254,431 @@ export class ViewerUi implements Disposable {
     };
   }
 
+  private renderChannelRecognitionCustomizationSummary(): void {
+    const changed = CHANNEL_RECOGNITION_NAME_RULE_DESCRIPTORS.filter((descriptor) => (
+      !sameChannelRecognitionNameRulesForId(
+        descriptor.id,
+        this.channelRecognitionNameRules,
+        createDefaultChannelRecognitionNameRules()
+      )
+    ));
+    this.elements.channelRecognitionSummary.textContent = changed.length === 0
+      ? 'Default name rules'
+      : `${changed.length} customized: ${changed.map((descriptor) => descriptor.label).join(', ')}`;
+  }
+
+  private renderChannelRecognitionRuleRows(forcePatternValues = false): void {
+    if (this.channelRecognitionRuleRows.size === 0) {
+      const fragment = document.createDocumentFragment();
+      for (const descriptor of CHANNEL_RECOGNITION_NAME_RULE_DESCRIPTORS) {
+        fragment.append(this.createChannelRecognitionRuleRow(descriptor));
+      }
+      this.elements.channelRecognitionRulesList.replaceChildren(fragment);
+    }
+
+    const draft = this.getChannelRecognitionRuleDraft();
+    for (const descriptor of CHANNEL_RECOGNITION_NAME_RULE_DESCRIPTORS) {
+      const row = this.channelRecognitionRuleRows.get(descriptor.id);
+      const rule = draft[descriptor.id];
+      if (!row) {
+        continue;
+      }
+      if (forcePatternValues || document.activeElement !== row.patternInput) {
+        row.patternInput.value = rule.pattern;
+      }
+      row.caseInsensitiveCheckbox.checked = rule.caseInsensitive;
+      this.renderChannelRecognitionRuleRowValidation(descriptor.id);
+    }
+  }
+
+  private createChannelRecognitionRuleRow(
+    descriptor: (typeof CHANNEL_RECOGNITION_NAME_RULE_DESCRIPTORS)[number]
+  ): HTMLElement {
+    const row = document.createElement('section');
+    row.className = 'channel-recognition-rule-row';
+    row.dataset.ruleId = descriptor.id;
+
+    const label = document.createElement('label');
+    label.className = 'channel-recognition-rule-label';
+    label.htmlFor = getChannelRecognitionRulePatternInputId(descriptor.id);
+    label.textContent = descriptor.label;
+
+    const hint = document.createElement('div');
+    hint.id = getChannelRecognitionRuleHintId(descriptor.id);
+    hint.className = 'channel-recognition-rule-hint';
+    hint.textContent = descriptor.hint;
+
+    const input = document.createElement('input');
+    input.id = getChannelRecognitionRulePatternInputId(descriptor.id);
+    input.className = 'channel-recognition-rule-pattern';
+    input.type = 'text';
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.setAttribute('aria-describedby', `${hint.id} ${getChannelRecognitionRuleErrorId(descriptor.id)}`);
+
+    const options = document.createElement('div');
+    options.className = 'channel-recognition-rule-options';
+
+    const caseLabel = document.createElement('label');
+    caseLabel.className = 'app-menu-setting-checkbox channel-recognition-rule-case-toggle';
+    const caseCheckbox = document.createElement('input');
+    caseCheckbox.type = 'checkbox';
+    caseCheckbox.id = getChannelRecognitionRuleCaseInputId(descriptor.id);
+    caseLabel.append(caseCheckbox, document.createTextNode('Ignore case'));
+
+    const resetButton = document.createElement('button');
+    resetButton.className = 'channel-recognition-rule-reset';
+    resetButton.type = 'button';
+    resetButton.textContent = 'Reset';
+    resetButton.setAttribute('aria-label', `Reset ${descriptor.label} name rule`);
+    options.append(caseLabel, resetButton);
+
+    const error = document.createElement('div');
+    error.id = getChannelRecognitionRuleErrorId(descriptor.id);
+    error.className = 'channel-recognition-rule-error';
+    error.setAttribute('aria-live', 'polite');
+
+    row.append(label, input, options, hint, error);
+
+    this.channelRecognitionRuleRows.set(descriptor.id, {
+      patternInput: input,
+      caseInsensitiveCheckbox: caseCheckbox,
+      resetButton,
+      hint,
+      error
+    });
+
+    this.disposables.addEventListener(input, 'input', () => {
+      const draft = this.ensureChannelRecognitionRuleDraft();
+      draft[descriptor.id] = {
+        ...draft[descriptor.id],
+        pattern: input.value
+      };
+      this.renderChannelRecognitionRuleRowValidation(descriptor.id);
+      this.renderChannelRecognitionRulePreview();
+    });
+    this.disposables.addEventListener(caseCheckbox, 'change', () => {
+      const draft = this.ensureChannelRecognitionRuleDraft();
+      draft[descriptor.id] = {
+        ...draft[descriptor.id],
+        caseInsensitive: caseCheckbox.checked
+      };
+      this.renderChannelRecognitionRuleRowValidation(descriptor.id);
+      this.renderChannelRecognitionRulePreview();
+    });
+    this.disposables.addEventListener(resetButton, 'click', () => {
+      const draft = this.ensureChannelRecognitionRuleDraft();
+      const defaults = createDefaultChannelRecognitionNameRules();
+      draft[descriptor.id] = { ...defaults[descriptor.id] };
+      this.renderChannelRecognitionRuleRows(true);
+      this.renderChannelRecognitionRulePreview();
+    });
+
+    return row;
+  }
+
+  private renderChannelRecognitionRuleRowValidation(id: ChannelRecognitionNameRuleId): void {
+    const row = this.channelRecognitionRuleRows.get(id);
+    if (!row) {
+      return;
+    }
+
+    const issues = validateChannelRecognitionNameRule(id, this.getChannelRecognitionRuleDraft()[id]);
+    const invalid = issues.length > 0;
+    row.patternInput.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+    row.error.textContent = invalid ? issues.map((issue) => issue.message).join(' ') : '';
+  }
+
+  private setChannelRecognitionRuleEditorOpen(open: boolean): void {
+    this.elements.channelRecognitionNameRuleEditor.classList.toggle('hidden', !open);
+    this.elements.channelRecognitionEditNameRulesButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+    this.setChannelRecognitionRuleEditorControlsEnabled(open);
+    if (open) {
+      this.channelRecognitionNameRuleDraft = cloneChannelRecognitionNameRules(this.channelRecognitionNameRules);
+      if (!this.hasActiveChannelImage && this.elements.channelRecognitionPreviewSampleTextarea.value.trim() === '') {
+        this.elements.channelRecognitionPreviewSampleTextarea.value = DEFAULT_CHANNEL_RECOGNITION_PREVIEW_SAMPLE;
+      }
+      this.renderChannelRecognitionRuleRows(true);
+      this.renderChannelRecognitionRulePreview();
+      return;
+    }
+
+    this.channelRecognitionNameRuleDraft = null;
+    this.clearChannelRecognitionRuleSummary();
+  }
+
+  private setChannelRecognitionRuleEditorControlsEnabled(enabled: boolean): void {
+    this.elements.channelRecognitionNameRuleEditor
+      .querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLTextAreaElement>('button, input, textarea')
+      .forEach((element) => {
+        element.disabled = !enabled;
+      });
+  }
+
+  private isChannelRecognitionRuleEditorOpen(): boolean {
+    return !this.elements.channelRecognitionNameRuleEditor.classList.contains('hidden');
+  }
+
+  private applyChannelRecognitionRuleDraft(): void {
+    const draft = cloneChannelRecognitionNameRules(this.getChannelRecognitionRuleDraft());
+    const validation = validateChannelRecognitionNameRules(draft);
+    this.renderChannelRecognitionRuleRows();
+    if (!validation.valid) {
+      this.renderChannelRecognitionRuleSummary(validation.issues.map((issue) => issue.message));
+      const firstInvalid = validation.issues[0]?.id;
+      if (firstInvalid) {
+        this.channelRecognitionRuleRows.get(firstInvalid)?.patternInput.focus();
+      }
+      return;
+    }
+
+    this.clearChannelRecognitionRuleSummary();
+    this.channelRecognitionNameRuleDraft = cloneChannelRecognitionNameRules(draft);
+    this.channelRecognitionNameRules = cloneChannelRecognitionNameRules(draft);
+    this.renderChannelRecognitionCustomizationSummary();
+    this.renderChannelRecognitionRulePreview();
+    this.renderChannelViewControls();
+    this.callbacks.onChannelRecognitionNameRulesChange(this.channelRecognitionNameRules);
+  }
+
+  private cancelChannelRecognitionRuleDraft(): void {
+    this.channelRecognitionNameRuleDraft = cloneChannelRecognitionNameRules(this.channelRecognitionNameRules);
+    this.clearChannelRecognitionRuleSummary();
+    this.renderChannelRecognitionRuleRows(true);
+    this.renderChannelRecognitionRulePreview();
+  }
+
+  private resetChannelRecognitionRuleDraft(): void {
+    this.channelRecognitionNameRuleDraft = createDefaultChannelRecognitionNameRules();
+    this.clearChannelRecognitionRuleSummary();
+    this.renderChannelRecognitionRuleRows(true);
+    this.renderChannelRecognitionRulePreview();
+  }
+
+  private renderChannelRecognitionRulePreview(): void {
+    if (!this.isChannelRecognitionRuleEditorOpen()) {
+      return;
+    }
+
+    const rules = this.getChannelRecognitionRuleDraft();
+    const validation = validateChannelRecognitionNameRules(rules);
+    for (const descriptor of CHANNEL_RECOGNITION_NAME_RULE_DESCRIPTORS) {
+      this.renderChannelRecognitionRuleRowValidation(descriptor.id);
+    }
+
+    if (!validation.valid) {
+      this.renderChannelRecognitionRuleSummary(validation.issues.map((issue) => issue.message));
+      this.elements.channelRecognitionPreviewStatus.textContent = `${validation.issues.length} rule error${validation.issues.length === 1 ? '' : 's'}`;
+      this.elements.channelRecognitionPreviewWarnings.replaceChildren();
+      this.elements.channelRecognitionPreviewResults.textContent = 'Preview paused until the rule errors are fixed.';
+      return;
+    }
+
+    this.clearChannelRecognitionRuleSummary();
+    const channelNames = this.resolveChannelRecognitionPreviewChannelNames();
+    const usingSample = !this.hasActiveChannelImage;
+    this.elements.channelRecognitionPreviewSampleField.classList.toggle('hidden', !usingSample);
+    this.elements.channelRecognitionPreviewSourceNote.textContent = usingSample
+      ? 'Using sample names because no image is active.'
+      : `Using ${channelNames.length} channel${channelNames.length === 1 ? '' : 's'} from the active layer.`;
+
+    if (channelNames.length === 0) {
+      this.elements.channelRecognitionPreviewStatus.textContent = 'No channels';
+      this.elements.channelRecognitionPreviewWarnings.replaceChildren();
+      this.elements.channelRecognitionPreviewResults.textContent = 'Enter channel names to preview recognition.';
+      return;
+    }
+
+    const result = recognizeLayerChannels(channelNames, {
+      channelRecognitionSettings: this.channelRecognitionSettings,
+      channelRecognitionNameRules: rules
+    });
+    const previewCandidates = result.candidates.filter((candidate) => candidate.ruleId !== 'fallback.singleChannel');
+    const warnings = buildChannelRecognitionPreviewWarnings(previewCandidates);
+    this.elements.channelRecognitionPreviewStatus.textContent =
+      `${previewCandidates.length} display${previewCandidates.length === 1 ? '' : 's'} recognized`;
+    this.renderChannelRecognitionPreviewWarnings(warnings);
+    this.renderChannelRecognitionPreviewResults(channelNames, previewCandidates);
+  }
+
+  private resolveChannelRecognitionPreviewChannelNames(): string[] {
+    if (this.hasActiveChannelImage) {
+      return [...this.rgbGroupChannelNames];
+    }
+
+    return this.elements.channelRecognitionPreviewSampleTextarea.value
+      .split(/\r?\n/)
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
+  }
+
+  private renderChannelRecognitionPreviewWarnings(warnings: string[]): void {
+    if (warnings.length === 0) {
+      this.elements.channelRecognitionPreviewWarnings.replaceChildren();
+      return;
+    }
+
+    const list = document.createElement('ul');
+    for (const warning of warnings) {
+      const item = document.createElement('li');
+      item.textContent = warning;
+      list.append(item);
+    }
+    this.elements.channelRecognitionPreviewWarnings.replaceChildren(list);
+  }
+
+  private renderChannelRecognitionPreviewResults(
+    channelNames: string[],
+    candidates: RecognizedChannelCandidate[]
+  ): void {
+    const usedChannels = new Set(candidates.flatMap((candidate) => candidate.channels));
+    const unmatched = channelNames.filter((channelName) => !usedChannels.has(channelName));
+    const fragment = document.createDocumentFragment();
+
+    if (candidates.length > 0) {
+      const list = document.createElement('div');
+      list.className = 'channel-recognition-preview-display-list';
+      for (const candidate of candidates.slice(0, CHANNEL_RECOGNITION_PREVIEW_DISPLAY_LIMIT)) {
+        const item = document.createElement('article');
+        item.className = 'channel-recognition-preview-display';
+        const title = document.createElement('div');
+        title.className = 'channel-recognition-preview-display-title';
+        title.textContent = candidate.label;
+        const meta = document.createElement('div');
+        meta.className = 'channel-recognition-preview-display-meta';
+        meta.textContent = `${formatChannelRecognitionRuleId(candidate.ruleId)} · ${formatChannelRecognitionPreviewChannelList(candidate.channels)}`;
+        item.append(title, meta);
+        list.append(item);
+      }
+      if (candidates.length > CHANNEL_RECOGNITION_PREVIEW_DISPLAY_LIMIT) {
+        const overflow = document.createElement('div');
+        overflow.className = 'channel-recognition-preview-overflow';
+        overflow.textContent = `${candidates.length - CHANNEL_RECOGNITION_PREVIEW_DISPLAY_LIMIT} more`;
+        list.append(overflow);
+      }
+      fragment.append(list);
+    }
+
+    const unmatchedBlock = document.createElement('div');
+    unmatchedBlock.className = 'channel-recognition-preview-unmatched';
+    unmatchedBlock.textContent = unmatched.length === 0
+      ? 'All channels participate in recognized displays.'
+      : `Unmatched: ${formatChannelRecognitionPreviewChannelList(unmatched)}`;
+    fragment.append(unmatchedBlock);
+    this.elements.channelRecognitionPreviewResults.replaceChildren(fragment);
+  }
+
+  private renderChannelRecognitionRuleSummary(messages: string[]): void {
+    const uniqueMessages = [...new Set(messages)];
+    this.elements.channelRecognitionRuleErrorSummary.classList.toggle('hidden', uniqueMessages.length === 0);
+    this.elements.channelRecognitionRuleErrorSummary.textContent = uniqueMessages.length === 0
+      ? ''
+      : uniqueMessages.join(' ');
+  }
+
+  private clearChannelRecognitionRuleSummary(): void {
+    this.renderChannelRecognitionRuleSummary([]);
+  }
+
+  private getChannelRecognitionRuleDraft(): ChannelRecognitionNameRules {
+    return this.channelRecognitionNameRuleDraft ?? this.channelRecognitionNameRules;
+  }
+
+  private ensureChannelRecognitionRuleDraft(): ChannelRecognitionNameRules {
+    if (!this.channelRecognitionNameRuleDraft) {
+      this.channelRecognitionNameRuleDraft = cloneChannelRecognitionNameRules(this.channelRecognitionNameRules);
+    }
+    return this.channelRecognitionNameRuleDraft;
+  }
+
   private getChannelRecognitionCheckbox(id: ChannelRecognitionSettingId): HTMLInputElement | null {
     return this.elements.channelRecognitionSettingsControl.querySelector<HTMLInputElement>(
       `input[data-channel-recognition-setting="${id}"]`
     );
   }
+}
+
+const CHANNEL_RECOGNITION_PREVIEW_DISPLAY_LIMIT = 8;
+const CHANNEL_RECOGNITION_PREVIEW_CHANNEL_LIMIT = 12;
+const DEFAULT_CHANNEL_RECOGNITION_PREVIEW_SAMPLE = [
+  'beauty.R',
+  'beauty.G',
+  'beauty.B',
+  'beauty.A',
+  'depth.Z',
+  'S0.450nm',
+  'S1.450nm',
+  'S2.450nm',
+  'S0.550nm',
+  'S1.550nm',
+  'S2.550nm',
+  'M00',
+  'M01',
+  'M10',
+  'M11'
+].join('\n');
+
+function sameChannelRecognitionNameRulesForId(
+  id: ChannelRecognitionNameRuleId,
+  rules: ChannelRecognitionNameRules,
+  defaults: ChannelRecognitionNameRules
+): boolean {
+  return rules[id].pattern === defaults[id].pattern &&
+    rules[id].caseInsensitive === defaults[id].caseInsensitive;
+}
+
+function getChannelRecognitionRulePatternInputId(id: ChannelRecognitionNameRuleId): string {
+  return `channel-recognition-rule-${id.replaceAll('.', '-')}-pattern`;
+}
+
+function getChannelRecognitionRuleCaseInputId(id: ChannelRecognitionNameRuleId): string {
+  return `channel-recognition-rule-${id.replaceAll('.', '-')}-case`;
+}
+
+function getChannelRecognitionRuleHintId(id: ChannelRecognitionNameRuleId): string {
+  return `channel-recognition-rule-${id.replaceAll('.', '-')}-hint`;
+}
+
+function getChannelRecognitionRuleErrorId(id: ChannelRecognitionNameRuleId): string {
+  return `channel-recognition-rule-${id.replaceAll('.', '-')}-error`;
+}
+
+function formatChannelRecognitionRuleId(ruleId: string): string {
+  const descriptor = CHANNEL_RECOGNITION_NAME_RULE_DESCRIPTORS.find((item) => item.id === ruleId);
+  return descriptor?.label ?? ruleId;
+}
+
+function formatChannelRecognitionPreviewChannelList(channelNames: readonly string[]): string {
+  const visible = channelNames.slice(0, CHANNEL_RECOGNITION_PREVIEW_CHANNEL_LIMIT);
+  const suffix = channelNames.length > visible.length
+    ? `, +${channelNames.length - visible.length} more`
+    : '';
+  return `${visible.join(', ')}${suffix}`;
+}
+
+function buildChannelRecognitionPreviewWarnings(candidates: RecognizedChannelCandidate[]): string[] {
+  const warnings: string[] = [];
+  const candidatesByChannel = new Map<string, RecognizedChannelCandidate[]>();
+  for (const candidate of candidates) {
+    for (const channelName of candidate.channels) {
+      const list = candidatesByChannel.get(channelName) ?? [];
+      list.push(candidate);
+      candidatesByChannel.set(channelName, list);
+    }
+  }
+
+  for (const [channelName, matches] of candidatesByChannel) {
+    const families = new Set(matches.map((candidate) => candidate.ruleId));
+    if (families.size <= 1) {
+      continue;
+    }
+
+    warnings.push(
+      `${channelName} matches ${[...families].map(formatChannelRecognitionRuleId).join(' and ')}.`
+    );
+  }
+
+  return warnings.slice(0, 6);
 }
 
 function toFiles(files: FileList | null | undefined): File[] {

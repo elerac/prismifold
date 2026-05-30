@@ -25,6 +25,7 @@ import {
   type StokesParameterVisibilitySettings
 } from '../stokes';
 import type { ChannelRecognitionSettings } from '../channel-recognition-settings';
+import type { ChannelRecognitionNameRules } from '../channel-recognition-name-rules';
 import type {
   DecodedExrImage,
   ImagePixel,
@@ -54,6 +55,7 @@ export interface BuildLoadedSessionArgs {
   stokesParameterVisibility?: StokesParameterVisibilitySettings;
   spectralRgbGroupingEnabled?: boolean;
   channelRecognitionSettings?: ChannelRecognitionSettings;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }
 
 export interface BuildSwitchedSessionStateOptions {
@@ -62,6 +64,7 @@ export interface BuildSwitchedSessionStateOptions {
   stokesParameterVisibility?: StokesParameterVisibilitySettings;
   spectralRgbGroupingEnabled?: boolean;
   channelRecognitionSettings?: ChannelRecognitionSettings;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }
 
 export function buildLoadedSession(args: BuildLoadedSessionArgs): OpenedImageSession {
@@ -77,7 +80,8 @@ export function buildLoadedSession(args: BuildLoadedSessionArgs): OpenedImageSes
     {
       stokesParameterVisibility: args.stokesParameterVisibility,
       spectralRgbGroupingEnabled: args.spectralRgbGroupingEnabled,
-      channelRecognitionSettings: args.channelRecognitionSettings
+      channelRecognitionSettings: args.channelRecognitionSettings,
+      channelRecognitionNameRules: args.channelRecognitionNameRules
     }
   );
   const defaultDisplaySize = resolveDisplayImageSize(
@@ -108,7 +112,8 @@ export function buildLoadedSession(args: BuildLoadedSessionArgs): OpenedImageSes
         autoFitInsets: args.autoFitImageOnSelect ? args.fitInsets ?? null : null,
         stokesParameterVisibility: args.stokesParameterVisibility,
         spectralRgbGroupingEnabled: args.spectralRgbGroupingEnabled,
-        channelRecognitionSettings: args.channelRecognitionSettings
+        channelRecognitionSettings: args.channelRecognitionSettings,
+        channelRecognitionNameRules: args.channelRecognitionNameRules
       })
     : defaultSessionState;
 
@@ -124,7 +129,8 @@ export function buildReloadedSession(
   baseState: ViewerSessionState,
   stokesParameterVisibility?: StokesParameterVisibilitySettings,
   spectralRgbGroupingEnabled?: boolean,
-  channelRecognitionSettings?: ChannelRecognitionSettings
+  channelRecognitionSettings?: ChannelRecognitionSettings,
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
 ): OpenedImageSession {
   return {
     ...session,
@@ -135,7 +141,8 @@ export function buildReloadedSession(
       decoded,
       stokesParameterVisibility,
       spectralRgbGroupingEnabled,
-      channelRecognitionSettings
+      channelRecognitionSettings,
+      channelRecognitionNameRules
     )
   };
 }
@@ -182,13 +189,14 @@ export function buildReloadedSessionState(
   decoded: DecodedExrImage,
   stokesParameterVisibility?: StokesParameterVisibilitySettings,
   spectralRgbGroupingEnabled?: boolean,
-  channelRecognitionSettings?: ChannelRecognitionSettings
+  channelRecognitionSettings?: ChannelRecognitionSettings,
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
 ): ViewerSessionState {
   const resolvedState = buildViewerStateForLayer(
     currentState,
     decoded,
     currentState.activeLayer,
-    { stokesParameterVisibility, spectralRgbGroupingEnabled, channelRecognitionSettings }
+    { stokesParameterVisibility, spectralRgbGroupingEnabled, channelRecognitionSettings, channelRecognitionNameRules }
   );
   const displaySize = resolveDisplayImageSize(decoded.width, decoded.height, resolvedState.displaySelection);
   const lockedPixel = currentState.lockedPixel
@@ -225,7 +233,7 @@ export function buildReloadedSessionState(
     },
     decoded,
     currentState.activeLayer,
-    { stokesParameterVisibility, spectralRgbGroupingEnabled, channelRecognitionSettings }
+    { stokesParameterVisibility, spectralRgbGroupingEnabled, channelRecognitionSettings, channelRecognitionNameRules }
   );
   if (currentState.viewerMode === 'depth') {
     const nextLayer = decoded.layers[nextState.activeLayer] ?? null;
@@ -260,7 +268,8 @@ export function buildSwitchedSessionState(
     {
       stokesParameterVisibility: options.stokesParameterVisibility,
       spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled,
-      channelRecognitionSettings: options.channelRecognitionSettings
+      channelRecognitionSettings: options.channelRecognitionSettings,
+      channelRecognitionNameRules: options.channelRecognitionNameRules
     }
   );
   const displaySize = resolveDisplayImageSize(
@@ -329,7 +338,8 @@ export function buildSwitchedSessionState(
     {
       stokesParameterVisibility: options.stokesParameterVisibility,
       spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled,
-      channelRecognitionSettings: options.channelRecognitionSettings
+      channelRecognitionSettings: options.channelRecognitionSettings,
+      channelRecognitionNameRules: options.channelRecognitionNameRules
     }
   );
   if (currentState.viewerMode === 'depth') {
@@ -411,7 +421,7 @@ export function buildResetSessionState(
   defaultColormapId: string,
   viewport: ViewportInfo,
   fitInsets?: ViewportInsets,
-  options: Pick<BuildSwitchedSessionStateOptions, 'stokesParameterVisibility' | 'spectralRgbGroupingEnabled' | 'channelRecognitionSettings'> = {}
+  options: Pick<BuildSwitchedSessionStateOptions, 'stokesParameterVisibility' | 'spectralRgbGroupingEnabled' | 'channelRecognitionSettings' | 'channelRecognitionNameRules'> = {}
 ): ViewerSessionState {
   const resetBaseState = buildResetSessionBaseState(
     activeSession,
@@ -441,7 +451,7 @@ export function buildResetSessionBaseState(
   activeSession: OpenedImageSession | null,
   currentState: ViewerSessionState,
   defaultColormapId: string,
-  options: Pick<BuildSwitchedSessionStateOptions, 'stokesParameterVisibility' | 'spectralRgbGroupingEnabled' | 'channelRecognitionSettings'> = {}
+  options: Pick<BuildSwitchedSessionStateOptions, 'stokesParameterVisibility' | 'spectralRgbGroupingEnabled' | 'channelRecognitionSettings' | 'channelRecognitionNameRules'> = {}
 ): ViewerSessionState {
   if (!activeSession) {
     return createClearedViewerState(defaultColormapId);
@@ -457,7 +467,8 @@ export function buildResetSessionBaseState(
     {
       stokesParameterVisibility: options.stokesParameterVisibility,
       spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled,
-      channelRecognitionSettings: options.channelRecognitionSettings
+      channelRecognitionSettings: options.channelRecognitionSettings,
+      channelRecognitionNameRules: options.channelRecognitionNameRules
     }
   );
   return resetBaseState;

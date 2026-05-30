@@ -59,6 +59,12 @@ import {
   type ChannelRecognitionSettings
 } from '../channel-recognition-settings';
 import {
+  createDefaultChannelRecognitionNameRules,
+  readStoredChannelRecognitionNameRules,
+  saveStoredChannelRecognitionNameRules,
+  type ChannelRecognitionNameRules
+} from '../channel-recognition-name-rules';
+import {
   DEFAULT_INVALID_VALUE_WARNING_ENABLED,
   readStoredInvalidValueWarningSetting,
   saveStoredInvalidValueWarningSetting
@@ -118,6 +124,10 @@ export class DisplayController implements Disposable {
         settings: readStoredChannelRecognitionSettings({
           legacySpectralRgbGroupingEnabled: readStoredSpectralRgbGroupingSetting()
         })
+      });
+      this.core.dispatch({
+        type: 'channelRecognitionNameRulesSet',
+        rules: readStoredChannelRecognitionNameRules()
       });
       this.core.dispatch({
         type: 'invalidValueWarningSet',
@@ -594,6 +604,30 @@ export class DisplayController implements Disposable {
     saveStoredSpectralRgbGroupingSetting(DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED);
     this.core.dispatch({
       type: 'channelRecognitionSettingsReset'
+    });
+  }
+
+  setChannelRecognitionNameRules(rules: ChannelRecognitionNameRules): void {
+    if (this.disposed) {
+      return;
+    }
+
+    saveStoredChannelRecognitionNameRules(rules);
+    this.core.dispatch({
+      type: 'channelRecognitionNameRulesSet',
+      rules
+    });
+  }
+
+  resetChannelRecognitionNameRules(): void {
+    if (this.disposed) {
+      return;
+    }
+
+    const defaults = createDefaultChannelRecognitionNameRules();
+    saveStoredChannelRecognitionNameRules(defaults);
+    this.core.dispatch({
+      type: 'channelRecognitionNameRulesReset'
     });
   }
 

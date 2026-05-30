@@ -3,6 +3,7 @@ import type { AsyncResource, ViewerError } from '../async-resource';
 import type { AutoExposureResult } from '../analysis/auto-exposure';
 import type { ColormapLut, ColormapRegistry } from '../colormaps';
 import type { ChannelRecognitionSettingId, ChannelRecognitionSettings } from '../channel-recognition-settings';
+import type { ChannelRecognitionNameRules } from '../channel-recognition-name-rules';
 import type { ProbeColorPreview } from '../probe';
 import type { SpectralChannel, SpectralPlotPoint } from '../spectral';
 import type {
@@ -137,6 +138,7 @@ export interface ViewerResourceTarget {
   maskInvalidStokesVectors: boolean;
   spectralRgbGroupingEnabled: boolean;
   channelRecognitionSettings: ChannelRecognitionSettings;
+  channelRecognitionNameRules: ChannelRecognitionNameRules;
   decodedRef: OpenedImageSession['decoded'];
 }
 
@@ -188,6 +190,7 @@ export interface ViewerAppState {
   stokesColormapDefaults: StokesColormapDefaultSettings;
   stokesParameterVisibility: StokesParameterVisibilitySettings;
   channelRecognitionSettings: ChannelRecognitionSettings;
+  channelRecognitionNameRules: ChannelRecognitionNameRules;
   maskInvalidStokesVectors: boolean;
   spectralRgbGroupingEnabled: boolean;
   invalidValueWarningEnabled: boolean;
@@ -246,6 +249,8 @@ export type ViewerIntent =
   | { type: 'channelRecognitionSettingsSet'; settings: ChannelRecognitionSettings }
   | { type: 'channelRecognitionSettingsGroupSet'; id: ChannelRecognitionSettingId; enabled: boolean }
   | { type: 'channelRecognitionSettingsReset' }
+  | { type: 'channelRecognitionNameRulesSet'; rules: ChannelRecognitionNameRules }
+  | { type: 'channelRecognitionNameRulesReset' }
   | { type: 'maskInvalidStokesVectorsSet'; enabled: boolean }
   | { type: 'spectralRgbGroupingSet'; enabled: boolean }
   | { type: 'invalidValueWarningSet'; enabled: boolean }
@@ -370,6 +375,7 @@ export interface ViewerUiSnapshot {
   stokesColormapDefaults: StokesColormapDefaultSettings;
   stokesParameterVisibility: StokesParameterVisibilitySettings;
   channelRecognitionSettings: ChannelRecognitionSettings;
+  channelRecognitionNameRules: ChannelRecognitionNameRules;
   maskInvalidStokesVectors: boolean;
   spectralRgbGroupingEnabled: boolean;
   invalidValueWarningEnabled: boolean;

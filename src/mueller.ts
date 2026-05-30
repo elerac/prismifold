@@ -6,6 +6,13 @@ import {
 } from './channel-storage';
 import type { MuellerMatrixSelection } from './display-model';
 import type { DecodedLayer, DisplayChannelMapping, ImagePixel } from './types';
+import {
+  compileChannelRecognitionNameRules,
+  parseMuellerMatrixChannelNameWithRules,
+  parseRgbMuellerMatrixChannelNameWithRules,
+  type ChannelRecognitionNameRules,
+  type CompiledChannelRecognitionNameRules
+} from './channel-recognition-name-rules';
 
 export type MuellerMatrixRgbComponent = 'R' | 'G' | 'B';
 
@@ -44,6 +51,13 @@ export interface MuellerMatrixDisplayOption {
   channelCount: number;
 }
 
+export interface MuellerMatrixRecognitionConfig {
+  includeRgbGroups?: boolean;
+  includeSplitChannels?: boolean;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
+  compiledChannelRecognitionNameRules?: CompiledChannelRecognitionNameRules;
+}
+
 interface MuellerMatrixChannelGroup {
   suffix: string | null;
   elements: Partial<Record<MuellerMatrixElement, string>>;
@@ -73,22 +87,31 @@ export function buildRgbMuellerMatrixSelection(): MuellerMatrixSelection {
 
 export function detectMuellerMatrixChannels(
   channelNames: string[],
-  suffix: string | null = null
+  suffix: string | null = null,
+  config: MuellerMatrixRecognitionConfig = {}
 ): MuellerMatrixChannels | null {
   const normalizedSuffix = suffix || null;
   if (isRgbMuellerMatrixSuffix(normalizedSuffix)) {
-    return buildMuellerMatrixChannelsForSuffix(channelNames, normalizedSuffix);
+    return buildMuellerMatrixChannelsForSuffix(channelNames, normalizedSuffix, config);
   }
 
-  return detectMuellerMatrixChannelSets(channelNames)
+  return detectMuellerMatrixChannelSets(channelNames, config)
     .find((channels) => (channels.suffix ?? null) === normalizedSuffix) ?? null;
 }
 
-export function detectMuellerMatrixChannelSets(channelNames: string[]): MuellerMatrixChannels[] {
+export function detectMuellerMatrixChannelSets(
+  channelNames: string[],
+  config: MuellerMatrixRecognitionConfig = {}
+): MuellerMatrixChannels[] {
+  const compiled = resolveCompiledNameRules(config);
   const groups = new Map<string, MuellerMatrixChannelGroup>();
 
   channelNames.forEach((channelName, index) => {
-    const parsed = parseMuellerMatrixChannelName(channelName);
+    if (parseRgbMuellerMatrixChannelNameWithRules(channelName, compiled)) {
+      return;
+    }
+
+    const parsed = parseMuellerMatrixChannelName(channelName, { compiledChannelRecognitionNameRules: compiled });
     if (!parsed || isRgbMuellerMatrixSuffix(parsed.suffix)) {
       return;
     }
@@ -118,19 +141,22 @@ export function detectMuellerMatrixChannelSets(channelNames: string[]): MuellerM
   return bare ? [bare, ...suffixed] : suffixed;
 }
 
-export function detectRgbMuellerMatrixChannels(channelNames: string[]): RgbMuellerMatrixChannels | null {
-  const r = buildMuellerMatrixChannelsForSuffix(channelNames, 'R');
-  const g = buildMuellerMatrixChannelsForSuffix(channelNames, 'G');
-  const b = buildMuellerMatrixChannelsForSuffix(channelNames, 'B');
+export function detectRgbMuellerMatrixChannels(
+  channelNames: string[],
+  config: MuellerMatrixRecognitionConfig = {}
+): RgbMuellerMatrixChannels | null {
+  const r = buildMuellerMatrixChannelsForSuffix(channelNames, 'R', config);
+  const g = buildMuellerMatrixChannelsForSuffix(channelNames, 'G', config);
+  const b = buildMuellerMatrixChannelsForSuffix(channelNames, 'B', config);
   return r && g && b ? { r, g, b } : null;
 }
 
 export function getMuellerMatrixDisplayOptions(
   channelNames: string[],
-  config: { includeRgbGroups?: boolean; includeSplitChannels?: boolean } = {}
+  config: MuellerMatrixRecognitionConfig = {}
 ): MuellerMatrixDisplayOption[] {
-  const options = detectMuellerMatrixChannelSets(channelNames).map(buildMuellerMatrixDisplayOption);
-  const rgbChannels = detectRgbMuellerMatrixChannels(channelNames);
+  const options = detectMuellerMatrixChannelSets(channelNames, config).map(buildMuellerMatrixDisplayOption);
+  const rgbChannels = detectRgbMuellerMatrixChannels(channelNames, config);
   if (!rgbChannels) {
     return options;
   }
@@ -152,17 +178,18 @@ export function getMuellerMatrixDisplayOptions(
 
 export function isMuellerMatrixDisplayAvailable(
   channelNames: string[],
-  selection: MuellerMatrixSelection | null
+  selection: MuellerMatrixSelection | null,
+  config: MuellerMatrixRecognitionConfig = {}
 ): boolean {
   if (!selection) {
     return false;
   }
 
   if (selection.rgb) {
-    return Boolean(detectRgbMuellerMatrixChannels(channelNames));
+    return Boolean(detectRgbMuellerMatrixChannels(channelNames, config));
   }
 
-  return Boolean(detectMuellerMatrixChannels(channelNames, selection.suffix ?? null));
+  return Boolean(detectMuellerMatrixChannels(channelNames, selection.suffix ?? null, config));
 }
 
 export function buildMuellerMatrixSourceName(suffix: string | null = null): string {
@@ -364,34 +391,53 @@ function buildRgbMuellerMatrixDisplayOption(channels: RgbMuellerMatrixChannels):
 }
 
 function parseMuellerMatrixChannelName(
-  channelName: string
+  channelName: string,
+  config: MuellerMatrixRecognitionConfig = {}
 ): { element: MuellerMatrixElement; suffix: string | null } | null {
-  const match = /^(M[0-3][0-3])(?:\.(.+))?$/.exec(channelName);
-  if (!match) {
+  const parsed = parseMuellerMatrixChannelNameWithRules(channelName, resolveCompiledNameRules(config));
+  if (!parsed) {
     return null;
   }
 
   return {
-    element: match[1] as MuellerMatrixElement,
-    suffix: match[2] ?? null
+    element: parsed.element as MuellerMatrixElement,
+    suffix: parsed.suffix
   };
 }
 
 function buildMuellerMatrixChannelsForSuffix(
   channelNames: string[],
-  suffix: MuellerMatrixRgbComponent
+  suffix: MuellerMatrixRgbComponent,
+  config: MuellerMatrixRecognitionConfig = {}
 ): MuellerMatrixChannels | null {
-  const channelNameSet = new Set(channelNames);
+  const compiled = resolveCompiledNameRules(config);
   const elements = {} as Record<MuellerMatrixElement, string>;
+  const parsedChannels = new Map<MuellerMatrixElement, Partial<Record<MuellerMatrixRgbComponent, string>>>();
+  for (const channelName of channelNames) {
+    const parsed = parseRgbMuellerMatrixChannelNameWithRules(channelName, compiled);
+    if (!parsed) {
+      continue;
+    }
+
+    const element = parsed.element as MuellerMatrixElement;
+    const entry = parsedChannels.get(element) ?? {};
+    entry[parsed.rgb] ??= channelName;
+    parsedChannels.set(element, entry);
+  }
+
   for (const element of MUELLER_MATRIX_ELEMENTS) {
-    const channelName = `${element}.${suffix}`;
-    if (!channelNameSet.has(channelName)) {
+    const channelName = parsedChannels.get(element)?.[suffix] ?? null;
+    if (!channelName) {
       return null;
     }
     elements[element] = channelName;
   }
 
   return { suffix, elements };
+}
+
+function resolveCompiledNameRules(config: MuellerMatrixRecognitionConfig): CompiledChannelRecognitionNameRules {
+  return config.compiledChannelRecognitionNameRules ?? compileChannelRecognitionNameRules(config.channelRecognitionNameRules);
 }
 
 function buildMuellerMatrixChannelsFromGroup(

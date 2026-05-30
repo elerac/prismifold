@@ -9,6 +9,7 @@ import {
 } from './channel-recognition';
 import type { StokesParameterVisibilitySettings } from './stokes';
 import type { ChannelRecognitionSettings } from './channel-recognition-settings';
+import type { ChannelRecognitionNameRules } from './channel-recognition-name-rules';
 import type { DisplayChannelMapping } from './types';
 
 export interface ChannelViewItem {
@@ -51,6 +52,7 @@ export interface ChannelViewItemsConfig {
   stokesParameterVisibility?: StokesParameterVisibilitySettings;
   spectralRgbGroupingEnabled?: boolean;
   channelRecognitionSettings?: ChannelRecognitionSettings;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }
 
 export function buildChannelViewItems(
@@ -247,7 +249,8 @@ function buildDisplayItems(
   const recognition = recognizeLayerChannels(channelNames, {
     stokesParameterVisibility: config.stokesParameterVisibility,
     spectralRgbGroupingEnabled: config.spectralRgbGroupingEnabled,
-    channelRecognitionSettings: config.channelRecognitionSettings
+    channelRecognitionSettings: config.channelRecognitionSettings,
+    channelRecognitionNameRules: config.channelRecognitionNameRules
   });
 
   return recognition.candidates

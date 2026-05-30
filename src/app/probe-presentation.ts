@@ -10,6 +10,7 @@ import {
   resolveProbeMode
 } from '../probe';
 import type { ColormapLut } from '../colormaps';
+import type { ChannelRecognitionNameRules } from '../channel-recognition-name-rules';
 import type { ProbeReadoutModel } from './viewer-app-types';
 import type {
   DecodedLayer,
@@ -28,6 +29,7 @@ export interface BuildProbePresentationArgs {
   activeDisplayLuminanceRange: DisplayLuminanceRange | null;
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }
 
 export function buildProbeReadoutModel(args: BuildProbePresentationArgs): ProbeReadoutModel {
@@ -97,7 +99,8 @@ export function buildProbeReadoutModel(args: BuildProbePresentationArgs): ProbeR
     args.sessionState.visualizationMode,
     {
       maskInvalidStokesVectors: args.maskInvalidStokesVectors,
-      spectralRgbGroupingEnabled: args.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: args.spectralRgbGroupingEnabled,
+      channelRecognitionNameRules: args.channelRecognitionNameRules
     }
   );
 

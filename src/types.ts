@@ -4,6 +4,7 @@ import type {
   StokesDegreeModulationState
 } from './display-model';
 import type { ChannelStorage, FiniteValueRange } from './channel-storage';
+import type { ChannelRecognitionNameRules } from './channel-recognition-name-rules';
 
 export type VisualizationMode = 'rgb' | 'colormap';
 export type ColormapRangeMode = 'alwaysAuto' | 'oneTime';
@@ -190,6 +191,7 @@ export interface ViewerInteractionState {
 export interface ViewerRenderState extends ViewerSessionState {
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
   invalidValueWarningEnabled?: boolean;
   invalidValueWarningPhase?: number;
   hoveredPixel: ImagePixel | null;

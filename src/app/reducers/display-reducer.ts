@@ -143,7 +143,8 @@ export function displayReducer(
         {
           stokesParameterVisibility: state.stokesParameterVisibility,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-          channelRecognitionSettings: state.channelRecognitionSettings
+          channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules
         }
       );
       const nextLayer = activeSession.decoded.layers[nextSessionState.activeLayer] ?? null;

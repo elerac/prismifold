@@ -6,6 +6,7 @@ import type {
   ViewerSessionState,
   ViewerViewState
 } from './types';
+import type { ChannelRecognitionNameRules } from './channel-recognition-name-rules';
 import {
   clampDepthPitch,
   clampDepthYaw,
@@ -19,6 +20,7 @@ import { DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED } from './spectral-default-settin
 export interface MergeRenderStateOptions {
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
   invalidValueWarningEnabled?: boolean;
   invalidValueWarningPhase?: number;
 }
@@ -56,6 +58,9 @@ export function mergeRenderState(
     ...pickViewState(interactionState.view),
     maskInvalidStokesVectors: options.maskInvalidStokesVectors ?? DEFAULT_MASK_INVALID_STOKES_VECTORS,
     spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled ?? DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED,
+    ...(options.channelRecognitionNameRules === undefined
+      ? {}
+      : { channelRecognitionNameRules: options.channelRecognitionNameRules }),
     invalidValueWarningEnabled: options.invalidValueWarningEnabled ?? DEFAULT_INVALID_VALUE_WARNING_ENABLED,
     ...(options.invalidValueWarningPhase === undefined ? {} : { invalidValueWarningPhase: options.invalidValueWarningPhase }),
     hoveredPixel: interactionState.hoveredPixel,

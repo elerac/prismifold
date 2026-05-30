@@ -28,6 +28,7 @@ import {
 } from './display/evaluator';
 import { resolveDisplaySelectionForLayer } from './display-selection';
 import type { ChannelRecognitionSettings } from './channel-recognition-settings';
+import type { ChannelRecognitionNameRules } from './channel-recognition-name-rules';
 import { isStokesDegreeModulationEnabled, resolveStokesDegreeModulationMode } from './stokes';
 import {
   DecodedExrImage,
@@ -53,6 +54,7 @@ export interface OpenedImageThumbnailOptions {
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
   channelRecognitionSettings?: ChannelRecognitionSettings;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }
 
 export interface ThumbnailPreviewOptions {
@@ -163,10 +165,15 @@ export function buildDisplaySelectionThumbnailPixels(
   preview: ThumbnailPreviewOptions | null = null,
   options: OpenedImageThumbnailOptions = {}
 ): OpenedImageThumbnailPixels {
-  const effectiveSelection = selection && (options.channelRecognitionSettings || options.spectralRgbGroupingEnabled !== undefined)
+  const effectiveSelection = selection && (
+    options.channelRecognitionSettings ||
+    options.channelRecognitionNameRules ||
+    options.spectralRgbGroupingEnabled !== undefined
+  )
     ? resolveDisplaySelectionForLayer(layer.channelNames, selection, {
         spectralRgbGroupingEnabled: options.spectralRgbGroupingEnabled,
-        channelRecognitionSettings: options.channelRecognitionSettings
+        channelRecognitionSettings: options.channelRecognitionSettings,
+        channelRecognitionNameRules: options.channelRecognitionNameRules
       })
     : cloneDisplaySelection(selection);
   const displaySize = resolveDisplayImageSize(width, height, effectiveSelection);
@@ -186,7 +193,8 @@ export function buildDisplaySelectionThumbnailPixels(
   const colormapPreview = useColormapPreview ? preview : null;
   const stokesOptions: DisplayEvaluationOptions = {
     maskInvalidStokesVectors: preview?.maskInvalidStokesVectors ?? options.maskInvalidStokesVectors,
-    spectralRgbGroupingEnabled: preview?.spectralRgbGroupingEnabled ?? options.spectralRgbGroupingEnabled
+    spectralRgbGroupingEnabled: preview?.spectralRgbGroupingEnabled ?? options.spectralRgbGroupingEnabled,
+    channelRecognitionNameRules: options.channelRecognitionNameRules
   };
   const evaluator = resolveDisplaySelectionEvaluator(
     layer,

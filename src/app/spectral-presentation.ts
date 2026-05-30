@@ -19,6 +19,7 @@ import {
   resolveActiveProbePixel,
   resolveProbeMode
 } from '../probe';
+import type { ChannelRecognitionNameRules } from '../channel-recognition-name-rules';
 import type { SpectralPlotReadoutModel } from './viewer-app-types';
 import type {
   DecodedLayer,
@@ -35,6 +36,7 @@ export interface BuildSpectralPresentationArgs {
   stokesColormapDefaults?: StokesColormapDefaultSettings;
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }
 
 export function buildSpectralPlotReadoutModel(args: BuildSpectralPresentationArgs): SpectralPlotReadoutModel {
@@ -114,7 +116,9 @@ function resolveSpectralPlotSource(args: BuildSpectralPresentationArgs): Spectra
     selection.source.kind === 'spectralRgb' &&
     args.spectralRgbGroupingEnabled !== false
   ) {
-    const groups = detectSpectralStokesChannelGroups(args.activeLayer!.channelNames);
+    const groups = detectSpectralStokesChannelGroups(args.activeLayer!.channelNames, {
+      channelRecognitionNameRules: args.channelRecognitionNameRules
+    });
     if (groups.length >= 2) {
       const stokesDefaults = args.stokesColormapDefaults ?? createDefaultStokesColormapDefaultSettings();
       return {
@@ -134,7 +138,9 @@ function resolveSpectralPlotSource(args: BuildSpectralPresentationArgs): Spectra
     ? parseSpectralStokesSuffixWavelength(selection.source.suffix)
     : null;
   if (isStokesSelection(selection) && selectedStokesWavelength !== null) {
-    const groups = detectSpectralStokesChannelGroups(args.activeLayer!.channelNames);
+    const groups = detectSpectralStokesChannelGroups(args.activeLayer!.channelNames, {
+      channelRecognitionNameRules: args.channelRecognitionNameRules
+    });
     if (groups.length >= 2 && groups.some((group) => group.wavelength === selectedStokesWavelength)) {
       const stokesDefaults = args.stokesColormapDefaults ?? createDefaultStokesColormapDefaultSettings();
       return {
@@ -154,8 +160,12 @@ function resolveSpectralPlotSource(args: BuildSpectralPresentationArgs): Spectra
     ? selection.channel
     : null;
   const spectralChannels = isSpectralRgbSelection(selection) && args.spectralRgbGroupingEnabled !== false
-    ? detectSpectralChannelsForSeries(args.activeLayer!.channelNames, selection.seriesKey)
-    : detectSpectralChannels(args.activeLayer!.channelNames, preferredSpectralChannelName);
+    ? detectSpectralChannelsForSeries(args.activeLayer!.channelNames, selection.seriesKey, {
+        channelRecognitionNameRules: args.channelRecognitionNameRules
+      })
+    : detectSpectralChannels(args.activeLayer!.channelNames, preferredSpectralChannelName, {
+        channelRecognitionNameRules: args.channelRecognitionNameRules
+      });
   return spectralChannels.length > 0
     ? {
         channels: spectralChannels,

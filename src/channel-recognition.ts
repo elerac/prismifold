@@ -1,11 +1,9 @@
 import {
   buildRgbGroupLabel,
   getDisplaySelectionOptionLabel,
-  isAlphaChannel,
   isMuellerMatrixSelection,
   isSpectralRgbSelection,
   isStokesSelection,
-  parseRgbChannelName,
   serializeDisplaySelectionKey,
   type ChannelMonoSelection,
   type ChannelRgbSelection,
@@ -47,6 +45,13 @@ import {
   type ChannelRecognitionSettingId,
   type ChannelRecognitionSettings
 } from './channel-recognition-settings';
+import {
+  compileChannelRecognitionNameRules,
+  parseAlphaChannelNameWithRules,
+  parseComponentChannelNameWithRules,
+  type ChannelRecognitionNameRules,
+  type CompiledChannelRecognitionNameRules
+} from './channel-recognition-name-rules';
 import type { DisplayChannelMapping } from './types';
 
 export type ComponentChannelGroupKind = 'rgb' | 'xyz' | 'uv';
@@ -76,6 +81,7 @@ export interface ChannelRecognitionConfig {
   spectralRgbGroupingEnabled?: boolean;
   includeAlphaCompanions?: boolean;
   channelRecognitionSettings?: ChannelRecognitionSettings;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }
 
 export interface ChannelRecognitionAvailability {
@@ -187,6 +193,11 @@ interface ComponentRule {
   priority: number;
 }
 
+interface ResolvedChannelRecognitionConfig {
+  settings: ChannelRecognitionSettings;
+  nameRules: CompiledChannelRecognitionNameRules;
+}
+
 const COMPONENT_SOURCE_ORDER_BASE = 0;
 const SINGLE_SOURCE_ORDER_BASE = 5_000;
 const SPECTRAL_SOURCE_ORDER_BASE = 10_000;
@@ -235,21 +246,24 @@ export function recognizeLayerChannels(
   config: ChannelRecognitionConfig = {}
 ): ChannelRecognitionResult {
   const names = [...channelNames];
-  const settings = resolveChannelRecognitionSettings(config);
+  const resolved = resolveChannelRecognitionConfig(config);
+  const { settings, nameRules } = resolved;
   const includeAlphaCompanions = settings['fallback.alphaCompanions'];
-  const componentGroups = extractEnabledComponentChannelGroups(names, settings);
-  const spectralRecognition = buildSpectralSeriesCandidates(names, settings);
+  const componentGroups = extractEnabledComponentChannelGroups(names, settings, nameRules);
+  const spectralRecognition = buildSpectralSeriesCandidates(names, settings, nameRules);
   const splitSingleCandidates = buildSplitSingleChannelCandidates(
     names,
     componentGroups,
     spectralRecognition.parentKeyByChannel,
-    includeAlphaCompanions
+    includeAlphaCompanions,
+    nameRules
   );
   const mergedSingleCandidates = buildMergedSingleChannelCandidates(
     names,
     componentGroups,
     spectralRecognition.parentKeyByChannel,
-    includeAlphaCompanions
+    includeAlphaCompanions,
+    nameRules
   );
 
   return {
@@ -259,14 +273,17 @@ export function recognizeLayerChannels(
       ...mergedSingleCandidates,
       ...splitSingleCandidates,
       ...spectralRecognition.candidates,
-      ...buildStokesCandidates(names, config, settings),
-      ...buildMuellerCandidates(names, settings)
+      ...buildStokesCandidates(names, config, resolved),
+      ...buildMuellerCandidates(names, resolved)
     ]
   };
 }
 
-export function extractRgbChannelGroups(channelNames: string[]): RgbChannelGroup[] {
-  return extractComponentChannelGroups(channelNames)
+export function extractRgbChannelGroups(
+  channelNames: string[],
+  config: Pick<ChannelRecognitionConfig, 'channelRecognitionNameRules'> = {}
+): RgbChannelGroup[] {
+  return extractComponentChannelGroups(channelNames, config)
     .filter((group) => group.kind === 'rgb')
     .map((group) => ({
       key: group.key,
@@ -278,17 +295,22 @@ export function extractRgbChannelGroups(channelNames: string[]): RgbChannelGroup
     }));
 }
 
-export function extractComponentChannelGroups(channelNames: string[]): ComponentChannelGroup[] {
-  return COMPONENT_RULES.flatMap((rule) => extractComponentChannelGroupsForRule(channelNames, rule));
+export function extractComponentChannelGroups(
+  channelNames: string[],
+  config: Pick<ChannelRecognitionConfig, 'channelRecognitionNameRules'> = {}
+): ComponentChannelGroup[] {
+  const nameRules = compileChannelRecognitionNameRules(config.channelRecognitionNameRules);
+  return COMPONENT_RULES.flatMap((rule) => extractComponentChannelGroupsForRule(channelNames, rule, nameRules));
 }
 
 function extractEnabledComponentChannelGroups(
   channelNames: string[],
-  settings: ChannelRecognitionSettings
+  settings: ChannelRecognitionSettings,
+  nameRules: CompiledChannelRecognitionNameRules
 ): ComponentChannelGroup[] {
   return COMPONENT_RULES
     .filter((rule) => isRecognitionSettingEnabled(settings, rule.id))
-    .flatMap((rule) => extractComponentChannelGroupsForRule(channelNames, rule));
+    .flatMap((rule) => extractComponentChannelGroupsForRule(channelNames, rule, nameRules));
 }
 
 export function findSelectedComponentChannelGroup(
@@ -310,34 +332,52 @@ export function buildChannelRgbSelection(group: Pick<ComponentChannelGroup, 'r' 
   };
 }
 
-export function buildChannelMonoSelection(channelNames: readonly string[], channelName: string): ChannelMonoSelection {
+export function buildChannelMonoSelection(
+  channelNames: readonly string[],
+  channelName: string,
+  config: Pick<ChannelRecognitionConfig, 'channelRecognitionNameRules'> = {}
+): ChannelMonoSelection {
   return {
     kind: 'channelMono',
     channel: channelName,
-    alpha: resolveAlphaChannelForChannel(channelNames, channelName)
+    alpha: resolveAlphaChannelForChannel(channelNames, channelName, config)
   };
 }
 
-export function resolveAlphaChannelForChannel(channelNames: readonly string[], channelName: string): string | null {
+export function resolveAlphaChannelForChannel(
+  channelNames: readonly string[],
+  channelName: string,
+  config: Pick<ChannelRecognitionConfig, 'channelRecognitionNameRules'> = {}
+): string | null {
+  const nameRules = compileChannelRecognitionNameRules(config.channelRecognitionNameRules);
+  return resolveAlphaChannelForChannelWithRules(channelNames, channelName, nameRules);
+}
+
+function resolveAlphaChannelForChannelWithRules(
+  channelNames: readonly string[],
+  channelName: string,
+  nameRules: CompiledChannelRecognitionNameRules
+): string | null {
   const channels = new Set(channelNames);
 
-  if (isAlphaChannel(channelName)) {
+  if (isAlphaChannelWithRules(channelName, nameRules)) {
     return null;
   }
 
-  const parsed = parseRgbChannelName(channelName);
+  const parsed = parseComponentChannelNameWithRules(channelName, 'rgb', nameRules);
   if (parsed?.base) {
-    const alphaChannel = `${parsed.base}.A`;
-    return channels.has(alphaChannel) ? alphaChannel : null;
+    const alphaChannel = findAlphaChannelForBase(channelNames, parsed.base, nameRules);
+    return alphaChannel && channels.has(alphaChannel) ? alphaChannel : null;
   }
 
   if (channelName.includes('.')) {
     const dotIndex = channelName.lastIndexOf('.');
-    const alphaChannel = `${channelName.slice(0, dotIndex)}.A`;
-    return channels.has(alphaChannel) ? alphaChannel : null;
+    const alphaChannel = findAlphaChannelForBase(channelNames, channelName.slice(0, dotIndex), nameRules);
+    return alphaChannel && channels.has(alphaChannel) ? alphaChannel : null;
   }
 
-  return channels.has('A') ? 'A' : null;
+  const alphaChannel = findAlphaChannelForBase(channelNames, '', nameRules);
+  return alphaChannel && channels.has(alphaChannel) ? alphaChannel : null;
 }
 
 export function pickDefaultRecognizedCandidate(
@@ -366,22 +406,21 @@ export function findRecognizedCandidateForSelection(
 
 function extractComponentChannelGroupsForRule(
   channelNames: string[],
-  rule: ComponentRule
+  rule: ComponentRule,
+  nameRules: CompiledChannelRecognitionNameRules
 ): ComponentChannelGroup[] {
   const grouped = new Map<string, Partial<Record<string, string>>>();
-  const recognizedSuffixes = [...rule.suffixes, 'A'];
 
   for (const channelName of channelNames) {
-    const parsed = rule.kind === 'rgb'
-      ? parseRgbChannelName(channelName)
-      : parseChannelNameSuffix(channelName, recognizedSuffixes);
+    const parsed = parseComponentChannelNameWithRules(channelName, rule.kind, nameRules);
     if (!parsed) {
       continue;
     }
 
     const group = grouped.get(parsed.base) ?? {};
-    if (!group[parsed.suffix]) {
-      group[parsed.suffix] = channelName;
+    const suffix = getComponentRuleSuffixForSlot(parsed.slot);
+    if (!group[suffix]) {
+      group[suffix] = channelName;
       grouped.set(parsed.base, group);
     }
   }
@@ -460,7 +499,8 @@ function buildMergedSingleChannelCandidates(
   channelNames: string[],
   componentGroups: readonly ComponentChannelGroup[],
   spectralParentKeyByChannel: ReadonlyMap<string, string>,
-  includeAlphaCompanions: boolean
+  includeAlphaCompanions: boolean,
+  nameRules: CompiledChannelRecognitionNameRules
 ): SingleChannelCandidate[] {
   const groupedComponentChannels = new Set<string>();
   const consumedAlphaChannels = new Set<string>();
@@ -480,19 +520,19 @@ function buildMergedSingleChannelCandidates(
 
   if (includeAlphaCompanions) {
     for (const channelName of channelNames) {
-      if (groupedComponentChannels.has(channelName) || isAlphaChannel(channelName)) {
+      if (groupedComponentChannels.has(channelName) || isAlphaChannelWithRules(channelName, nameRules)) {
         continue;
       }
 
-      const alphaChannel = resolveAlphaChannelForChannel(channelNames, channelName);
+      const alphaChannel = resolveAlphaChannelForChannelWithRules(channelNames, channelName, nameRules);
       if (alphaChannel) {
         consumedAlphaChannels.add(alphaChannel);
       }
     }
   }
 
-  const grayscaleChannel = pickGrayscaleDisplayChannel(channelNames);
-  const fallbackChannel = pickFallbackDisplayChannel(channelNames);
+  const grayscaleChannel = pickGrayscaleDisplayChannel(channelNames, nameRules);
+  const fallbackChannel = pickFallbackDisplayChannel(channelNames, nameRules);
   const candidates: SingleChannelCandidate[] = [];
   for (const channelName of orderSingleChannelNames(channelNames)) {
     if (groupedComponentChannels.has(channelName) || consumedAlphaChannels.has(channelName)) {
@@ -502,12 +542,12 @@ function buildMergedSingleChannelCandidates(
     const selection: ChannelMonoSelection = {
       kind: 'channelMono',
       channel: channelName,
-      alpha: includeAlphaCompanions ? resolveAlphaChannelForChannel(channelNames, channelName) : null
+      alpha: includeAlphaCompanions ? resolveAlphaChannelForChannelWithRules(channelNames, channelName, nameRules) : null
     };
     if (selection.alpha) {
       consumedAlphaChannels.add(selection.alpha);
     }
-    if (isAlphaChannel(channelName) && consumedAlphaChannels.has(channelName)) {
+    if (isAlphaChannelWithRules(channelName, nameRules) && consumedAlphaChannels.has(channelName)) {
       continue;
     }
     if (singleChannelOptions.has(channelName)) {
@@ -536,7 +576,8 @@ function buildSplitSingleChannelCandidates(
   channelNames: string[],
   componentGroups: readonly ComponentChannelGroup[],
   spectralParentKeyByChannel: ReadonlyMap<string, string>,
-  includeAlphaCompanions: boolean
+  includeAlphaCompanions: boolean,
+  nameRules: CompiledChannelRecognitionNameRules
 ): SingleChannelCandidate[] {
   const candidates: SingleChannelCandidate[] = [];
   const singleChannelOptions = new Set<string>();
@@ -583,7 +624,7 @@ function buildSplitSingleChannelCandidates(
       return;
     }
 
-    const alphaParentKey = includeAlphaCompanions && resolveAlphaChannelForChannel(channelNames, channelName)
+    const alphaParentKey = includeAlphaCompanions && resolveAlphaChannelForChannelWithRules(channelNames, channelName, nameRules)
       ? `channel:${channelName}`
       : null;
     const mergedParentKey = parentKeyByGroupedChannel.get(channelName)
@@ -645,16 +686,21 @@ function buildSingleChannelCandidate(args: {
 
 function buildSpectralSeriesCandidates(
   channelNames: string[],
-  settings: ChannelRecognitionSettings
+  settings: ChannelRecognitionSettings,
+  nameRules: CompiledChannelRecognitionNameRules
 ): { candidates: SpectralSeriesCandidate[]; parentKeyByChannel: Map<string, string> } {
   const parentKeyByChannel = new Map<string, string>();
   if (!settings['spectral.series']) {
     return { candidates: [], parentKeyByChannel };
   }
 
-  const options = getSpectralRgbDisplayOptions(channelNames);
+  const options = getSpectralRgbDisplayOptions(channelNames, {
+    compiledChannelRecognitionNameRules: nameRules
+  });
   const candidates = options.map((option, index) => {
-    const channels = detectSpectralChannelsForSeries(channelNames, option.selection.seriesKey);
+    const channels = detectSpectralChannelsForSeries(channelNames, option.selection.seriesKey, {
+      compiledChannelRecognitionNameRules: nameRules
+    });
     const splitChildren = channels.map((channel) => {
       const childKey = `channel:${channel.channelName}`;
       parentKeyByChannel.set(channel.channelName, option.key);
@@ -704,20 +750,23 @@ function buildSpectralSeriesCandidate(
 function buildStokesCandidates(
   channelNames: string[],
   config: ChannelRecognitionConfig,
-  settings: ChannelRecognitionSettings
+  resolved: ResolvedChannelRecognitionConfig
 ): StokesVectorCandidate[] {
+  const { settings, nameRules } = resolved;
   const spectralRgbGroupingEnabled = settings['stokes.spectral'];
   const mergedOptions = getStokesDisplayOptions(channelNames, {
     includeRgbGroups: true,
     includeSplitChannels: false,
     parameterVisibility: config.stokesParameterVisibility,
-    spectralRgbGroupingEnabled
+    spectralRgbGroupingEnabled,
+    compiledChannelRecognitionNameRules: nameRules
   });
   const splitOptions = getStokesDisplayOptions(channelNames, {
     includeRgbGroups: false,
     includeSplitChannels: true,
     parameterVisibility: config.stokesParameterVisibility,
-    spectralRgbGroupingEnabled
+    spectralRgbGroupingEnabled,
+    compiledChannelRecognitionNameRules: nameRules
   });
 
   return [
@@ -726,14 +775,16 @@ function buildStokesCandidates(
       option,
       STOKES_SOURCE_ORDER_BASE + index,
       true,
-      false
+      false,
+      nameRules
     )),
     ...splitOptions.map((option, index) => buildStokesCandidate(
       channelNames,
       option,
       STOKES_SOURCE_ORDER_BASE + index,
       false,
-      true
+      true,
+      nameRules
     ))
   ].filter((candidate) => isStokesCandidateEnabled(candidate, settings));
 }
@@ -743,15 +794,16 @@ function buildStokesCandidate(
   option: StokesDisplayOption,
   sourceOrder: number,
   merged: boolean,
-  split: boolean
+  split: boolean,
+  nameRules: CompiledChannelRecognitionNameRules
 ): StokesVectorCandidate {
-  const stokesInfo = resolveStokesCandidateInfo(channelNames, option.selection);
+  const stokesInfo = resolveStokesCandidateInfo(channelNames, option.selection, nameRules);
   const parentKey = split ? resolveStokesMergedParentKey(option.key, option.selection) : null;
-  const splitChildren = merged ? resolveStokesSplitChildren(channelNames, option.key, option.selection) : [];
+  const splitChildren = merged ? resolveStokesSplitChildren(channelNames, option.key, option.selection, nameRules) : [];
 
   return {
     kind: 'stokesVector',
-    ruleId: getStokesRuleId(option.selection),
+    ruleId: getStokesRuleId(option.selection, channelNames, nameRules),
     key: option.key,
     label: option.label,
     channels: stokesInfo.channels,
@@ -781,15 +833,18 @@ function buildStokesCandidate(
 
 function buildMuellerCandidates(
   channelNames: string[],
-  settings: ChannelRecognitionSettings
+  resolved: ResolvedChannelRecognitionConfig
 ): MuellerMatrixCandidate[] {
+  const { settings, nameRules } = resolved;
   const mergedOptions = getMuellerMatrixDisplayOptions(channelNames, {
     includeRgbGroups: true,
-    includeSplitChannels: false
+    includeSplitChannels: false,
+    compiledChannelRecognitionNameRules: nameRules
   });
   const splitOptions = getMuellerMatrixDisplayOptions(channelNames, {
     includeRgbGroups: false,
-    includeSplitChannels: true
+    includeSplitChannels: true,
+    compiledChannelRecognitionNameRules: nameRules
   });
 
   return [
@@ -798,14 +853,16 @@ function buildMuellerCandidates(
       option,
       MUELLER_SOURCE_ORDER_BASE + index,
       true,
-      false
+      false,
+      nameRules
     )),
     ...splitOptions.map((option, index) => buildMuellerCandidate(
       channelNames,
       option,
       MUELLER_SOURCE_ORDER_BASE + index,
       false,
-      true
+      true,
+      nameRules
     ))
   ].filter((candidate) => isRecognitionSettingEnabled(settings, candidate.ruleId));
 }
@@ -815,9 +872,10 @@ function buildMuellerCandidate(
   option: MuellerMatrixDisplayOption,
   sourceOrder: number,
   merged: boolean,
-  split: boolean
+  split: boolean,
+  nameRules: CompiledChannelRecognitionNameRules
 ): MuellerMatrixCandidate {
-  const channels = resolveMuellerCandidateChannels(channelNames, option.selection);
+  const channels = resolveMuellerCandidateChannels(channelNames, option.selection, nameRules);
   const isRgb = Boolean(option.selection.rgb);
 
   return {
@@ -855,10 +913,13 @@ function buildMuellerCandidate(
 
 function resolveStokesCandidateInfo(
   channelNames: string[],
-  selection: StokesSelection
+  selection: StokesSelection,
+  nameRules: CompiledChannelRecognitionNameRules
 ): { channels: string[]; hasS3: boolean } {
   if (selection.source.kind === 'scalar') {
-    const channels = detectScalarStokesChannels(channelNames, selection.source.suffix ?? null);
+    const channels = detectScalarStokesChannels(channelNames, selection.source.suffix ?? null, {
+      compiledChannelRecognitionNameRules: nameRules
+    });
     return {
       channels: channels ? collectScalarStokesChannels(channels) : [],
       hasS3: Boolean(channels?.s3)
@@ -866,7 +927,9 @@ function resolveStokesCandidateInfo(
   }
 
   if (selection.source.kind === 'rgbComponent') {
-    const rgbChannels = detectRgbStokesChannels(channelNames);
+    const rgbChannels = detectRgbStokesChannels(channelNames, {
+      compiledChannelRecognitionNameRules: nameRules
+    });
     if (!rgbChannels) {
       return { channels: [], hasS3: false };
     }
@@ -878,7 +941,9 @@ function resolveStokesCandidateInfo(
   }
 
   if (selection.source.kind === 'rgbLuminance') {
-    const channels = detectRgbStokesChannels(channelNames);
+    const channels = detectRgbStokesChannels(channelNames, {
+      compiledChannelRecognitionNameRules: nameRules
+    });
     return {
       channels: channels ? collectRgbStokesChannels(channels) : [],
       hasS3: Boolean(channels && channels.r.s3 && channels.g.s3 && channels.b.s3)
@@ -886,23 +951,30 @@ function resolveStokesCandidateInfo(
   }
 
   return {
-    channels: detectSpectralStokesChannelGroups(channelNames)
+    channels: detectSpectralStokesChannelGroups(channelNames, {
+      compiledChannelRecognitionNameRules: nameRules
+    })
       .flatMap((group) => [group.s0, group.s1, group.s2, ...(group.s3 ? [group.s3] : [])]),
-    hasS3: hasCompleteSpectralStokesS3(channelNames)
+    hasS3: hasCompleteSpectralStokesS3(channelNames, {
+      compiledChannelRecognitionNameRules: nameRules
+    })
   };
 }
 
 function resolveStokesSplitChildren(
   channelNames: string[],
   key: string,
-  selection: StokesSelection
+  selection: StokesSelection,
+  nameRules: CompiledChannelRecognitionNameRules
 ): string[] {
   if (selection.source.kind === 'rgbLuminance') {
     return RGB_COMPONENTS.map((component) => `stokesRgb:${selection.parameter}:${component}`);
   }
 
   if (selection.source.kind === 'spectralRgb') {
-    return detectSpectralStokesChannelGroups(channelNames)
+    return detectSpectralStokesChannelGroups(channelNames, {
+      compiledChannelRecognitionNameRules: nameRules
+    })
       .map((group) => `stokesScalar:${selection.parameter}:${group.suffix}`);
   }
 
@@ -935,14 +1007,19 @@ function resolveStokesMergedParentKey(key: string, selection: StokesSelection): 
 
 function resolveMuellerCandidateChannels(
   channelNames: string[],
-  selection: MuellerMatrixSelection
+  selection: MuellerMatrixSelection,
+  nameRules: CompiledChannelRecognitionNameRules
 ): string[] {
   if (selection.rgb) {
-    const channels = detectRgbMuellerMatrixChannels(channelNames);
+    const channels = detectRgbMuellerMatrixChannels(channelNames, {
+      compiledChannelRecognitionNameRules: nameRules
+    });
     return channels ? collectRgbMuellerChannels(channels) : [];
   }
 
-  const channels = detectMuellerMatrixChannels(channelNames, selection.suffix ?? null);
+  const channels = detectMuellerMatrixChannels(channelNames, selection.suffix ?? null, {
+    compiledChannelRecognitionNameRules: nameRules
+  });
   return channels ? collectMuellerChannels(channels) : [];
 }
 
@@ -1040,32 +1117,48 @@ function getComponentRuleId(kind: ComponentChannelGroupKind): ComponentGroupCand
   }
 }
 
-function getStokesRuleId(selection: StokesSelection): StokesVectorCandidate['ruleId'] {
+function getStokesRuleId(
+  selection: StokesSelection,
+  channelNames: readonly string[],
+  nameRules: CompiledChannelRecognitionNameRules
+): StokesVectorCandidate['ruleId'] {
   switch (selection.source.kind) {
     case 'rgbLuminance':
     case 'rgbComponent':
       return 'stokes.rgb';
     case 'spectralRgb':
       return 'stokes.spectral';
-    case 'scalar':
-      if (selection.source.suffix && isSpectralStokesSuffix(selection.source.suffix)) {
+    case 'scalar': {
+      const suffix = selection.source.suffix;
+      if (suffix && (
+        isSpectralStokesSuffix(suffix) ||
+        detectSpectralStokesChannelGroups([...channelNames], { compiledChannelRecognitionNameRules: nameRules })
+          .some((group) => group.suffix === suffix)
+      )) {
         return 'stokes.spectral';
       }
       return 'stokes.scalar';
+    }
   }
 }
 
-function pickGrayscaleDisplayChannel(channelNames: readonly string[]): string | null {
+function pickGrayscaleDisplayChannel(
+  channelNames: readonly string[],
+  nameRules: CompiledChannelRecognitionNameRules
+): string | null {
   if (channelNames.length === 1) {
     return channelNames[0] ?? null;
   }
 
-  const nonAlphaChannels = channelNames.filter((channelName) => !isAlphaChannel(channelName));
+  const nonAlphaChannels = channelNames.filter((channelName) => !isAlphaChannelWithRules(channelName, nameRules));
   return nonAlphaChannels.length === 1 ? nonAlphaChannels[0] ?? null : null;
 }
 
-function pickFallbackDisplayChannel(channelNames: readonly string[]): string | null {
-  return channelNames.find((channelName) => !isAlphaChannel(channelName)) ?? channelNames[0] ?? null;
+function pickFallbackDisplayChannel(
+  channelNames: readonly string[],
+  nameRules: CompiledChannelRecognitionNameRules
+): string | null {
+  return channelNames.find((channelName) => !isAlphaChannelWithRules(channelName, nameRules)) ?? channelNames[0] ?? null;
 }
 
 function getDisplayMappingChannelCount(mapping: DisplayChannelMapping): number {
@@ -1104,30 +1197,26 @@ function buildComponentGroupLabel(base: string, suffixes: readonly string[], has
   return base.length > 0 ? `${base}.(${channelsLabel})` : channelsLabel;
 }
 
-function parseChannelNameSuffix<T extends string>(
+function getComponentRuleSuffixForSlot(slot: string): string {
+  return slot.toUpperCase();
+}
+
+function isAlphaChannelWithRules(
   channelName: string,
-  suffixes: readonly T[]
-): { base: string; suffix: T } | null {
-  const bareSuffix = suffixes.find((suffix) => channelName === suffix);
-  if (bareSuffix) {
-    return { base: '', suffix: bareSuffix };
-  }
+  nameRules: CompiledChannelRecognitionNameRules
+): boolean {
+  return parseAlphaChannelNameWithRules(channelName, nameRules) !== null;
+}
 
-  const dotIndex = channelName.lastIndexOf('.');
-  if (dotIndex <= 0 || dotIndex >= channelName.length - 1) {
-    return null;
-  }
-
-  const suffixValue = channelName.slice(dotIndex + 1);
-  const suffix = suffixes.find((candidate) => candidate === suffixValue);
-  if (!suffix) {
-    return null;
-  }
-
-  return {
-    base: channelName.slice(0, dotIndex),
-    suffix
-  };
+function findAlphaChannelForBase(
+  channelNames: readonly string[],
+  base: string,
+  nameRules: CompiledChannelRecognitionNameRules
+): string | null {
+  return channelNames.find((candidate) => {
+    const parsed = parseAlphaChannelNameWithRules(candidate, nameRules);
+    return parsed?.base === base;
+  }) ?? null;
 }
 
 function isMuellerMatrixElementName(value: string): boolean {
@@ -1155,7 +1244,7 @@ export function getRecognizedSelectionLabel(selection: DisplaySelection): string
   return getDisplaySelectionOptionLabel(selection);
 }
 
-function resolveChannelRecognitionSettings(config: ChannelRecognitionConfig): ChannelRecognitionSettings {
+function resolveChannelRecognitionConfig(config: ChannelRecognitionConfig): ResolvedChannelRecognitionConfig {
   const settings = normalizeChannelRecognitionSettings(config.channelRecognitionSettings);
   if (!config.channelRecognitionSettings && config.spectralRgbGroupingEnabled === false) {
     settings['spectral.series'] = false;
@@ -1165,7 +1254,10 @@ function resolveChannelRecognitionSettings(config: ChannelRecognitionConfig): Ch
     settings['fallback.alphaCompanions'] = config.includeAlphaCompanions !== false;
   }
   settings['fallback.singleChannel'] = true;
-  return settings;
+  return {
+    settings,
+    nameRules: compileChannelRecognitionNameRules(config.channelRecognitionNameRules)
+  };
 }
 
 function isRecognitionSettingEnabled(

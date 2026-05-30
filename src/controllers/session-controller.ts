@@ -793,7 +793,8 @@ export class SessionController implements Disposable {
       autoFitImageOnSelect: currentState.autoFitImageOnSelect,
       stokesParameterVisibility: currentState.stokesParameterVisibility,
       spectralRgbGroupingEnabled: currentState.spectralRgbGroupingEnabled,
-      channelRecognitionSettings: currentState.channelRecognitionSettings
+      channelRecognitionSettings: currentState.channelRecognitionSettings,
+      channelRecognitionNameRules: currentState.channelRecognitionNameRules
     });
 
     this.core.dispatch({
@@ -823,7 +824,8 @@ export class SessionController implements Disposable {
         baseState,
         this.core.getState().stokesParameterVisibility,
         this.core.getState().spectralRgbGroupingEnabled,
-        this.core.getState().channelRecognitionSettings
+        this.core.getState().channelRecognitionSettings,
+        this.core.getState().channelRecognitionNameRules
       );
       this.core.dispatch({
         type: 'sessionReloaded',

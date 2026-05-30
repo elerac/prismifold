@@ -16,6 +16,7 @@ import {
 import { sameStokesColormapDefaultSettings } from '../stokes-colormap-settings';
 import { sameStokesParameterVisibilitySettings } from '../stokes-parameter-visibility-settings';
 import { sameChannelRecognitionSettings } from '../channel-recognition-settings';
+import { sameChannelRecognitionNameRules } from '../channel-recognition-name-rules';
 import { sameViewerPaneLayout } from '../viewer-pane-layout';
 import {
   buildExportTarget,
@@ -61,7 +62,8 @@ export const enum ViewerUiInvalidationFlags {
   SpectralRgbGrouping = 1 << 26,
   ColormapReverse = 1 << 27,
   DepthModeAvailability = 1 << 28,
-  ChannelRecognitionSettings = 1 << 29
+  ChannelRecognitionSettings = 1 << 29,
+  ChannelRecognitionNameRules = 1 << 30
 }
 
 export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => ViewerUiSnapshot {
@@ -120,6 +122,7 @@ export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => Vie
       stokesColormapDefaults: state.stokesColormapDefaults,
       stokesParameterVisibility: state.stokesParameterVisibility,
       channelRecognitionSettings: state.channelRecognitionSettings,
+      channelRecognitionNameRules: state.channelRecognitionNameRules,
       maskInvalidStokesVectors: state.maskInvalidStokesVectors,
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
       invalidValueWarningEnabled: state.invalidValueWarningEnabled,
@@ -251,6 +254,10 @@ export function computeViewerUiInvalidation(
 
   if (!sameChannelRecognitionSettings(previous.channelRecognitionSettings, next.channelRecognitionSettings)) {
     flags |= ViewerUiInvalidationFlags.ChannelRecognitionSettings | ViewerUiInvalidationFlags.RgbGroupOptions;
+  }
+
+  if (!sameChannelRecognitionNameRules(previous.channelRecognitionNameRules, next.channelRecognitionNameRules)) {
+    flags |= ViewerUiInvalidationFlags.ChannelRecognitionNameRules | ViewerUiInvalidationFlags.RgbGroupOptions;
   }
 
   if (previous.maskInvalidStokesVectors !== next.maskInvalidStokesVectors) {
@@ -504,6 +511,7 @@ function sameViewerUiSnapshot(a: ViewerUiSnapshot, b: ViewerUiSnapshot): boolean
     sameStokesColormapDefaultSettings(a.stokesColormapDefaults, b.stokesColormapDefaults) &&
     sameStokesParameterVisibilitySettings(a.stokesParameterVisibility, b.stokesParameterVisibility) &&
     sameChannelRecognitionSettings(a.channelRecognitionSettings, b.channelRecognitionSettings) &&
+    sameChannelRecognitionNameRules(a.channelRecognitionNameRules, b.channelRecognitionNameRules) &&
     a.maskInvalidStokesVectors === b.maskInvalidStokesVectors &&
     a.spectralRgbGroupingEnabled === b.spectralRgbGroupingEnabled &&
     a.invalidValueWarningEnabled === b.invalidValueWarningEnabled &&

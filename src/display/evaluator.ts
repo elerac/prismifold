@@ -193,7 +193,7 @@ export function createDisplaySelectionEvaluator(
         a: getOptionalChannelReadView(layer, binding.slots[3])
       };
     case 'spectralRgb':
-      return createSpectralRgbEvaluator(layer, binding);
+      return createSpectralRgbEvaluator(layer, binding, stokesOptions);
     case 'muellerMatrix':
       return createMuellerMatrixEvaluator(layer, binding, stokesOptions);
     case 'stokesDirect':
@@ -203,9 +203,21 @@ export function createDisplaySelectionEvaluator(
     case 'stokesRgbLuminance':
       return createRgbStokesEvaluator(layer, binding, 'stokesRgbLuminance', resolvedStokesOptions);
     case 'stokesSpectralRgb':
-      return createSpectralStokesRgbEvaluator(layer, binding, 'stokesSpectralRgb', resolvedStokesOptions);
+      return createSpectralStokesRgbEvaluator(
+        layer,
+        binding,
+        'stokesSpectralRgb',
+        resolvedStokesOptions,
+        stokesOptions
+      );
     case 'stokesSpectralRgbLuminance':
-      return createSpectralStokesRgbEvaluator(layer, binding, 'stokesSpectralRgbLuminance', resolvedStokesOptions);
+      return createSpectralStokesRgbEvaluator(
+        layer,
+        binding,
+        'stokesSpectralRgbLuminance',
+        resolvedStokesOptions,
+        stokesOptions
+      );
   }
 }
 
@@ -516,16 +528,21 @@ function createStokesDirectEvaluator(
 
 function createSpectralRgbEvaluator(
   layer: DecodedLayer,
-  binding: DisplaySourceBinding
+  binding: DisplaySourceBinding,
+  options: DisplayEvaluationOptions
 ): DisplaySelectionEvaluator {
   const seriesKey = parseSpectralRgbSourceName(binding.slots[0]) ?? '';
-  const spectralChannels = detectSpectralChannelsForSeries(layer.channelNames, seriesKey);
+  const spectralChannels = detectSpectralChannelsForSeries(layer.channelNames, seriesKey, {
+    channelRecognitionNameRules: options.channelRecognitionNameRules
+  });
   const coefficients = buildReflectanceSpectralRgbCoefficients(spectralChannels);
   return {
     kind: 'spectralRgb',
     binding,
     channels: resolveSpectralRgbChannels(layer, coefficients),
-    signed: shouldReadSpectralRgbSeriesSigned(layer.channelNames, seriesKey)
+    signed: shouldReadSpectralRgbSeriesSigned(layer.channelNames, seriesKey, {
+      channelRecognitionNameRules: options.channelRecognitionNameRules
+    })
   };
 }
 
@@ -551,7 +568,9 @@ function createMuellerMatrixEvaluator(
       rgb: true,
       channels: resolveRgbMuellerMatrixChannelArrays(
         layer,
-        detectRgbMuellerMatrixChannels(layer.channelNames)
+        detectRgbMuellerMatrixChannels(layer.channelNames, {
+          channelRecognitionNameRules: options.channelRecognitionNameRules
+        })
       ),
       sourceWidth,
       sourceHeight
@@ -564,7 +583,9 @@ function createMuellerMatrixEvaluator(
     rgb: false,
     channels: resolveMuellerMatrixChannelArrays(
       layer,
-      detectMuellerMatrixChannels(layer.channelNames, source.suffix)
+      detectMuellerMatrixChannels(layer.channelNames, source.suffix, {
+        channelRecognitionNameRules: options.channelRecognitionNameRules
+      })
     ),
     sourceWidth,
     sourceHeight
@@ -600,7 +621,8 @@ function createSpectralStokesRgbEvaluator(
   layer: DecodedLayer,
   binding: DisplaySourceBinding,
   kind: 'stokesSpectralRgb' | 'stokesSpectralRgbLuminance',
-  stokesOptions: ResolvedStokesComputationOptions
+  stokesOptions: ResolvedStokesComputationOptions,
+  options: DisplayEvaluationOptions
 ): DisplaySelectionEvaluator {
   const parameter = binding.stokesParameter;
   if (!parameter) {
@@ -614,7 +636,9 @@ function createSpectralStokesRgbEvaluator(
     kind,
     binding,
     parameter,
-    channels: resolveSpectralStokesRgbChannelArrays(layer),
+    channels: resolveSpectralStokesRgbChannelArrays(layer, {
+      channelRecognitionNameRules: options.channelRecognitionNameRules
+    }),
     stokesOptions
   };
 }

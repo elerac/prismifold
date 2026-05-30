@@ -9,6 +9,13 @@ import {
 import type { StokesComputationOptions } from './stokes';
 import { computeRawStokesDisplayValue } from './stokes/stokes-display';
 import type { DisplayChannelMapping, PixelSample } from './types';
+import {
+  compileChannelRecognitionNameRules,
+  parseSpectralChannelNameWithRules,
+  parseSpectralStokesChannelNameWithRules,
+  type ChannelRecognitionNameRules,
+  type CompiledChannelRecognitionNameRules
+} from './channel-recognition-name-rules';
 
 export interface SpectralChannel {
   channelName: string;
@@ -62,62 +69,29 @@ interface SpectralStokesSeriesCandidate {
   channels: Partial<Record<SpectralStokesComponent, string>>;
 }
 
+export interface SpectralRecognitionConfig {
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
+  compiledChannelRecognitionNameRules?: CompiledChannelRecognitionNameRules;
+}
+
 const DEFAULT_SPECTRAL_SERIES_LABEL = '';
-const JCGT_SPECTRAL_CHANNEL_PATTERN = /^((?:S[0-3]|T))\.(\d+(?:,\d+)?(?:[eE][-+]?\d+)?)nm$/i;
-const SPECTRAL_STOKES_CHANNEL_PATTERN = /^(S[0-3])\.(\d+(?:,\d+)?(?:[eE][-+]?\d+)?)nm$/i;
-const RESERVED_SPECTRAL_LAYER_PATTERN = /^(?:S[0-4]|T)\./i;
-const SPECTRAL_CHANNEL_PATTERN = /(\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)nm$/i;
 const MIN_SPECTRAL_CHANNEL_COUNT = 2;
 const SPECTRAL_RGB_SOURCE_PREFIX = '__spectralRgb:';
 const SPECTRAL_STOKES_RGB_SOURCE_PREFIX = '__spectralStokesRgb:';
 const SIGNED_STOKES_SPECTRAL_RGB_SERIES = new Set<string>(['S1', 'S2', 'S3']);
 
-export function parseSpectralChannelName(channelName: string): number | null {
-  return parseSpectralChannel(channelName)?.wavelength ?? null;
+export function parseSpectralChannelName(
+  channelName: string,
+  config: SpectralRecognitionConfig = {}
+): number | null {
+  return parseSpectralChannel(channelName, config)?.wavelength ?? null;
 }
 
-export function parseSpectralChannel(channelName: string): SpectralChannel | null {
-  const jcgtMatch = channelName.match(JCGT_SPECTRAL_CHANNEL_PATTERN);
-  if (jcgtMatch) {
-    const wavelength = parseWavelengthValue(jcgtMatch[2]);
-    if (wavelength === null) {
-      return null;
-    }
-
-    const seriesLabel = jcgtMatch[1] ?? DEFAULT_SPECTRAL_SERIES_LABEL;
-    return {
-      channelName,
-      wavelength,
-      seriesKey: seriesLabel,
-      seriesLabel
-    };
-  }
-
-  if (RESERVED_SPECTRAL_LAYER_PATTERN.test(channelName)) {
-    return null;
-  }
-
-  const match = channelName.match(SPECTRAL_CHANNEL_PATTERN);
-  if (!match) {
-    return null;
-  }
-
-  const wavelength = parseWavelengthValue(match[1]);
-  if (wavelength === null) {
-    return null;
-  }
-
-  const prefix = channelName.slice(0, match.index ?? 0);
-  const seriesLabel = prefix.endsWith('.') && prefix.length > 1
-    ? prefix.slice(0, -1)
-    : DEFAULT_SPECTRAL_SERIES_LABEL;
-
-  return {
-    channelName,
-    wavelength,
-    seriesKey: seriesLabel,
-    seriesLabel
-  };
+export function parseSpectralChannel(
+  channelName: string,
+  config: SpectralRecognitionConfig = {}
+): SpectralChannel | null {
+  return parseSpectralChannelNameWithRules(channelName, resolveCompiledNameRules(config));
 }
 
 function parseWavelengthValue(value: string | undefined): number | null {
@@ -131,16 +105,18 @@ function parseWavelengthValue(value: string | undefined): number | null {
 
 export function detectSpectralChannels(
   channelNames: string[],
-  preferredChannelName: string | null = null
+  preferredChannelName: string | null = null,
+  config: SpectralRecognitionConfig = {}
 ): SpectralChannel[] {
-  const series = buildSpectralSeriesCandidates(parseIndexedSpectralChannels(channelNames))
+  const compiled = resolveCompiledNameRules(config);
+  const series = buildSpectralSeriesCandidates(parseIndexedSpectralChannels(channelNames, { compiledChannelRecognitionNameRules: compiled }))
     .filter((candidate) => candidate.channels.length >= MIN_SPECTRAL_CHANNEL_COUNT);
   if (series.length === 0) {
     return [];
   }
 
   const preferredSeriesKey = preferredChannelName
-    ? parseSpectralChannel(preferredChannelName)?.seriesKey ?? null
+    ? parseSpectralChannel(preferredChannelName, { compiledChannelRecognitionNameRules: compiled })?.seriesKey ?? null
     : null;
   const preferredSeries = preferredSeriesKey === null
     ? null
@@ -162,13 +138,15 @@ export function detectSpectralChannels(
 
 export function detectSpectralChannelsForSeries(
   channelNames: string[],
-  seriesKey: string
+  seriesKey: string,
+  config: SpectralRecognitionConfig = {}
 ): SpectralChannel[] {
-  if (shouldHideIncompleteSpectralStokesS3Series(channelNames, seriesKey)) {
+  const compiled = resolveCompiledNameRules(config);
+  if (shouldHideIncompleteSpectralStokesS3Series(channelNames, seriesKey, { compiledChannelRecognitionNameRules: compiled })) {
     return [];
   }
 
-  const series = buildSpectralSeriesCandidates(parseIndexedSpectralChannels(channelNames))
+  const series = buildSpectralSeriesCandidates(parseIndexedSpectralChannels(channelNames, { compiledChannelRecognitionNameRules: compiled }))
     .find((candidate) => candidate.key === seriesKey);
   if (!series || countUniqueSpectralWavelengths(series.channels) < MIN_SPECTRAL_CHANNEL_COUNT) {
     return [];
@@ -184,9 +162,13 @@ export function detectSpectralChannelsForSeries(
     }));
 }
 
-export function detectSpectralRgbChannelSeries(channelNames: string[]): SpectralChannel[][] {
-  const hideIncompleteS3 = shouldHideIncompleteSpectralStokesS3Series(channelNames, 'S3');
-  return buildSpectralSeriesCandidates(parseIndexedSpectralChannels(channelNames))
+export function detectSpectralRgbChannelSeries(
+  channelNames: string[],
+  config: SpectralRecognitionConfig = {}
+): SpectralChannel[][] {
+  const compiled = resolveCompiledNameRules(config);
+  const hideIncompleteS3 = shouldHideIncompleteSpectralStokesS3Series(channelNames, 'S3', { compiledChannelRecognitionNameRules: compiled });
+  return buildSpectralSeriesCandidates(parseIndexedSpectralChannels(channelNames, { compiledChannelRecognitionNameRules: compiled }))
     .filter((candidate) => !(hideIncompleteS3 && candidate.key === 'S3'))
     .filter((candidate) => countUniqueSpectralWavelengths(candidate.channels) >= MIN_SPECTRAL_CHANNEL_COUNT)
     .sort(compareSpectralSeriesCandidates)
@@ -207,8 +189,11 @@ export function buildSpectralRgbSelection(seriesKey = DEFAULT_SPECTRAL_SERIES_LA
   };
 }
 
-export function getSpectralRgbDisplayOptions(channelNames: string[]): SpectralRgbDisplayOption[] {
-  return detectSpectralRgbChannelSeries(channelNames).map((channels) => {
+export function getSpectralRgbDisplayOptions(
+  channelNames: string[],
+  config: SpectralRecognitionConfig = {}
+): SpectralRgbDisplayOption[] {
+  return detectSpectralRgbChannelSeries(channelNames, config).map((channels) => {
     const seriesKey = channels[0]?.seriesKey ?? DEFAULT_SPECTRAL_SERIES_LABEL;
     const selection = buildSpectralRgbSelection(seriesKey);
     const label = getDisplaySelectionOptionLabel(selection);
@@ -234,22 +219,30 @@ export function findSelectedSpectralRgbDisplayOption(
 
 export function isSpectralRgbDisplayAvailable(
   channelNames: string[],
-  selection: DisplaySelection | null
+  selection: DisplaySelection | null,
+  config: SpectralRecognitionConfig = {}
 ): boolean {
   if (!isSpectralRgbSelection(selection)) {
     return true;
   }
 
-  return detectSpectralChannelsForSeries(channelNames, selection.seriesKey).length >= MIN_SPECTRAL_CHANNEL_COUNT;
+  return detectSpectralChannelsForSeries(channelNames, selection.seriesKey, config).length >= MIN_SPECTRAL_CHANNEL_COUNT;
 }
 
-export function isSpectralRgbSplitChannel(channelNames: string[], channelName: string): boolean {
-  return getSpectralRgbSplitChannelNames(channelNames).has(channelName);
+export function isSpectralRgbSplitChannel(
+  channelNames: string[],
+  channelName: string,
+  config: SpectralRecognitionConfig = {}
+): boolean {
+  return getSpectralRgbSplitChannelNames(channelNames, config).has(channelName);
 }
 
-export function getSpectralRgbSplitChannelNames(channelNames: string[]): Set<string> {
+export function getSpectralRgbSplitChannelNames(
+  channelNames: string[],
+  config: SpectralRecognitionConfig = {}
+): Set<string> {
   const splitChannelNames = new Set<string>();
-  for (const channels of detectSpectralRgbChannelSeries(channelNames)) {
+  for (const channels of detectSpectralRgbChannelSeries(channelNames, config)) {
     for (const channel of channels) {
       splitChannelNames.add(channel.channelName);
     }
@@ -260,21 +253,23 @@ export function getSpectralRgbSplitChannelNames(channelNames: string[]): Set<str
 
 export function findFirstSpectralRgbSplitChannel(
   channelNames: string[],
-  seriesKey: string
+  seriesKey: string,
+  config: SpectralRecognitionConfig = {}
 ): string | null {
-  return detectSpectralChannelsForSeries(channelNames, seriesKey)[0]?.channelName ?? null;
+  return detectSpectralChannelsForSeries(channelNames, seriesKey, config)[0]?.channelName ?? null;
 }
 
 export function findSpectralRgbSeriesKeyForChannel(
   channelNames: string[],
-  channelName: string
+  channelName: string,
+  config: SpectralRecognitionConfig = {}
 ): string | null {
-  const parsed = parseSpectralChannel(channelName);
+  const parsed = parseSpectralChannel(channelName, config);
   if (!parsed) {
     return null;
   }
 
-  const series = detectSpectralChannelsForSeries(channelNames, parsed.seriesKey);
+  const series = detectSpectralChannelsForSeries(channelNames, parsed.seriesKey, config);
   return series.some((channel) => channel.channelName === channelName)
     ? parsed.seriesKey
     : null;
@@ -282,17 +277,21 @@ export function findSpectralRgbSeriesKeyForChannel(
 
 export function shouldReadSpectralRgbSeriesSigned(
   channelNames: string[],
-  seriesKey: string
+  seriesKey: string,
+  config: SpectralRecognitionConfig = {}
 ): boolean {
   return (
     SIGNED_STOKES_SPECTRAL_RGB_SERIES.has(seriesKey) &&
-    isSpectralStokesRgbDisplayAvailable(channelNames) &&
-    !shouldHideIncompleteSpectralStokesS3Series(channelNames, seriesKey)
+    isSpectralStokesRgbDisplayAvailable(channelNames, config) &&
+    !shouldHideIncompleteSpectralStokesS3Series(channelNames, seriesKey, config)
   );
 }
 
-export function pickDefaultSpectralRgbSelection(channelNames: string[]): SpectralRgbSelection | null {
-  return getSpectralRgbDisplayOptions(channelNames)[0]?.selection ?? null;
+export function pickDefaultSpectralRgbSelection(
+  channelNames: string[],
+  config: SpectralRecognitionConfig = {}
+): SpectralRgbSelection | null {
+  return getSpectralRgbDisplayOptions(channelNames, config)[0]?.selection ?? null;
 }
 
 export function buildSpectralRgbSourceName(seriesKey: string): string {
@@ -334,11 +333,15 @@ export function isSpectralStokesRgbSourceName(sourceName: string | null | undefi
   return parseSpectralStokesRgbSourceName(sourceName) !== null;
 }
 
-export function detectSpectralStokesChannelGroups(channelNames: string[]): SpectralStokesChannelGroup[] {
+export function detectSpectralStokesChannelGroups(
+  channelNames: string[],
+  config: SpectralRecognitionConfig = {}
+): SpectralStokesChannelGroup[] {
+  const compiled = resolveCompiledNameRules(config);
   const candidatesByWavelength = new Map<string, SpectralStokesSeriesCandidate>();
 
   channelNames.forEach((channelName) => {
-    const parsed = parseSpectralStokesChannel(channelName);
+    const parsed = parseSpectralStokesChannel(channelName, { compiledChannelRecognitionNameRules: compiled });
     if (!parsed) {
       return;
     }
@@ -359,12 +362,18 @@ export function detectSpectralStokesChannelGroups(channelNames: string[]): Spect
     .sort((a, b) => a.wavelength - b.wavelength);
 }
 
-export function isSpectralStokesRgbDisplayAvailable(channelNames: string[]): boolean {
-  return detectSpectralStokesChannelGroups(channelNames).length >= MIN_SPECTRAL_CHANNEL_COUNT;
+export function isSpectralStokesRgbDisplayAvailable(
+  channelNames: string[],
+  config: SpectralRecognitionConfig = {}
+): boolean {
+  return detectSpectralStokesChannelGroups(channelNames, config).length >= MIN_SPECTRAL_CHANNEL_COUNT;
 }
 
-export function hasCompleteSpectralStokesS3(channelNames: string[]): boolean {
-  const groups = detectSpectralStokesChannelGroups(channelNames);
+export function hasCompleteSpectralStokesS3(
+  channelNames: string[],
+  config: SpectralRecognitionConfig = {}
+): boolean {
+  const groups = detectSpectralStokesChannelGroups(channelNames, config);
   return groups.length >= MIN_SPECTRAL_CHANNEL_COUNT && groups.every((group) => group.s3 !== null);
 }
 
@@ -452,23 +461,20 @@ export function parseSpectralStokesSuffixWavelength(value: string | null | undef
   return parseWavelengthValue(value.replace(/nm$/i, ''));
 }
 
-function parseSpectralStokesChannel(channelName: string): IndexedSpectralStokesChannel | null {
-  const match = channelName.match(SPECTRAL_STOKES_CHANNEL_PATTERN);
-  if (!match) {
+function parseSpectralStokesChannel(
+  channelName: string,
+  config: SpectralRecognitionConfig = {}
+): IndexedSpectralStokesChannel | null {
+  const parsed = parseSpectralStokesChannelNameWithRules(channelName, resolveCompiledNameRules(config));
+  if (!parsed) {
     return null;
   }
 
-  const wavelength = parseWavelengthValue(match[2]);
-  if (wavelength === null) {
-    return null;
-  }
-
-  const dotIndex = channelName.indexOf('.');
   return {
     channelName,
-    component: match[1]!.toUpperCase() as SpectralStokesComponent,
-    wavelength,
-    suffix: dotIndex >= 0 ? channelName.slice(dotIndex + 1) : `${match[2]}nm`
+    component: parsed.component as SpectralStokesComponent,
+    wavelength: parsed.wavelength,
+    suffix: parsed.suffix
   };
 }
 
@@ -512,11 +518,15 @@ function buildSpectralStokesChannelGroup(
   };
 }
 
-function shouldHideIncompleteSpectralStokesS3Series(channelNames: string[], seriesKey: string): boolean {
+function shouldHideIncompleteSpectralStokesS3Series(
+  channelNames: string[],
+  seriesKey: string,
+  config: SpectralRecognitionConfig = {}
+): boolean {
   return (
     seriesKey === 'S3' &&
-    isSpectralStokesRgbDisplayAvailable(channelNames) &&
-    !hasCompleteSpectralStokesS3(channelNames)
+    isSpectralStokesRgbDisplayAvailable(channelNames, config) &&
+    !hasCompleteSpectralStokesS3(channelNames, config)
   );
 }
 
@@ -544,10 +554,14 @@ function compareSpectralSeriesCandidates(a: SpectralSeriesCandidate, b: Spectral
   return b.channels.length - a.channels.length || a.firstIndex - b.firstIndex;
 }
 
-function parseIndexedSpectralChannels(channelNames: string[]): IndexedSpectralChannel[] {
+function parseIndexedSpectralChannels(
+  channelNames: string[],
+  config: SpectralRecognitionConfig = {}
+): IndexedSpectralChannel[] {
+  const compiled = resolveCompiledNameRules(config);
   return channelNames
     .map((channelName, index) => {
-      const parsed = parseSpectralChannel(channelName);
+      const parsed = parseSpectralChannel(channelName, { compiledChannelRecognitionNameRules: compiled });
       return parsed ? { ...parsed, index } : null;
     })
     .filter((channel): channel is IndexedSpectralChannel => channel !== null);
@@ -559,6 +573,10 @@ function countUniqueSpectralWavelengths(channels: readonly SpectralChannel[]): n
       .map((channel) => channel.wavelength)
       .filter((wavelength) => Number.isFinite(wavelength))
   ).size;
+}
+
+function resolveCompiledNameRules(config: SpectralRecognitionConfig): CompiledChannelRecognitionNameRules {
+  return config.compiledChannelRecognitionNameRules ?? compileChannelRecognitionNameRules(config.channelRecognitionNameRules);
 }
 
 function buildSpectralRgbDisplayMapping(selection: SpectralRgbSelection): DisplayChannelMapping {

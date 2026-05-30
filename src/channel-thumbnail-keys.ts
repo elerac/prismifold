@@ -13,6 +13,12 @@ import {
   serializeChannelRecognitionSettingsKey,
   type ChannelRecognitionSettings
 } from './channel-recognition-settings';
+import {
+  createDefaultChannelRecognitionNameRules,
+  sameChannelRecognitionNameRules,
+  serializeChannelRecognitionNameRulesKey,
+  type ChannelRecognitionNameRules
+} from './channel-recognition-name-rules';
 
 export function serializeChannelThumbnailContextKey(
   sessionId: string,
@@ -34,6 +40,7 @@ export function serializeChannelThumbnailRequestKey(args: {
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
   channelRecognitionSettings?: ChannelRecognitionSettings;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }): string {
   const maskKey = isStokesThumbnailSelection(args.selection)
     ? `|maskInvalidStokesVectors:${args.maskInvalidStokesVectors !== false ? '1' : '0'}`
@@ -45,7 +52,11 @@ export function serializeChannelThumbnailRequestKey(args: {
     !sameChannelRecognitionSettings(args.channelRecognitionSettings, createDefaultChannelRecognitionSettings())
     ? `|recognition:${serializeChannelRecognitionSettingsKey(args.channelRecognitionSettings)}`
     : '';
-  return `${serializeChannelThumbnailContextKey(args.sessionId, args.activeLayer, args.selection)}|exposure:${serializeFiniteNumber(args.exposureEv, 0)}|gamma:${serializeFiniteNumber(args.displayGamma, DEFAULT_DISPLAY_GAMMA)}|modulation:${serializeStokesDegreeModulationKey(args.stokesDegreeModulation)}|aolpModulation:${args.stokesAolpDegreeModulationMode}${maskKey}${spectralKey}${recognitionKey}`;
+  const recognitionRulesKey = args.channelRecognitionNameRules &&
+    !sameChannelRecognitionNameRules(args.channelRecognitionNameRules, createDefaultChannelRecognitionNameRules())
+    ? `|recognitionRules:${serializeChannelRecognitionNameRulesKey(args.channelRecognitionNameRules)}`
+    : '';
+  return `${serializeChannelThumbnailContextKey(args.sessionId, args.activeLayer, args.selection)}|exposure:${serializeFiniteNumber(args.exposureEv, 0)}|gamma:${serializeFiniteNumber(args.displayGamma, DEFAULT_DISPLAY_GAMMA)}|modulation:${serializeStokesDegreeModulationKey(args.stokesDegreeModulation)}|aolpModulation:${args.stokesAolpDegreeModulationMode}${maskKey}${spectralKey}${recognitionKey}${recognitionRulesKey}`;
 }
 
 export function buildChannelThumbnailSessionPrefix(sessionId: string): string {

@@ -166,7 +166,8 @@ export function sessionReducer(
           autoFitInsets: state.autoFitImageOnSelect ? intent.fitInsets ?? null : null,
           stokesParameterVisibility: state.stokesParameterVisibility,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-          channelRecognitionSettings: state.channelRecognitionSettings
+          channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules
         }
       );
       const sessionsWithCurrentState = updateActiveSessionStoredState(
@@ -201,7 +202,8 @@ export function sessionReducer(
         {
           stokesParameterVisibility: state.stokesParameterVisibility,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-          channelRecognitionSettings: state.channelRecognitionSettings
+          channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules
         }
       );
       return {
@@ -319,7 +321,8 @@ export function sessionReducer(
         {
           stokesParameterVisibility: state.stokesParameterVisibility,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-          channelRecognitionSettings: state.channelRecognitionSettings
+          channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules
         }
       );
       return {
@@ -360,7 +363,8 @@ export function sessionReducer(
         {
           stokesParameterVisibility: state.stokesParameterVisibility,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-          channelRecognitionSettings: state.channelRecognitionSettings
+          channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules
         }
       );
       return patchSessionState(state, nextSessionState, {

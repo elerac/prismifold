@@ -23,6 +23,7 @@ import {
   isSpectralRgbDisplayAvailable
 } from '../spectral';
 import { getRgbComponentChannels } from '../stokes/stokes-display';
+import type { ChannelRecognitionNameRules } from '../channel-recognition-name-rules';
 import type { DecodedLayer, VisualizationMode } from '../types';
 
 export const DISPLAY_SOURCE_SLOT_COUNT = 12;
@@ -48,6 +49,7 @@ export interface DisplaySourceBinding {
 
 export interface DisplaySourceBindingConfig {
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }
 
 const EMPTY_DISPLAY_SLOTS = Object.freeze(
@@ -89,7 +91,9 @@ export function buildDisplaySourceBinding(
         null
       );
     case 'spectralRgb':
-      return config.spectralRgbGroupingEnabled !== false && isSpectralRgbDisplayAvailable(layer.channelNames, selection)
+      return config.spectralRgbGroupingEnabled !== false && isSpectralRgbDisplayAvailable(layer.channelNames, selection, {
+        channelRecognitionNameRules: config.channelRecognitionNameRules
+      })
         ? createDisplaySourceBinding(
             'spectralRgb',
             [buildSpectralRgbSourceName(selection.seriesKey)],
@@ -98,7 +102,9 @@ export function buildDisplaySourceBinding(
           )
         : createEmptyDisplaySourceBinding();
     case 'muellerMatrix':
-      return isMuellerMatrixDisplayAvailable(layer.channelNames, selection)
+      return isMuellerMatrixDisplayAvailable(layer.channelNames, selection, {
+        channelRecognitionNameRules: config.channelRecognitionNameRules
+      })
         ? createDisplaySourceBinding(
             'muellerMatrix',
             [selection.rgb
@@ -153,28 +159,44 @@ function buildStokesDisplaySourceBinding(
   visualizationMode: VisualizationMode,
   config: DisplaySourceBindingConfig
 ): DisplaySourceBinding {
-  if (!isStokesDisplayAvailable(layer.channelNames, selection, undefined, config.spectralRgbGroupingEnabled !== false)) {
+  if (!isStokesDisplayAvailable(
+    layer.channelNames,
+    selection,
+    undefined,
+    config.spectralRgbGroupingEnabled !== false,
+    config.channelRecognitionNameRules
+  )) {
     return createEmptyDisplaySourceBinding();
   }
 
   if (selection.source.kind === 'scalar') {
-    const channels = detectScalarStokesChannels(layer.channelNames, selection.source.suffix ?? null);
+    const channels = detectScalarStokesChannels(
+      layer.channelNames,
+      selection.source.suffix ?? null,
+      { channelRecognitionNameRules: config.channelRecognitionNameRules }
+    );
     return channels
       ? createScalarStokesBinding(channels, selection.parameter)
       : createEmptyDisplaySourceBinding();
   }
 
   if (selection.source.kind === 'spectralRgb') {
-    return isSpectralStokesRgbDisplayAvailable(layer.channelNames)
+    return isSpectralStokesRgbDisplayAvailable(layer.channelNames, {
+      channelRecognitionNameRules: config.channelRecognitionNameRules
+    })
       ? createSpectralStokesRgbBinding(
           selection.parameter,
           visualizationMode === 'colormap' ? 'stokesSpectralRgbLuminance' : 'stokesSpectralRgb',
-          hasCompleteSpectralStokesS3(layer.channelNames)
+          hasCompleteSpectralStokesS3(layer.channelNames, {
+            channelRecognitionNameRules: config.channelRecognitionNameRules
+          })
         )
       : createEmptyDisplaySourceBinding();
   }
 
-  const channels = detectRgbStokesChannels(layer.channelNames);
+  const channels = detectRgbStokesChannels(layer.channelNames, {
+    channelRecognitionNameRules: config.channelRecognitionNameRules
+  });
   if (!channels) {
     return createEmptyDisplaySourceBinding();
   }

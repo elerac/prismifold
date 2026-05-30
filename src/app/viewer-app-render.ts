@@ -30,6 +30,11 @@ import {
   sameViewerPaneLayout
 } from '../viewer-pane-layout';
 import { sameStokesColormapDefaultSettings } from '../stokes-colormap-settings';
+import {
+  createDefaultChannelRecognitionNameRules,
+  sameChannelRecognitionNameRules
+} from '../channel-recognition-name-rules';
+import type { ChannelRecognitionNameRules } from '../channel-recognition-name-rules';
 import type { DisplayLuminanceRange, OpenedImageSession, ViewerRenderState } from '../types';
 import { buildProbeReadoutModel } from './probe-presentation';
 import { buildRoiReadoutModel } from './roi-presentation';
@@ -222,6 +227,7 @@ function createRenderStateSelector(): (state: ViewerAppState) => ViewerRenderSna
     const nextResult = mergeRenderState(state.sessionState, state.interactionState, {
       maskInvalidStokesVectors: state.maskInvalidStokesVectors,
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+      channelRecognitionNameRules: state.channelRecognitionNameRules,
       invalidValueWarningEnabled: state.invalidValueWarningEnabled
     });
     if (previousResult && sameViewerRenderState(previousResult, nextResult)) {
@@ -258,6 +264,7 @@ function selectPaneRenderSources(
           session.state,
           state.maskInvalidStokesVectors,
           state.spectralRgbGroupingEnabled,
+          state.channelRecognitionNameRules,
           state.invalidValueWarningEnabled
         );
     const layer = session.decoded.layers[renderState.activeLayer] ?? null;
@@ -269,7 +276,8 @@ function selectPaneRenderSources(
       displaySelection: resolveDisplaySelectionForLayer(layer.channelNames, renderState.displaySelection, {
         stokesParameterVisibility: state.stokesParameterVisibility,
         spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-        channelRecognitionSettings: state.channelRecognitionSettings
+        channelRecognitionSettings: state.channelRecognitionSettings,
+        channelRecognitionNameRules: state.channelRecognitionNameRules
       }),
       depthChannel: resolveDepthChannelForLayer(
         layer.channelNames,
@@ -298,12 +306,14 @@ function createStoredPaneRenderState(
   sessionState: ViewerAppState['sessionState'],
   maskInvalidStokesVectors: boolean,
   spectralRgbGroupingEnabled: boolean,
+  channelRecognitionNameRules: ChannelRecognitionNameRules,
   invalidValueWarningEnabled: boolean
 ): ViewerRenderState {
   return {
     ...sessionState,
     maskInvalidStokesVectors,
     spectralRgbGroupingEnabled,
+    channelRecognitionNameRules,
     invalidValueWarningEnabled,
     hoveredPixel: null,
     draftRoi: null,
@@ -337,6 +347,7 @@ function createProbeReadoutSelector(): (
   let previousStokesAolpDegreeModulationMode: ViewerAppState['sessionState']['stokesAolpDegreeModulationMode'] = 'value';
   let previousMaskInvalidStokesVectors = true;
   let previousSpectralRgbGroupingEnabled = true;
+  let previousChannelRecognitionNameRules = stateLikeNameRules();
   let previousResult = buildProbeReadoutModel({
     activeSession: null,
     activeLayer: null,
@@ -378,6 +389,7 @@ function createProbeReadoutSelector(): (
       state.sessionState.visualizationMode === previousVisualizationMode &&
       state.maskInvalidStokesVectors === previousMaskInvalidStokesVectors &&
       state.spectralRgbGroupingEnabled === previousSpectralRgbGroupingEnabled &&
+      sameChannelRecognitionNameRules(state.channelRecognitionNameRules, previousChannelRecognitionNameRules) &&
       (
         !usesColormap || (
           sameDisplayLuminanceRange(state.sessionState.colormapRange, previousColormapRange) &&
@@ -415,6 +427,7 @@ function createProbeReadoutSelector(): (
     previousStokesAolpDegreeModulationMode = state.sessionState.stokesAolpDegreeModulationMode;
     previousMaskInvalidStokesVectors = state.maskInvalidStokesVectors;
     previousSpectralRgbGroupingEnabled = state.spectralRgbGroupingEnabled;
+    previousChannelRecognitionNameRules = state.channelRecognitionNameRules;
     previousResult = buildProbeReadoutModel({
       activeSession,
       activeLayer,
@@ -423,7 +436,8 @@ function createProbeReadoutSelector(): (
       activeColormapLut,
       activeDisplayLuminanceRange,
       maskInvalidStokesVectors: state.maskInvalidStokesVectors,
-      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+      channelRecognitionNameRules: state.channelRecognitionNameRules
     });
     return previousResult;
   };
@@ -444,6 +458,7 @@ function createSpectralPlotReadoutSelector(): (
   let previousStokesColormapDefaults: ViewerAppState['stokesColormapDefaults'] | null = null;
   let previousMaskInvalidStokesVectors = true;
   let previousSpectralRgbGroupingEnabled = true;
+  let previousChannelRecognitionNameRules = stateLikeNameRules();
   let previousResult = buildSpectralPlotReadoutModel({
     activeSession: null,
     activeLayer: null,
@@ -472,6 +487,7 @@ function createSpectralPlotReadoutSelector(): (
       sameDisplaySelection(state.sessionState.displaySelection, previousDisplaySelection) &&
       state.maskInvalidStokesVectors === previousMaskInvalidStokesVectors &&
       state.spectralRgbGroupingEnabled === previousSpectralRgbGroupingEnabled &&
+      sameChannelRecognitionNameRules(state.channelRecognitionNameRules, previousChannelRecognitionNameRules) &&
       previousStokesColormapDefaults !== null &&
       sameStokesColormapDefaultSettings(state.stokesColormapDefaults, previousStokesColormapDefaults)
     ) {
@@ -487,6 +503,7 @@ function createSpectralPlotReadoutSelector(): (
     previousDisplaySelection = state.sessionState.displaySelection;
     previousMaskInvalidStokesVectors = state.maskInvalidStokesVectors;
     previousSpectralRgbGroupingEnabled = state.spectralRgbGroupingEnabled;
+    previousChannelRecognitionNameRules = state.channelRecognitionNameRules;
     previousStokesColormapDefaults = state.stokesColormapDefaults;
     previousResult = buildSpectralPlotReadoutModel({
       activeSession,
@@ -495,7 +512,8 @@ function createSpectralPlotReadoutSelector(): (
       interactionState: state.interactionState,
       stokesColormapDefaults: state.stokesColormapDefaults,
       maskInvalidStokesVectors: state.maskInvalidStokesVectors,
-      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+      channelRecognitionNameRules: state.channelRecognitionNameRules
     });
     return previousResult;
   };
@@ -516,6 +534,7 @@ function createResourceTargetSelector(): (
           maskInvalidStokesVectors: state.maskInvalidStokesVectors,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
           channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules,
           decodedRef: activeSession.decoded
         }
       : null;
@@ -642,6 +661,7 @@ function createDisplayRangeRequestSelector(): (
           maskInvalidStokesVectors: state.maskInvalidStokesVectors,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
           channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules,
           decodedRef: activeSession.decoded,
           requestKey: `${activeSession.id}:${buildDisplayLuminanceRevisionKey({
             activeLayer: state.sessionState.activeLayer,
@@ -649,7 +669,8 @@ function createDisplayRangeRequestSelector(): (
             visualizationMode: effectiveVisualizationMode,
             maskInvalidStokesVectors: state.maskInvalidStokesVectors,
             spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-            channelRecognitionSettings: state.channelRecognitionSettings
+            channelRecognitionSettings: state.channelRecognitionSettings,
+            channelRecognitionNameRules: state.channelRecognitionNameRules
           })}`
         }
       : null;
@@ -678,6 +699,7 @@ function createImageStatsRequestSelector(): (
           maskInvalidStokesVectors: state.maskInvalidStokesVectors,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
           channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules,
           decodedRef: activeSession.decoded,
           requestKey: `${activeSession.id}:${buildDisplayImageStatsRevisionKey({
             activeLayer: state.sessionState.activeLayer,
@@ -685,7 +707,8 @@ function createImageStatsRequestSelector(): (
             visualizationMode: state.sessionState.visualizationMode,
             maskInvalidStokesVectors: state.maskInvalidStokesVectors,
             spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-            channelRecognitionSettings: state.channelRecognitionSettings
+            channelRecognitionSettings: state.channelRecognitionSettings,
+            channelRecognitionNameRules: state.channelRecognitionNameRules
           })}`
         }
       : null;
@@ -715,6 +738,7 @@ function createAutoExposureRequestSelector(): (
           maskInvalidStokesVectors: state.maskInvalidStokesVectors,
           spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
           channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules,
           decodedRef: activeSession.decoded,
           percentile: state.autoExposurePercentile,
           source: AUTO_EXPOSURE_SOURCE,
@@ -724,7 +748,8 @@ function createAutoExposureRequestSelector(): (
             visualizationMode: 'rgb',
             maskInvalidStokesVectors: state.maskInvalidStokesVectors,
             spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
-            channelRecognitionSettings: state.channelRecognitionSettings
+            channelRecognitionSettings: state.channelRecognitionSettings,
+            channelRecognitionNameRules: state.channelRecognitionNameRules
           }, state.autoExposurePercentile)}`
         }
       : null;
@@ -765,6 +790,7 @@ function buildViewerStateReadout(
   const renderState = mergeRenderState(state.sessionState, state.interactionState, {
     maskInvalidStokesVectors: state.maskInvalidStokesVectors,
     spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+    channelRecognitionNameRules: state.channelRecognitionNameRules,
     invalidValueWarningEnabled: state.invalidValueWarningEnabled
   });
   return {
@@ -879,6 +905,10 @@ function samePaneResourceInputs(
     source.renderState.depthChannel === other.renderState.depthChannel &&
     source.renderState.maskInvalidStokesVectors === other.renderState.maskInvalidStokesVectors &&
     source.renderState.spectralRgbGroupingEnabled === other.renderState.spectralRgbGroupingEnabled &&
+    sameOptionalChannelRecognitionNameRules(
+      source.renderState.channelRecognitionNameRules,
+      other.renderState.channelRecognitionNameRules
+    ) &&
     sameDisplaySelection(source.renderState.displaySelection, other.renderState.displaySelection)
   ));
 }
@@ -918,6 +948,10 @@ function samePaneImageInput(a: ViewerPaneRenderSource, b: ViewerPaneRenderSource
     previous.colormapExposureEv === next.colormapExposureEv &&
     previous.colormapGamma === next.colormapGamma &&
     previous.maskInvalidStokesVectors === next.maskInvalidStokesVectors &&
+    sameOptionalChannelRecognitionNameRules(
+      previous.channelRecognitionNameRules,
+      next.channelRecognitionNameRules
+    ) &&
     previous.invalidValueWarningEnabled === next.invalidValueWarningEnabled &&
     sameDisplaySelection(previous.displaySelection, next.displaySelection) &&
     previous.depthChannel === next.depthChannel &&
@@ -955,6 +989,10 @@ function samePaneValueOverlayInput(a: ViewerPaneRenderSource, b: ViewerPaneRende
     previous.viewerMode === next.viewerMode &&
     sameDisplaySelection(previous.displaySelection, next.displaySelection) &&
     previous.maskInvalidStokesVectors === next.maskInvalidStokesVectors &&
+    sameOptionalChannelRecognitionNameRules(
+      previous.channelRecognitionNameRules,
+      next.channelRecognitionNameRules
+    ) &&
     previous.invalidValueWarningEnabled === next.invalidValueWarningEnabled &&
     sameViewState(previous, next)
   );
@@ -966,6 +1004,10 @@ function samePaneProbeOverlayInput(a: ViewerPaneRenderSource, b: ViewerPaneRende
   return (
     previous.viewerMode === next.viewerMode &&
     previous.maskInvalidStokesVectors === next.maskInvalidStokesVectors &&
+    sameOptionalChannelRecognitionNameRules(
+      previous.channelRecognitionNameRules,
+      next.channelRecognitionNameRules
+    ) &&
     previous.invalidValueWarningEnabled === next.invalidValueWarningEnabled &&
     samePixel(previous.lockedPixel, next.lockedPixel) &&
     samePixel(previous.hoveredPixel, next.hoveredPixel) &&
@@ -999,6 +1041,7 @@ function sameViewerRenderState(a: ViewerRenderState, b: ViewerRenderState): bool
     a.stokesAolpDegreeModulationMode === b.stokesAolpDegreeModulationMode &&
     a.maskInvalidStokesVectors === b.maskInvalidStokesVectors &&
     a.spectralRgbGroupingEnabled === b.spectralRgbGroupingEnabled &&
+    sameOptionalChannelRecognitionNameRules(a.channelRecognitionNameRules, b.channelRecognitionNameRules) &&
     a.invalidValueWarningEnabled === b.invalidValueWarningEnabled &&
     a.activeLayer === b.activeLayer &&
     sameDisplaySelection(a.displaySelection, b.displaySelection) &&
@@ -1048,6 +1091,17 @@ function stateLikeSessionState(): ViewerAppState['sessionState'] {
     lockedPixel: null,
     roi: null
   };
+}
+
+function stateLikeNameRules(): ChannelRecognitionNameRules {
+  return createDefaultChannelRecognitionNameRules();
+}
+
+function sameOptionalChannelRecognitionNameRules(
+  a: ChannelRecognitionNameRules | undefined,
+  b: ChannelRecognitionNameRules | undefined
+): boolean {
+  return sameChannelRecognitionNameRules(a ?? stateLikeNameRules(), b ?? stateLikeNameRules());
 }
 
 function stateLikeInteractionState(): ViewerAppState['interactionState'] {

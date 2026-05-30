@@ -8,6 +8,12 @@ import {
   withChannelRecognitionSetting,
   type ChannelRecognitionSettings
 } from '../../channel-recognition-settings';
+import {
+  createDefaultChannelRecognitionNameRules,
+  normalizeChannelRecognitionNameRules,
+  sameChannelRecognitionNameRules,
+  type ChannelRecognitionNameRules
+} from '../../channel-recognition-name-rules';
 import { sameDisplaySelection } from '../../display-model';
 import { resolveDisplaySelectionForLayer } from '../../display-selection';
 import {
@@ -69,6 +75,10 @@ export function uiPreferencesReducer(
       );
     case 'channelRecognitionSettingsReset':
       return reduceChannelRecognitionSettingsSet(state, createDefaultChannelRecognitionSettings());
+    case 'channelRecognitionNameRulesSet':
+      return reduceChannelRecognitionNameRulesSet(state, intent.rules);
+    case 'channelRecognitionNameRulesReset':
+      return reduceChannelRecognitionNameRulesSet(state, createDefaultChannelRecognitionNameRules());
     case 'invalidValueWarningSet':
       return state.invalidValueWarningEnabled === intent.enabled ? state : {
         ...state,
@@ -100,6 +110,48 @@ export function uiPreferencesReducer(
   }
 }
 
+function reduceChannelRecognitionNameRulesSet(
+  state: ViewerAppState,
+  rules: ChannelRecognitionNameRules
+): ViewerAppState {
+  const nextRules = normalizeChannelRecognitionNameRules(rules);
+  if (sameChannelRecognitionNameRules(state.channelRecognitionNameRules, nextRules)) {
+    return state;
+  }
+
+  const nextState: ViewerAppState = {
+    ...state,
+    channelRecognitionNameRules: nextRules,
+    displayRangeResource: idleResource(),
+    imageStatsResource: idleResource(),
+    autoExposureResource: idleResource()
+  };
+  const activeSession = selectActiveSession(nextState);
+  const layer = activeSession?.decoded.layers[nextState.sessionState.activeLayer] ?? null;
+  if (!layer) {
+    return nextState;
+  }
+
+  const displaySelection = resolveDisplaySelectionForLayer(
+    layer.channelNames,
+    nextState.sessionState.displaySelection,
+    {
+      stokesParameterVisibility: nextState.stokesParameterVisibility,
+      spectralRgbGroupingEnabled: nextState.spectralRgbGroupingEnabled,
+      channelRecognitionSettings: nextState.channelRecognitionSettings,
+      channelRecognitionNameRules: nextRules
+    }
+  );
+  if (sameDisplaySelection(displaySelection, nextState.sessionState.displaySelection)) {
+    return nextState;
+  }
+
+  return patchSessionState(nextState, { displaySelection }, {
+    clearHover: true,
+    resetDisplayRangeContext: true
+  });
+}
+
 function reduceChannelRecognitionSettingsSet(
   state: ViewerAppState,
   settings: ChannelRecognitionSettings
@@ -129,7 +181,8 @@ function reduceChannelRecognitionSettingsSet(
     {
       stokesParameterVisibility: nextState.stokesParameterVisibility,
       spectralRgbGroupingEnabled: nextState.spectralRgbGroupingEnabled,
-      channelRecognitionSettings: nextSettings
+      channelRecognitionSettings: nextSettings,
+      channelRecognitionNameRules: nextState.channelRecognitionNameRules
     }
   );
   if (sameDisplaySelection(displaySelection, nextState.sessionState.displaySelection)) {
@@ -175,7 +228,8 @@ function reduceSpectralRgbGroupingSet(state: ViewerAppState, enabled: boolean): 
     {
       stokesParameterVisibility: nextState.stokesParameterVisibility,
       spectralRgbGroupingEnabled: enabled,
-      channelRecognitionSettings
+      channelRecognitionSettings,
+      channelRecognitionNameRules: nextState.channelRecognitionNameRules
     }
   );
   if (sameDisplaySelection(displaySelection, nextState.sessionState.displaySelection)) {

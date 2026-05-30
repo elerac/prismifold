@@ -63,6 +63,12 @@ import type {
   ViewerSessionState
 } from '../types';
 import type { ChannelRecognitionSettings } from '../channel-recognition-settings';
+import {
+  createDefaultChannelRecognitionNameRules,
+  sameChannelRecognitionNameRules,
+  serializeChannelRecognitionNameRulesKey,
+  type ChannelRecognitionNameRules
+} from '../channel-recognition-name-rules';
 import { createAbortError, isAbortError, throwIfAborted, type Disposable } from '../lifecycle';
 
 export interface PrepareActiveSessionResult {
@@ -127,7 +133,8 @@ interface RenderCacheRenderer {
     width: number,
     height: number,
     layer: DecodedLayer,
-    channelNames: string[]
+    channelNames: string[],
+    channelRecognitionNameRules?: ChannelRecognitionNameRules
   ) => ResidentChannelUpload[];
   setDisplaySelectionBindings: (
     sessionId: string,
@@ -140,7 +147,8 @@ interface RenderCacheRenderer {
     maskInvalidStokesVectors: boolean | undefined,
     spectralRgbGroupingEnabled: boolean | undefined,
     textureRevisionKey: string,
-    binding: ReturnType<typeof buildDisplaySourceBinding>
+    binding: ReturnType<typeof buildDisplaySourceBinding>,
+    channelRecognitionNameRules?: ChannelRecognitionNameRules
   ) => void;
   setDepthSourceBinding?: (
     sessionId: string,
@@ -186,6 +194,7 @@ interface PendingDisplayLuminanceRangeJob {
   displaySelection: DisplaySelection | null;
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
   width: number;
   height: number;
   layer: DecodedLayer;
@@ -201,6 +210,7 @@ interface PendingImageStatsJob {
   displaySelection: DisplaySelection | null;
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
   width: number;
   height: number;
   layer: DecodedLayer;
@@ -216,6 +226,7 @@ interface PendingAutoExposureJob {
   displaySelection: DisplaySelection | null;
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
   percentile: number;
   width: number;
   height: number;
@@ -232,6 +243,7 @@ type RenderCacheDisplayState =
   Pick<ViewerSessionState, 'activeLayer' | 'displaySelection' | 'visualizationMode'> &
   Partial<Pick<ViewerRenderState, 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>> & {
     channelRecognitionSettings?: ChannelRecognitionSettings;
+    channelRecognitionNameRules?: ChannelRecognitionNameRules;
   };
 
 const DISPLAY_LUMINANCE_RANGE_IDLE_TIMEOUT_MS = 250;
@@ -273,6 +285,7 @@ export class RenderCacheService implements Disposable {
   private boundLayerIndex: number | null = null;
   private boundChannelNames = new Set<string>();
   private boundTextureRevisionKey = '';
+  private boundChannelRecognitionNameRulesKey = '';
   private activeHotSessionId: string | null = null;
   private activeHotLayerIndex: number | null = null;
   private activeHotChannelNames = new Set<string>();
@@ -300,7 +313,10 @@ export class RenderCacheService implements Disposable {
 
   prepareActiveSession(
     session: OpenedImageSession,
-    state: ViewerSessionState & Partial<Pick<ViewerRenderState, 'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled'>>
+    state: ViewerSessionState & Partial<Pick<
+      ViewerRenderState,
+      'maskInvalidStokesVectors' | 'spectralRgbGroupingEnabled' | 'channelRecognitionNameRules'
+    >>
   ): PrepareActiveSessionResult {
     if (this.disposed) {
       return {
@@ -326,8 +342,10 @@ export class RenderCacheService implements Disposable {
     }
 
     const textureRevisionKey = buildDisplayTextureRevisionKey(state);
+    const channelRecognitionNameRulesKey = buildChannelRecognitionNameRulesCacheKey(state.channelRecognitionNameRules);
     const binding = buildDisplaySourceBinding(layer, state.displaySelection, state.visualizationMode, {
-      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+      channelRecognitionNameRules: state.channelRecognitionNameRules
     });
     const depthChannel = state.viewerMode === 'depth'
       ? resolveDepthChannelForLayer(layer.channelNames, state.depthChannel, { allowArbitraryZSuffix: true })
@@ -340,12 +358,20 @@ export class RenderCacheService implements Disposable {
       ...requiredChannelNames,
       ...(depthChannel && layer.channelStorage.channelIndexByName[depthChannel] !== undefined ? [depthChannel] : [])
     ];
+    if (this.boundChannelRecognitionNameRulesKey !== channelRecognitionNameRulesKey) {
+      for (const channelName of requiredTextureChannelNames) {
+        if (isDerivedDisplaySourceName(channelName)) {
+          this.evictResidentChannel(session.id, state.activeLayer, channelName);
+        }
+      }
+    }
     const protectedBinding = this.resolvePrepareProtectedBinding(
       session.id,
       state.activeLayer,
       layer,
       state.displaySelection,
       state.spectralRgbGroupingEnabled !== false,
+      state.channelRecognitionNameRules,
       requiredTextureChannelNames
     );
     const { missingChannelNames } = this.ensureResidentChannels({
@@ -355,27 +381,48 @@ export class RenderCacheService implements Disposable {
       height: session.decoded.height,
       layer,
       channelNames: requiredTextureChannelNames,
+      channelRecognitionNameRules: state.channelRecognitionNameRules,
       protectedBinding
     });
     const textureDirty =
       missingChannelNames.length > 0 ||
       this.boundSessionId !== session.id ||
       this.boundTextureRevisionKey !== textureRevisionKey;
+    const nonDefaultChannelRecognitionNameRules = channelRecognitionNameRulesKey
+      ? state.channelRecognitionNameRules
+      : undefined;
 
     if (textureDirty) {
-      this.renderer.setDisplaySelectionBindings(
-        session.id,
-        state.activeLayer,
-        session.decoded.width,
-        session.decoded.height,
-        layer,
-        state.displaySelection,
-        state.visualizationMode,
-        state.maskInvalidStokesVectors,
-        state.spectralRgbGroupingEnabled,
-        textureRevisionKey,
-        binding
-      );
+      if (nonDefaultChannelRecognitionNameRules) {
+        this.renderer.setDisplaySelectionBindings(
+          session.id,
+          state.activeLayer,
+          session.decoded.width,
+          session.decoded.height,
+          layer,
+          state.displaySelection,
+          state.visualizationMode,
+          state.maskInvalidStokesVectors,
+          state.spectralRgbGroupingEnabled,
+          textureRevisionKey,
+          binding,
+          nonDefaultChannelRecognitionNameRules
+        );
+      } else {
+        this.renderer.setDisplaySelectionBindings(
+          session.id,
+          state.activeLayer,
+          session.decoded.width,
+          session.decoded.height,
+          layer,
+          state.displaySelection,
+          state.visualizationMode,
+          state.maskInvalidStokesVectors,
+          state.spectralRgbGroupingEnabled,
+          textureRevisionKey,
+          binding
+        );
+      }
       this.renderer.setDepthSourceBinding?.(
         session.id,
         state.activeLayer,
@@ -384,7 +431,7 @@ export class RenderCacheService implements Disposable {
         depthChannel,
         computePositiveFiniteDepthRange(layer, session.decoded.width, session.decoded.height, depthChannel)
       );
-      this.setBoundTextureTracking(protectedBinding, textureRevisionKey);
+      this.setBoundTextureTracking(protectedBinding, textureRevisionKey, channelRecognitionNameRulesKey);
     }
 
     this.enforceResidencyBudget({
@@ -456,6 +503,7 @@ export class RenderCacheService implements Disposable {
       displaySelection: cloneDisplaySelection(state.displaySelection),
       maskInvalidStokesVectors: state.maskInvalidStokesVectors,
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+      channelRecognitionNameRules: state.channelRecognitionNameRules,
       width: session.decoded.width,
       height: session.decoded.height,
       layer,
@@ -532,6 +580,7 @@ export class RenderCacheService implements Disposable {
       displaySelection: cloneDisplaySelection(state.displaySelection),
       maskInvalidStokesVectors: state.maskInvalidStokesVectors,
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+      channelRecognitionNameRules: state.channelRecognitionNameRules,
       width: session.decoded.width,
       height: session.decoded.height,
       layer,
@@ -592,7 +641,8 @@ export class RenderCacheService implements Disposable {
       percentile,
       {
         maskInvalidStokesVectors: state.maskInvalidStokesVectors,
-        spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled
+        spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+        channelRecognitionNameRules: state.channelRecognitionNameRules
       }
     );
 
@@ -623,6 +673,7 @@ export class RenderCacheService implements Disposable {
       displaySelection: cloneDisplaySelection(state.displaySelection),
       maskInvalidStokesVectors: state.maskInvalidStokesVectors,
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
+      channelRecognitionNameRules: state.channelRecognitionNameRules,
       percentile,
       width: session.decoded.width,
       height: session.decoded.height,
@@ -705,7 +756,8 @@ export class RenderCacheService implements Disposable {
       state.displaySelection,
       state.visualizationMode,
       state.maskInvalidStokesVectors,
-      state.spectralRgbGroupingEnabled
+      state.spectralRgbGroupingEnabled,
+      state.channelRecognitionNameRules
     );
     entry.luminanceRangeByRevision.set(
       revisionKey,
@@ -764,6 +816,7 @@ export class RenderCacheService implements Disposable {
     this.boundLayerIndex = null;
     this.boundChannelNames.clear();
     this.boundTextureRevisionKey = '';
+    this.boundChannelRecognitionNameRulesKey = '';
     this.clearActiveHotSourceTracking();
     this.nextAccessToken = 1;
     this.syncDisplayCacheUsageUi();
@@ -785,6 +838,7 @@ export class RenderCacheService implements Disposable {
     this.boundLayerIndex = null;
     this.boundChannelNames.clear();
     this.boundTextureRevisionKey = '';
+    this.boundChannelRecognitionNameRulesKey = '';
     this.clearActiveHotSourceTracking();
     this.nextAccessToken = 1;
   }
@@ -852,6 +906,7 @@ export class RenderCacheService implements Disposable {
             job.visualizationMode,
             job.maskInvalidStokesVectors,
             job.spectralRgbGroupingEnabled,
+            job.channelRecognitionNameRules,
             job.controller.signal
           );
 
@@ -932,7 +987,8 @@ export class RenderCacheService implements Disposable {
             {
               ...this.createAnalysisComputeOptions(job.controller.signal),
               maskInvalidStokesVectors: job.maskInvalidStokesVectors,
-              spectralRgbGroupingEnabled: job.spectralRgbGroupingEnabled
+              spectralRgbGroupingEnabled: job.spectralRgbGroupingEnabled,
+              channelRecognitionNameRules: job.channelRecognitionNameRules
             }
           );
 
@@ -1014,7 +1070,8 @@ export class RenderCacheService implements Disposable {
             {
               ...this.createAnalysisComputeOptions(job.controller.signal),
               maskInvalidStokesVectors: job.maskInvalidStokesVectors,
-              spectralRgbGroupingEnabled: job.spectralRgbGroupingEnabled
+              spectralRgbGroupingEnabled: job.spectralRgbGroupingEnabled,
+              channelRecognitionNameRules: job.channelRecognitionNameRules
             }
           );
 
@@ -1358,6 +1415,7 @@ export class RenderCacheService implements Disposable {
     height: number;
     layer: DecodedLayer;
     channelNames: readonly string[];
+    channelRecognitionNameRules?: ChannelRecognitionNameRules;
     protectedBinding: ProtectedBinding;
   }): {
     residentLayer: ResidentLayerResourceEntry;
@@ -1395,14 +1453,24 @@ export class RenderCacheService implements Disposable {
       sessionId: args.session.id,
       missingChannelCount: missingChannelNames.length
     });
-    const residentChannelUploads = this.renderer.ensureLayerChannelsResident(
-      args.session.id,
-      args.layerIndex,
-      args.width,
-      args.height,
-      args.layer,
-      missingChannelNames
-    );
+    const residentChannelUploads = args.channelRecognitionNameRules
+      ? this.renderer.ensureLayerChannelsResident(
+        args.session.id,
+        args.layerIndex,
+        args.width,
+        args.height,
+        args.layer,
+        missingChannelNames,
+        args.channelRecognitionNameRules
+      )
+      : this.renderer.ensureLayerChannelsResident(
+        args.session.id,
+        args.layerIndex,
+        args.width,
+        args.height,
+        args.layer,
+        missingChannelNames
+      );
     traceViewerInteraction({
       type: 'displayChannelPrepareEnd',
       sessionId: args.session.id,
@@ -1436,6 +1504,7 @@ export class RenderCacheService implements Disposable {
     layer: DecodedLayer,
     selection: DisplaySelection | null,
     spectralRgbGroupingEnabled: boolean,
+    channelRecognitionNameRules: ChannelRecognitionNameRules | undefined,
     requiredChannelNames: readonly string[]
   ): ProtectedBinding {
     if (this.getActiveSessionId() !== sessionId) {
@@ -1454,7 +1523,8 @@ export class RenderCacheService implements Disposable {
     this.addActiveHotSourceNames(resolveSpectralRgbHotSourceNames(
       layer,
       selection,
-      spectralRgbGroupingEnabled
+      spectralRgbGroupingEnabled,
+      channelRecognitionNameRules
     ));
     return this.createProtectedBinding(
       sessionId,
@@ -1512,7 +1582,8 @@ export class RenderCacheService implements Disposable {
     const sourceName = resolvePrewarmSpectralRgbSourceName(
       layer,
       state.displaySelection,
-      true
+      true,
+      state.channelRecognitionNameRules
     );
     if (!sourceName) {
       return;
@@ -1526,7 +1597,7 @@ export class RenderCacheService implements Disposable {
       return;
     }
 
-    const prewarmKey = buildPrewarmKey(session.id, state.activeLayer, sourceName);
+    const prewarmKey = buildPrewarmKey(session.id, state.activeLayer, sourceName, state.channelRecognitionNameRules);
     if (this.pendingSpectralRgbPrewarmKey === prewarmKey) {
       return;
     }
@@ -1539,6 +1610,7 @@ export class RenderCacheService implements Disposable {
       layerIndex: state.activeLayer,
       layer,
       sourceName,
+      channelRecognitionNameRules: state.channelRecognitionNameRules,
       prewarmKey,
       token
     });
@@ -1549,6 +1621,7 @@ export class RenderCacheService implements Disposable {
     layerIndex: number;
     layer: DecodedLayer;
     sourceName: string;
+    channelRecognitionNameRules?: ChannelRecognitionNameRules;
     prewarmKey: string;
     token: number;
   }): Promise<void> {
@@ -1576,6 +1649,7 @@ export class RenderCacheService implements Disposable {
         height: args.session.decoded.height,
         layer: args.layer,
         channelNames: [args.sourceName],
+        channelRecognitionNameRules: args.channelRecognitionNameRules,
         protectedBinding
       });
       this.syncDisplayCacheUsageUi();
@@ -1616,6 +1690,7 @@ export class RenderCacheService implements Disposable {
       this.boundLayerIndex = null;
       this.boundChannelNames.clear();
       this.boundTextureRevisionKey = '';
+      this.boundChannelRecognitionNameRulesKey = '';
     }
   }
 
@@ -1627,11 +1702,16 @@ export class RenderCacheService implements Disposable {
     };
   }
 
-  private setBoundTextureTracking(protectedBinding: ProtectedBinding, textureRevisionKey: string): void {
+  private setBoundTextureTracking(
+    protectedBinding: ProtectedBinding,
+    textureRevisionKey: string,
+    channelRecognitionNameRulesKey: string
+  ): void {
     this.boundSessionId = protectedBinding.sessionId;
     this.boundLayerIndex = protectedBinding.layerIndex;
     this.boundChannelNames = new Set(protectedBinding.channelNames);
     this.boundTextureRevisionKey = textureRevisionKey;
+    this.boundChannelRecognitionNameRulesKey = channelRecognitionNameRulesKey;
   }
 
   private getOrCreateResidentLayerEntry(entry: SessionResourceEntry, layerIndex: number): ResidentLayerResourceEntry {
@@ -1797,12 +1877,13 @@ export class RenderCacheService implements Disposable {
     selection: DisplaySelection | null,
     visualizationMode: ViewerSessionState['visualizationMode'],
     maskInvalidStokesVectors?: boolean,
-    spectralRgbGroupingEnabled?: boolean
+    spectralRgbGroupingEnabled?: boolean,
+    channelRecognitionNameRules?: ChannelRecognitionNameRules
   ): DisplayLuminanceRange | null {
     const selectionKey = serializeDisplaySelectionLuminanceKey(
       selection,
       visualizationMode,
-      { maskInvalidStokesVectors, spectralRgbGroupingEnabled }
+      { maskInvalidStokesVectors, spectralRgbGroupingEnabled, channelRecognitionNameRules }
     );
     if (Object.prototype.hasOwnProperty.call(layer.analysis.displayLuminanceRangeBySelectionKey, selectionKey)) {
       return layer.analysis.displayLuminanceRangeBySelectionKey[selectionKey] ?? null;
@@ -1823,7 +1904,7 @@ export class RenderCacheService implements Disposable {
         height,
         selection,
         visualizationMode,
-        { maskInvalidStokesVectors, spectralRgbGroupingEnabled }
+        { maskInvalidStokesVectors, spectralRgbGroupingEnabled, channelRecognitionNameRules }
       );
     }
 
@@ -1839,13 +1920,14 @@ export class RenderCacheService implements Disposable {
     visualizationMode: ViewerSessionState['visualizationMode'],
     maskInvalidStokesVectors: boolean | undefined,
     spectralRgbGroupingEnabled: boolean | undefined,
+    channelRecognitionNameRules: ChannelRecognitionNameRules | undefined,
     signal: AbortSignal
   ): Promise<DisplayLuminanceRange | null> {
     throwIfAborted(signal, 'Render cache job was cancelled.');
     const selectionKey = serializeDisplaySelectionLuminanceKey(
       selection,
       visualizationMode,
-      { maskInvalidStokesVectors, spectralRgbGroupingEnabled }
+      { maskInvalidStokesVectors, spectralRgbGroupingEnabled, channelRecognitionNameRules }
     );
     if (Object.prototype.hasOwnProperty.call(layer.analysis.displayLuminanceRangeBySelectionKey, selectionKey)) {
       return layer.analysis.displayLuminanceRangeBySelectionKey[selectionKey] ?? null;
@@ -1870,7 +1952,8 @@ export class RenderCacheService implements Disposable {
       {
         ...this.createAnalysisComputeOptions(signal),
         maskInvalidStokesVectors,
-        spectralRgbGroupingEnabled
+        spectralRgbGroupingEnabled,
+        channelRecognitionNameRules
       }
     );
 
@@ -1886,7 +1969,8 @@ export class RenderCacheService implements Disposable {
       job.visualizationMode,
       {
         maskInvalidStokesVectors: job.maskInvalidStokesVectors,
-        spectralRgbGroupingEnabled: job.spectralRgbGroupingEnabled
+        spectralRgbGroupingEnabled: job.spectralRgbGroupingEnabled,
+        channelRecognitionNameRules: job.channelRecognitionNameRules
       }
     );
     if (job.displaySelection?.kind === 'channelMono') {
@@ -2037,7 +2121,8 @@ function isDerivedDisplaySourceName(channelName: string): boolean {
 function resolveSpectralRgbHotSourceNames(
   layer: DecodedLayer,
   selection: DisplaySelection | null,
-  spectralRgbGroupingEnabled = true
+  spectralRgbGroupingEnabled = true,
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
 ): string[] {
   if (!spectralRgbGroupingEnabled) {
     return [];
@@ -2051,31 +2136,60 @@ function resolveSpectralRgbHotSourceNames(
     return [];
   }
 
-  const seriesKey = findSpectralRgbSeriesKeyForChannel(layer.channelNames, selection.channel);
+  const seriesKey = findSpectralRgbSeriesKeyForChannel(layer.channelNames, selection.channel, {
+    channelRecognitionNameRules
+  });
   return seriesKey === null ? [] : [selection.channel, buildSpectralRgbSourceName(seriesKey)];
 }
 
 function resolvePrewarmSpectralRgbSourceName(
   layer: DecodedLayer,
   selection: DisplaySelection | null,
-  spectralRgbGroupingEnabled = true
+  spectralRgbGroupingEnabled = true,
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
 ): string | null {
   if (!spectralRgbGroupingEnabled) {
     return null;
   }
 
-  const hotSourceNames = resolveSpectralRgbHotSourceNames(layer, selection, spectralRgbGroupingEnabled);
+  const hotSourceNames = resolveSpectralRgbHotSourceNames(
+    layer,
+    selection,
+    spectralRgbGroupingEnabled,
+    channelRecognitionNameRules
+  );
   const pairedSourceName = hotSourceNames.find(isSpectralRgbSourceName) ?? null;
   if (pairedSourceName) {
     return pairedSourceName;
   }
 
-  const defaultSelection = pickDefaultSpectralRgbSelection(layer.channelNames);
+  const defaultSelection = pickDefaultSpectralRgbSelection(layer.channelNames, {
+    channelRecognitionNameRules
+  });
   return defaultSelection ? buildSpectralRgbSourceName(defaultSelection.seriesKey) : null;
 }
 
-function buildPrewarmKey(sessionId: string, layerIndex: number, sourceName: string): string {
-  return `${sessionId}:${layerIndex}:${sourceName}`;
+function buildPrewarmKey(
+  sessionId: string,
+  layerIndex: number,
+  sourceName: string,
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
+): string {
+  const rulesKey = buildChannelRecognitionNameRulesCacheKey(channelRecognitionNameRules);
+  return `${sessionId}:${layerIndex}:${sourceName}${rulesKey}`;
+}
+
+function buildChannelRecognitionNameRulesCacheKey(
+  channelRecognitionNameRules?: ChannelRecognitionNameRules
+): string {
+  if (
+    !channelRecognitionNameRules ||
+    sameChannelRecognitionNameRules(channelRecognitionNameRules, createDefaultChannelRecognitionNameRules())
+  ) {
+    return '';
+  }
+
+  return `:${serializeChannelRecognitionNameRulesKey(channelRecognitionNameRules)}`;
 }
 
 function uniqueStrings(values: readonly string[]): string[] {

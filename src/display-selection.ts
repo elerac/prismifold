@@ -21,6 +21,7 @@ import {
 import type { DisplayChannelMapping } from './types';
 import type { StokesParameterVisibilitySettings } from './stokes';
 import type { ChannelRecognitionSettings } from './channel-recognition-settings';
+import type { ChannelRecognitionNameRules } from './channel-recognition-name-rules';
 
 export type { RgbChannelGroup } from './channel-recognition';
 
@@ -36,12 +37,14 @@ export interface ChannelDisplayOptionsConfig {
   includeSplitChannels?: boolean;
   includeAlphaCompanions?: boolean;
   channelRecognitionSettings?: ChannelRecognitionSettings;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }
 
 export interface DisplaySelectionAvailabilityConfig {
   stokesParameterVisibility?: StokesParameterVisibilitySettings;
   spectralRgbGroupingEnabled?: boolean;
   channelRecognitionSettings?: ChannelRecognitionSettings;
+  channelRecognitionNameRules?: ChannelRecognitionNameRules;
 }
 
 export function pickDefaultDisplaySelection(
@@ -94,7 +97,8 @@ export function buildChannelDisplayOptions(
   const includeAlphaCompanions = config.includeAlphaCompanions ?? !includeSplitChannels;
   const recognition = recognizeLayerChannels(channelNames, {
     includeAlphaCompanions,
-    channelRecognitionSettings: config.channelRecognitionSettings
+    channelRecognitionSettings: config.channelRecognitionSettings,
+    channelRecognitionNameRules: config.channelRecognitionNameRules
   });
 
   return recognition.candidates
@@ -193,11 +197,15 @@ function normalizeChannelSelection(
       candidate.selection.channel === selection.channel &&
       candidate.availability.merged
     ));
-    return recognized?.selection ?? buildChannelMonoSelection(channelNames, selection.channel);
+    return recognized?.kind === 'singleChannel'
+      ? recognized.selection
+      : buildChannelMonoSelection(channelNames, selection.channel);
   }
 
   const group = findSelectedComponentChannelGroup(
-    extractComponentChannelGroups(channelNames),
+    extractComponentChannelGroups(channelNames, {
+      channelRecognitionNameRules: config.channelRecognitionNameRules
+    }),
     selection.r,
     selection.g,
     selection.b
