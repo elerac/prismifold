@@ -1,0 +1,1104 @@
+import {
+  buildRgbGroupLabel,
+  getDisplaySelectionOptionLabel,
+  isAlphaChannel,
+  isMuellerMatrixSelection,
+  isSpectralRgbSelection,
+  isStokesSelection,
+  parseRgbChannelName,
+  serializeDisplaySelectionKey,
+  type ChannelMonoSelection,
+  type ChannelRgbSelection,
+  type DisplaySelection,
+  type MuellerMatrixSelection,
+  type SpectralRgbSelection,
+  type StokesParameter,
+  type StokesSelection
+} from './display-model';
+import {
+  detectRgbStokesChannels,
+  detectScalarStokesChannels,
+  getStokesDisplayOptions,
+  type RgbStokesChannels,
+  type ScalarStokesChannels,
+  type StokesDisplayOption,
+  type StokesParameterVisibilitySettings
+} from './stokes';
+import { getRgbComponentChannels } from './stokes/stokes-display';
+import {
+  detectSpectralChannelsForSeries,
+  detectSpectralStokesChannelGroups,
+  getSpectralRgbDisplayOptions,
+  hasCompleteSpectralStokesS3,
+  isSpectralStokesSuffix,
+  type SpectralChannel,
+  type SpectralRgbDisplayOption
+} from './spectral';
+import {
+  detectMuellerMatrixChannels,
+  detectRgbMuellerMatrixChannels,
+  getMuellerMatrixDisplayOptions,
+  type MuellerMatrixChannels,
+  type MuellerMatrixDisplayOption,
+  type RgbMuellerMatrixChannels
+} from './mueller';
+import type { DisplayChannelMapping } from './types';
+
+export type ComponentChannelGroupKind = 'rgb' | 'xyz' | 'uv';
+
+export interface RgbChannelGroup {
+  key: string;
+  label: string;
+  r: string;
+  g: string;
+  b: string;
+  a?: string;
+}
+
+export interface ComponentChannelGroup {
+  kind: ComponentChannelGroupKind;
+  optionKey: string;
+  key: string;
+  label: string;
+  r: string;
+  g: string;
+  b: string | null;
+  a?: string;
+}
+
+export interface ChannelRecognitionConfig {
+  stokesParameterVisibility?: StokesParameterVisibilitySettings;
+  spectralRgbGroupingEnabled?: boolean;
+  includeAlphaCompanions?: boolean;
+}
+
+export interface ChannelRecognitionAvailability {
+  available: boolean;
+  merged: boolean;
+  split: boolean;
+  defaultEligible: boolean;
+}
+
+export interface ChannelRecognitionMetadata {
+  componentKind?: ComponentChannelGroupKind;
+  displayKind?: 'component' | 'spectral' | 'stokes' | 'mueller' | 'single';
+  channelCount?: number;
+  alpha?: string | null;
+  suffix?: string | null;
+  seriesKey?: string;
+  seriesLabel?: string;
+  parameter?: StokesParameter;
+  component?: string | null;
+  hasS3?: boolean;
+  rgb?: boolean;
+  hiddenInMergedChannelView?: boolean;
+  synthetic?: boolean;
+  defaultReason?: 'component' | 'rgbMueller' | 'spectral' | 'grayscale' | 'mueller' | 'fallback';
+}
+
+interface BaseRecognizedChannelCandidate {
+  kind: string;
+  ruleId: string;
+  key: string;
+  label: string;
+  channels: string[];
+  selection: DisplaySelection;
+  mapping: DisplayChannelMapping;
+  priority: number;
+  sourceOrder: number;
+  splitChildren: string[];
+  mergedParentKey: string | null;
+  availability: ChannelRecognitionAvailability;
+  metadata: ChannelRecognitionMetadata;
+}
+
+export interface ComponentGroupCandidate extends BaseRecognizedChannelCandidate {
+  kind: 'componentGroup';
+  ruleId: 'component.rgb' | 'component.xyz' | 'component.uv';
+  selection: ChannelRgbSelection;
+  metadata: ChannelRecognitionMetadata & {
+    componentKind: ComponentChannelGroupKind;
+    displayKind: 'component';
+  };
+}
+
+export interface SpectralSeriesCandidate extends BaseRecognizedChannelCandidate {
+  kind: 'spectralSeries';
+  ruleId: 'spectral.series';
+  selection: SpectralRgbSelection;
+  metadata: ChannelRecognitionMetadata & {
+    displayKind: 'spectral';
+    seriesKey: string;
+  };
+}
+
+export interface StokesVectorCandidate extends BaseRecognizedChannelCandidate {
+  kind: 'stokesVector';
+  ruleId: 'stokes.scalar' | 'stokes.rgb' | 'stokes.spectral';
+  selection: StokesSelection;
+  metadata: ChannelRecognitionMetadata & {
+    displayKind: 'stokes';
+    parameter: StokesParameter;
+  };
+}
+
+export interface MuellerMatrixCandidate extends BaseRecognizedChannelCandidate {
+  kind: 'muellerMatrix';
+  ruleId: 'mueller.scalar' | 'mueller.rgb';
+  selection: MuellerMatrixSelection;
+  metadata: ChannelRecognitionMetadata & {
+    displayKind: 'mueller';
+    channelCount: number;
+  };
+}
+
+export interface SingleChannelCandidate extends BaseRecognizedChannelCandidate {
+  kind: 'singleChannel';
+  ruleId: 'fallback.singleChannel';
+  selection: ChannelMonoSelection;
+  metadata: ChannelRecognitionMetadata & {
+    displayKind: 'single';
+  };
+}
+
+export type RecognizedChannelCandidate =
+  | ComponentGroupCandidate
+  | SpectralSeriesCandidate
+  | StokesVectorCandidate
+  | MuellerMatrixCandidate
+  | SingleChannelCandidate;
+
+export interface ChannelRecognitionResult {
+  channelNames: string[];
+  candidates: RecognizedChannelCandidate[];
+}
+
+interface ComponentRule {
+  id: ComponentGroupCandidate['ruleId'];
+  kind: ComponentChannelGroupKind;
+  suffixes: readonly string[];
+  optionKeyPrefix: string;
+  priority: number;
+}
+
+const COMPONENT_SOURCE_ORDER_BASE = 0;
+const SINGLE_SOURCE_ORDER_BASE = 5_000;
+const SPECTRAL_SOURCE_ORDER_BASE = 10_000;
+const STOKES_SOURCE_ORDER_BASE = 20_000;
+const MUELLER_SOURCE_ORDER_BASE = 30_000;
+
+const DEFAULT_PRIORITY_NORMAL_RGB = 10;
+const DEFAULT_PRIORITY_RGB_MUELLER = 20;
+const DEFAULT_PRIORITY_RGB_LIKE = 30;
+const DEFAULT_PRIORITY_VECTOR = 40;
+const DEFAULT_PRIORITY_SPECTRAL_RGB = 50;
+const DEFAULT_PRIORITY_GRAYSCALE = 60;
+const DEFAULT_PRIORITY_MUELLER = 70;
+const DEFAULT_PRIORITY_FALLBACK = 80;
+const NON_DEFAULT_PRIORITY = Number.MAX_SAFE_INTEGER;
+
+const COMPONENT_RULES: readonly ComponentRule[] = [
+  {
+    id: 'component.rgb',
+    kind: 'rgb',
+    suffixes: ['R', 'G', 'B'],
+    optionKeyPrefix: 'group',
+    priority: DEFAULT_PRIORITY_NORMAL_RGB
+  },
+  {
+    id: 'component.xyz',
+    kind: 'xyz',
+    suffixes: ['X', 'Y', 'Z'],
+    optionKeyPrefix: 'groupXYZ',
+    priority: DEFAULT_PRIORITY_VECTOR
+  },
+  {
+    id: 'component.uv',
+    kind: 'uv',
+    suffixes: ['U', 'V'],
+    optionKeyPrefix: 'groupUV',
+    priority: DEFAULT_PRIORITY_VECTOR
+  }
+];
+
+const RGB_COMPONENTS = ['R', 'G', 'B'] as const;
+
+export function recognizeLayerChannels(
+  channelNames: string[],
+  config: ChannelRecognitionConfig = {}
+): ChannelRecognitionResult {
+  const names = [...channelNames];
+  const spectralRgbGroupingEnabled = config.spectralRgbGroupingEnabled !== false;
+  const includeAlphaCompanions = config.includeAlphaCompanions !== false;
+  const componentGroups = extractComponentChannelGroups(names);
+  const spectralRecognition = buildSpectralSeriesCandidates(names, spectralRgbGroupingEnabled);
+  const splitSingleCandidates = buildSplitSingleChannelCandidates(
+    names,
+    componentGroups,
+    spectralRecognition.parentKeyByChannel,
+    includeAlphaCompanions
+  );
+  const mergedSingleCandidates = buildMergedSingleChannelCandidates(
+    names,
+    componentGroups,
+    spectralRecognition.parentKeyByChannel,
+    includeAlphaCompanions
+  );
+
+  return {
+    channelNames: names,
+    candidates: [
+      ...componentGroups.map(buildComponentGroupCandidate),
+      ...mergedSingleCandidates,
+      ...splitSingleCandidates,
+      ...spectralRecognition.candidates,
+      ...buildStokesCandidates(names, config),
+      ...buildMuellerCandidates(names)
+    ]
+  };
+}
+
+export function extractRgbChannelGroups(channelNames: string[]): RgbChannelGroup[] {
+  return extractComponentChannelGroups(channelNames)
+    .filter((group) => group.kind === 'rgb')
+    .map((group) => ({
+      key: group.key,
+      label: group.label,
+      r: group.r,
+      g: group.g,
+      b: group.b ?? '',
+      a: group.a
+    }));
+}
+
+export function extractComponentChannelGroups(channelNames: string[]): ComponentChannelGroup[] {
+  return COMPONENT_RULES.flatMap((rule) => extractComponentChannelGroupsForRule(channelNames, rule));
+}
+
+export function findSelectedComponentChannelGroup(
+  groups: readonly ComponentChannelGroup[],
+  displayR: string,
+  displayG: string,
+  displayB: string | null
+): ComponentChannelGroup | null {
+  return groups.find((group) => group.r === displayR && group.g === displayG && group.b === displayB) ?? null;
+}
+
+export function buildChannelRgbSelection(group: Pick<ComponentChannelGroup, 'r' | 'g' | 'b' | 'a'>): ChannelRgbSelection {
+  return {
+    kind: 'channelRgb',
+    r: group.r,
+    g: group.g,
+    b: group.b,
+    alpha: group.a ?? null
+  };
+}
+
+export function buildChannelMonoSelection(channelNames: readonly string[], channelName: string): ChannelMonoSelection {
+  return {
+    kind: 'channelMono',
+    channel: channelName,
+    alpha: resolveAlphaChannelForChannel(channelNames, channelName)
+  };
+}
+
+export function resolveAlphaChannelForChannel(channelNames: readonly string[], channelName: string): string | null {
+  const channels = new Set(channelNames);
+
+  if (isAlphaChannel(channelName)) {
+    return null;
+  }
+
+  const parsed = parseRgbChannelName(channelName);
+  if (parsed?.base) {
+    const alphaChannel = `${parsed.base}.A`;
+    return channels.has(alphaChannel) ? alphaChannel : null;
+  }
+
+  if (channelName.includes('.')) {
+    const dotIndex = channelName.lastIndexOf('.');
+    const alphaChannel = `${channelName.slice(0, dotIndex)}.A`;
+    return channels.has(alphaChannel) ? alphaChannel : null;
+  }
+
+  return channels.has('A') ? 'A' : null;
+}
+
+export function pickDefaultRecognizedCandidate(
+  result: ChannelRecognitionResult
+): RecognizedChannelCandidate | null {
+  return result.candidates
+    .filter((candidate) => candidate.availability.defaultEligible)
+    .sort((a, b) => a.priority - b.priority || a.sourceOrder - b.sourceOrder || a.key.localeCompare(b.key))[0] ?? null;
+}
+
+export function findRecognizedCandidateForSelection(
+  result: ChannelRecognitionResult,
+  selection: DisplaySelection | null,
+  presentation?: 'merged' | 'split'
+): RecognizedChannelCandidate | null {
+  if (!selection) {
+    return null;
+  }
+
+  const selectionKey = serializeDisplaySelectionKey(selection);
+  return result.candidates.find((candidate) => (
+    serializeDisplaySelectionKey(candidate.selection) === selectionKey &&
+    (presentation === undefined || candidate.availability[presentation])
+  )) ?? null;
+}
+
+function extractComponentChannelGroupsForRule(
+  channelNames: string[],
+  rule: ComponentRule
+): ComponentChannelGroup[] {
+  const grouped = new Map<string, Partial<Record<string, string>>>();
+  const recognizedSuffixes = [...rule.suffixes, 'A'];
+
+  for (const channelName of channelNames) {
+    const parsed = rule.kind === 'rgb'
+      ? parseRgbChannelName(channelName)
+      : parseChannelNameSuffix(channelName, recognizedSuffixes);
+    if (!parsed) {
+      continue;
+    }
+
+    const group = grouped.get(parsed.base) ?? {};
+    if (!group[parsed.suffix]) {
+      group[parsed.suffix] = channelName;
+      grouped.set(parsed.base, group);
+    }
+  }
+
+  const groups: ComponentChannelGroup[] = [];
+  for (const [base, channels] of grouped.entries()) {
+    const r = channels[rule.suffixes[0]!];
+    const g = channels[rule.suffixes[1]!];
+    const bSuffix = rule.suffixes[2] ?? null;
+    const b = bSuffix ? channels[bSuffix] ?? null : null;
+    if (!r || !g || (bSuffix && !b)) {
+      continue;
+    }
+
+    groups.push({
+      kind: rule.kind,
+      optionKey: `${rule.optionKeyPrefix}:${base}`,
+      key: base,
+      label: rule.kind === 'rgb'
+        ? buildRgbGroupLabel(base, Boolean(channels.A))
+        : buildComponentGroupLabel(base, rule.suffixes, Boolean(channels.A)),
+      r,
+      g,
+      b,
+      a: channels.A
+    });
+  }
+
+  groups.sort(compareComponentChannelGroups);
+  return groups;
+}
+
+function buildComponentGroupCandidate(
+  group: ComponentChannelGroup,
+  groupIndex: number
+): ComponentGroupCandidate {
+  const ruleId = getComponentRuleId(group.kind);
+  const channels = [group.r, group.g, ...(group.b ? [group.b] : []), ...(group.a ? [group.a] : [])];
+  const selection = buildChannelRgbSelection(group);
+  const priority = getComponentGroupPriority(group);
+
+  return {
+    kind: 'componentGroup',
+    ruleId,
+    key: group.optionKey,
+    label: group.label,
+    channels,
+    selection,
+    mapping: {
+      displayR: group.r,
+      displayG: group.g,
+      displayB: group.b,
+      displayA: group.a ?? null
+    },
+    priority,
+    sourceOrder: COMPONENT_SOURCE_ORDER_BASE + groupIndex * 100,
+    splitChildren: channels.map((channelName) => `channel:${channelName}`),
+    mergedParentKey: null,
+    availability: {
+      available: true,
+      merged: true,
+      split: false,
+      defaultEligible: true
+    },
+    metadata: {
+      componentKind: group.kind,
+      displayKind: 'component',
+      alpha: group.a ?? null,
+      channelCount: channels.length,
+      defaultReason: 'component'
+    }
+  };
+}
+
+function buildMergedSingleChannelCandidates(
+  channelNames: string[],
+  componentGroups: readonly ComponentChannelGroup[],
+  spectralParentKeyByChannel: ReadonlyMap<string, string>,
+  includeAlphaCompanions: boolean
+): SingleChannelCandidate[] {
+  const groupedComponentChannels = new Set<string>();
+  const consumedAlphaChannels = new Set<string>();
+  const singleChannelOptions = new Set<string>();
+
+  for (const group of componentGroups) {
+    groupedComponentChannels.add(group.r);
+    groupedComponentChannels.add(group.g);
+    if (group.b) {
+      groupedComponentChannels.add(group.b);
+    }
+    if (group.a) {
+      groupedComponentChannels.add(group.a);
+      consumedAlphaChannels.add(group.a);
+    }
+  }
+
+  if (includeAlphaCompanions) {
+    for (const channelName of channelNames) {
+      if (groupedComponentChannels.has(channelName) || isAlphaChannel(channelName)) {
+        continue;
+      }
+
+      const alphaChannel = resolveAlphaChannelForChannel(channelNames, channelName);
+      if (alphaChannel) {
+        consumedAlphaChannels.add(alphaChannel);
+      }
+    }
+  }
+
+  const grayscaleChannel = pickGrayscaleDisplayChannel(channelNames);
+  const fallbackChannel = pickFallbackDisplayChannel(channelNames);
+  const candidates: SingleChannelCandidate[] = [];
+  for (const channelName of channelNames) {
+    if (groupedComponentChannels.has(channelName) || consumedAlphaChannels.has(channelName)) {
+      continue;
+    }
+
+    const selection: ChannelMonoSelection = {
+      kind: 'channelMono',
+      channel: channelName,
+      alpha: includeAlphaCompanions ? resolveAlphaChannelForChannel(channelNames, channelName) : null
+    };
+    if (selection.alpha) {
+      consumedAlphaChannels.add(selection.alpha);
+    }
+    if (isAlphaChannel(channelName) && consumedAlphaChannels.has(channelName)) {
+      continue;
+    }
+    if (singleChannelOptions.has(channelName)) {
+      continue;
+    }
+
+    singleChannelOptions.add(channelName);
+    candidates.push(buildSingleChannelCandidate({
+      channelName,
+      selection,
+      sourceOrder: SINGLE_SOURCE_ORDER_BASE + candidates.length,
+      merged: true,
+      split: false,
+      mergedParentKey: null,
+      splitChildren: buildSingleChannelSplitChildren(selection),
+      hiddenInMergedChannelView: spectralParentKeyByChannel.has(channelName),
+      priority: getSingleChannelDefaultPriority(channelName, grayscaleChannel, fallbackChannel),
+      defaultEligible: true
+    }));
+  }
+
+  return candidates;
+}
+
+function buildSplitSingleChannelCandidates(
+  channelNames: string[],
+  componentGroups: readonly ComponentChannelGroup[],
+  spectralParentKeyByChannel: ReadonlyMap<string, string>,
+  includeAlphaCompanions: boolean
+): SingleChannelCandidate[] {
+  const candidates: SingleChannelCandidate[] = [];
+  const singleChannelOptions = new Set<string>();
+  const parentKeyByGroupedChannel = new Map<string, string>();
+
+  const pushSplitCandidate = (channelName: string, mergedParentKey: string | null, sourceOrder: number): void => {
+    if (singleChannelOptions.has(channelName)) {
+      return;
+    }
+
+    singleChannelOptions.add(channelName);
+    candidates.push(buildSingleChannelCandidate({
+      channelName,
+      selection: {
+        kind: 'channelMono',
+        channel: channelName,
+        alpha: null
+      },
+      sourceOrder,
+      merged: false,
+      split: true,
+      mergedParentKey,
+      splitChildren: [],
+      hiddenInMergedChannelView: false,
+      priority: NON_DEFAULT_PRIORITY,
+      defaultEligible: false
+    }));
+  };
+
+  componentGroups.forEach((group, groupIndex) => {
+    const channels = [group.r, group.g, ...(group.b ? [group.b] : []), ...(group.a ? [group.a] : [])];
+    channels.forEach((channelName, channelIndex) => {
+      parentKeyByGroupedChannel.set(channelName, group.optionKey);
+      pushSplitCandidate(
+        channelName,
+        group.optionKey,
+        COMPONENT_SOURCE_ORDER_BASE + groupIndex * 100 + channelIndex + 1
+      );
+    });
+  });
+
+  channelNames.forEach((channelName, index) => {
+    if (singleChannelOptions.has(channelName)) {
+      return;
+    }
+
+    const alphaParentKey = includeAlphaCompanions && resolveAlphaChannelForChannel(channelNames, channelName)
+      ? `channel:${channelName}`
+      : null;
+    const mergedParentKey = parentKeyByGroupedChannel.get(channelName)
+      ?? spectralParentKeyByChannel.get(channelName)
+      ?? alphaParentKey;
+    pushSplitCandidate(channelName, mergedParentKey, SINGLE_SOURCE_ORDER_BASE + index);
+  });
+
+  return candidates;
+}
+
+function buildSingleChannelCandidate(args: {
+  channelName: string;
+  selection: ChannelMonoSelection;
+  sourceOrder: number;
+  merged: boolean;
+  split: boolean;
+  mergedParentKey: string | null;
+  splitChildren: string[];
+  hiddenInMergedChannelView: boolean;
+  priority: number;
+  defaultEligible: boolean;
+}): SingleChannelCandidate {
+  const channels = [args.channelName, ...(args.selection.alpha ? [args.selection.alpha] : [])];
+  return {
+    kind: 'singleChannel',
+    ruleId: 'fallback.singleChannel',
+    key: `channel:${args.channelName}`,
+    label: args.selection.alpha ? `${args.channelName},${args.selection.alpha}` : args.channelName,
+    channels,
+    selection: args.selection,
+    mapping: {
+      displayR: args.channelName,
+      displayG: args.channelName,
+      displayB: args.channelName,
+      displayA: args.selection.alpha
+    },
+    priority: args.priority,
+    sourceOrder: args.sourceOrder,
+    splitChildren: args.splitChildren,
+    mergedParentKey: args.mergedParentKey,
+    availability: {
+      available: true,
+      merged: args.merged,
+      split: args.split,
+      defaultEligible: args.defaultEligible
+    },
+    metadata: {
+      displayKind: 'single',
+      alpha: args.selection.alpha,
+      channelCount: channels.length,
+      hiddenInMergedChannelView: args.hiddenInMergedChannelView,
+      defaultReason: args.defaultEligible
+        ? args.priority === DEFAULT_PRIORITY_GRAYSCALE
+          ? 'grayscale'
+          : 'fallback'
+        : undefined
+    }
+  };
+}
+
+function buildSpectralSeriesCandidates(
+  channelNames: string[],
+  spectralRgbGroupingEnabled: boolean
+): { candidates: SpectralSeriesCandidate[]; parentKeyByChannel: Map<string, string> } {
+  const parentKeyByChannel = new Map<string, string>();
+  if (!spectralRgbGroupingEnabled) {
+    return { candidates: [], parentKeyByChannel };
+  }
+
+  const options = getSpectralRgbDisplayOptions(channelNames);
+  const candidates = options.map((option, index) => {
+    const channels = detectSpectralChannelsForSeries(channelNames, option.selection.seriesKey);
+    const splitChildren = channels.map((channel) => {
+      const childKey = `channel:${channel.channelName}`;
+      parentKeyByChannel.set(channel.channelName, option.key);
+      return childKey;
+    });
+    return buildSpectralSeriesCandidate(option, channels, splitChildren, SPECTRAL_SOURCE_ORDER_BASE + index);
+  });
+
+  return { candidates, parentKeyByChannel };
+}
+
+function buildSpectralSeriesCandidate(
+  option: SpectralRgbDisplayOption,
+  channels: readonly SpectralChannel[],
+  splitChildren: string[],
+  sourceOrder: number
+): SpectralSeriesCandidate {
+  return {
+    kind: 'spectralSeries',
+    ruleId: 'spectral.series',
+    key: option.key,
+    label: option.label,
+    channels: channels.map((channel) => channel.channelName),
+    selection: option.selection,
+    mapping: cloneMapping(option.mapping),
+    priority: DEFAULT_PRIORITY_SPECTRAL_RGB,
+    sourceOrder,
+    splitChildren,
+    mergedParentKey: null,
+    availability: {
+      available: true,
+      merged: true,
+      split: false,
+      defaultEligible: true
+    },
+    metadata: {
+      displayKind: 'spectral',
+      seriesKey: option.selection.seriesKey,
+      seriesLabel: channels[0]?.seriesLabel ?? option.selection.seriesKey,
+      channelCount: channels.length,
+      synthetic: true,
+      defaultReason: 'spectral'
+    }
+  };
+}
+
+function buildStokesCandidates(
+  channelNames: string[],
+  config: ChannelRecognitionConfig
+): StokesVectorCandidate[] {
+  const spectralRgbGroupingEnabled = config.spectralRgbGroupingEnabled !== false;
+  const mergedOptions = getStokesDisplayOptions(channelNames, {
+    includeRgbGroups: true,
+    includeSplitChannels: false,
+    parameterVisibility: config.stokesParameterVisibility,
+    spectralRgbGroupingEnabled
+  });
+  const splitOptions = getStokesDisplayOptions(channelNames, {
+    includeRgbGroups: false,
+    includeSplitChannels: true,
+    parameterVisibility: config.stokesParameterVisibility,
+    spectralRgbGroupingEnabled
+  });
+
+  return [
+    ...mergedOptions.map((option, index) => buildStokesCandidate(
+      channelNames,
+      option,
+      STOKES_SOURCE_ORDER_BASE + index,
+      true,
+      false
+    )),
+    ...splitOptions.map((option, index) => buildStokesCandidate(
+      channelNames,
+      option,
+      STOKES_SOURCE_ORDER_BASE + index,
+      false,
+      true
+    ))
+  ];
+}
+
+function buildStokesCandidate(
+  channelNames: string[],
+  option: StokesDisplayOption,
+  sourceOrder: number,
+  merged: boolean,
+  split: boolean
+): StokesVectorCandidate {
+  const stokesInfo = resolveStokesCandidateInfo(channelNames, option.selection);
+  const parentKey = split ? resolveStokesMergedParentKey(option.key, option.selection) : null;
+  const splitChildren = merged ? resolveStokesSplitChildren(channelNames, option.key, option.selection) : [];
+
+  return {
+    kind: 'stokesVector',
+    ruleId: getStokesRuleId(option.selection),
+    key: option.key,
+    label: option.label,
+    channels: stokesInfo.channels,
+    selection: option.selection,
+    mapping: cloneMapping(option.mapping),
+    priority: NON_DEFAULT_PRIORITY,
+    sourceOrder,
+    splitChildren,
+    mergedParentKey: parentKey,
+    availability: {
+      available: true,
+      merged,
+      split,
+      defaultEligible: false
+    },
+    metadata: {
+      displayKind: 'stokes',
+      parameter: option.selection.parameter,
+      component: option.component,
+      suffix: option.selection.source.kind === 'scalar' ? option.selection.source.suffix ?? null : null,
+      hasS3: stokesInfo.hasS3,
+      channelCount: getDisplayMappingChannelCount(option.mapping),
+      synthetic: option.selection.source.kind === 'spectralRgb'
+    }
+  };
+}
+
+function buildMuellerCandidates(channelNames: string[]): MuellerMatrixCandidate[] {
+  const mergedOptions = getMuellerMatrixDisplayOptions(channelNames, {
+    includeRgbGroups: true,
+    includeSplitChannels: false
+  });
+  const splitOptions = getMuellerMatrixDisplayOptions(channelNames, {
+    includeRgbGroups: false,
+    includeSplitChannels: true
+  });
+
+  return [
+    ...mergedOptions.map((option, index) => buildMuellerCandidate(
+      channelNames,
+      option,
+      MUELLER_SOURCE_ORDER_BASE + index,
+      true,
+      false
+    )),
+    ...splitOptions.map((option, index) => buildMuellerCandidate(
+      channelNames,
+      option,
+      MUELLER_SOURCE_ORDER_BASE + index,
+      false,
+      true
+    ))
+  ];
+}
+
+function buildMuellerCandidate(
+  channelNames: string[],
+  option: MuellerMatrixDisplayOption,
+  sourceOrder: number,
+  merged: boolean,
+  split: boolean
+): MuellerMatrixCandidate {
+  const channels = resolveMuellerCandidateChannels(channelNames, option.selection);
+  const isRgb = Boolean(option.selection.rgb);
+
+  return {
+    kind: 'muellerMatrix',
+    ruleId: isRgb ? 'mueller.rgb' : 'mueller.scalar',
+    key: option.key,
+    label: option.label,
+    channels,
+    selection: option.selection,
+    mapping: cloneMapping(option.mapping),
+    priority: isRgb ? DEFAULT_PRIORITY_RGB_MUELLER : DEFAULT_PRIORITY_MUELLER,
+    sourceOrder,
+    splitChildren: isRgb && merged
+      ? RGB_COMPONENTS.map((component) => `muellerMatrix:${component}`)
+      : [],
+    mergedParentKey: split && isMuellerMatrixRgbComponentSuffix(option.selection.suffix)
+      ? 'muellerMatrixRgb:'
+      : null,
+    availability: {
+      available: true,
+      merged,
+      split,
+      defaultEligible: true
+    },
+    metadata: {
+      displayKind: 'mueller',
+      suffix: option.selection.suffix ?? null,
+      rgb: isRgb,
+      channelCount: option.channelCount,
+      synthetic: true,
+      defaultReason: isRgb ? 'rgbMueller' : 'mueller'
+    }
+  };
+}
+
+function resolveStokesCandidateInfo(
+  channelNames: string[],
+  selection: StokesSelection
+): { channels: string[]; hasS3: boolean } {
+  if (selection.source.kind === 'scalar') {
+    const channels = detectScalarStokesChannels(channelNames, selection.source.suffix ?? null);
+    return {
+      channels: channels ? collectScalarStokesChannels(channels) : [],
+      hasS3: Boolean(channels?.s3)
+    };
+  }
+
+  if (selection.source.kind === 'rgbComponent') {
+    const rgbChannels = detectRgbStokesChannels(channelNames);
+    if (!rgbChannels) {
+      return { channels: [], hasS3: false };
+    }
+    const channels = getRgbComponentChannels(rgbChannels, selection.source.component);
+    return {
+      channels: collectScalarStokesChannels(channels),
+      hasS3: Boolean(channels.s3)
+    };
+  }
+
+  if (selection.source.kind === 'rgbLuminance') {
+    const channels = detectRgbStokesChannels(channelNames);
+    return {
+      channels: channels ? collectRgbStokesChannels(channels) : [],
+      hasS3: Boolean(channels && channels.r.s3 && channels.g.s3 && channels.b.s3)
+    };
+  }
+
+  return {
+    channels: detectSpectralStokesChannelGroups(channelNames)
+      .flatMap((group) => [group.s0, group.s1, group.s2, ...(group.s3 ? [group.s3] : [])]),
+    hasS3: hasCompleteSpectralStokesS3(channelNames)
+  };
+}
+
+function resolveStokesSplitChildren(
+  channelNames: string[],
+  key: string,
+  selection: StokesSelection
+): string[] {
+  if (selection.source.kind === 'rgbLuminance') {
+    return RGB_COMPONENTS.map((component) => `stokesRgb:${selection.parameter}:${component}`);
+  }
+
+  if (selection.source.kind === 'spectralRgb') {
+    return detectSpectralStokesChannelGroups(channelNames)
+      .map((group) => `stokesScalar:${selection.parameter}:${group.suffix}`);
+  }
+
+  if (selection.source.kind === 'scalar' && selection.source.suffix) {
+    return [`${key}`];
+  }
+
+  return [];
+}
+
+function resolveStokesMergedParentKey(key: string, selection: StokesSelection): string | null {
+  if (selection.source.kind === 'rgbComponent') {
+    return `stokesRgb:${selection.parameter}:group`;
+  }
+
+  if (
+    selection.source.kind === 'scalar' &&
+    selection.source.suffix &&
+    isSpectralStokesSuffix(selection.source.suffix)
+  ) {
+    return `stokesSpectralRgb:${selection.parameter}:group`;
+  }
+
+  if (key.endsWith(':R') || key.endsWith(':G') || key.endsWith(':B')) {
+    return `stokesRgb:${selection.parameter}:group`;
+  }
+
+  return null;
+}
+
+function resolveMuellerCandidateChannels(
+  channelNames: string[],
+  selection: MuellerMatrixSelection
+): string[] {
+  if (selection.rgb) {
+    const channels = detectRgbMuellerMatrixChannels(channelNames);
+    return channels ? collectRgbMuellerChannels(channels) : [];
+  }
+
+  const channels = detectMuellerMatrixChannels(channelNames, selection.suffix ?? null);
+  return channels ? collectMuellerChannels(channels) : [];
+}
+
+function collectScalarStokesChannels(channels: ScalarStokesChannels): string[] {
+  return [channels.s0, channels.s1, channels.s2, ...(channels.s3 ? [channels.s3] : [])];
+}
+
+function collectRgbStokesChannels(channels: RgbStokesChannels): string[] {
+  return [
+    ...collectScalarStokesChannels(channels.r),
+    ...collectScalarStokesChannels(channels.g),
+    ...collectScalarStokesChannels(channels.b)
+  ];
+}
+
+function collectMuellerChannels(channels: MuellerMatrixChannels): string[] {
+  return Object.values(channels.elements);
+}
+
+function collectRgbMuellerChannels(channels: RgbMuellerMatrixChannels): string[] {
+  return [
+    ...collectMuellerChannels(channels.r),
+    ...collectMuellerChannels(channels.g),
+    ...collectMuellerChannels(channels.b)
+  ];
+}
+
+function getComponentGroupPriority(group: ComponentChannelGroup): number {
+  if (group.kind === 'rgb') {
+    return isMuellerMatrixElementName(group.key)
+      ? DEFAULT_PRIORITY_RGB_LIKE
+      : DEFAULT_PRIORITY_NORMAL_RGB;
+  }
+
+  return DEFAULT_PRIORITY_VECTOR;
+}
+
+function getSingleChannelDefaultPriority(
+  channelName: string,
+  grayscaleChannel: string | null,
+  fallbackChannel: string | null
+): number {
+  if (channelName === grayscaleChannel) {
+    return DEFAULT_PRIORITY_GRAYSCALE;
+  }
+
+  return channelName === fallbackChannel
+    ? DEFAULT_PRIORITY_FALLBACK
+    : DEFAULT_PRIORITY_FALLBACK;
+}
+
+function buildSingleChannelSplitChildren(selection: ChannelMonoSelection): string[] {
+  return selection.alpha ? [`channel:${selection.channel}`] : [];
+}
+
+function getComponentRuleId(kind: ComponentChannelGroupKind): ComponentGroupCandidate['ruleId'] {
+  switch (kind) {
+    case 'rgb':
+      return 'component.rgb';
+    case 'xyz':
+      return 'component.xyz';
+    case 'uv':
+      return 'component.uv';
+  }
+}
+
+function getStokesRuleId(selection: StokesSelection): StokesVectorCandidate['ruleId'] {
+  switch (selection.source.kind) {
+    case 'rgbLuminance':
+    case 'rgbComponent':
+      return 'stokes.rgb';
+    case 'spectralRgb':
+      return 'stokes.spectral';
+    case 'scalar':
+      return 'stokes.scalar';
+  }
+}
+
+function pickGrayscaleDisplayChannel(channelNames: readonly string[]): string | null {
+  if (channelNames.length === 1) {
+    return channelNames[0] ?? null;
+  }
+
+  const nonAlphaChannels = channelNames.filter((channelName) => !isAlphaChannel(channelName));
+  return nonAlphaChannels.length === 1 ? nonAlphaChannels[0] ?? null : null;
+}
+
+function pickFallbackDisplayChannel(channelNames: readonly string[]): string | null {
+  return channelNames.find((channelName) => !isAlphaChannel(channelName)) ?? channelNames[0] ?? null;
+}
+
+function getDisplayMappingChannelCount(mapping: DisplayChannelMapping): number {
+  return new Set([
+    mapping.displayR,
+    mapping.displayG,
+    mapping.displayB,
+    ...(mapping.displayA ? [mapping.displayA] : [])
+  ].filter((channelName): channelName is string => channelName !== null)).size;
+}
+
+function cloneMapping(mapping: DisplayChannelMapping): DisplayChannelMapping {
+  return {
+    displayR: mapping.displayR,
+    displayG: mapping.displayG,
+    displayB: mapping.displayB,
+    displayA: mapping.displayA ?? null
+  };
+}
+
+function compareComponentChannelGroups(
+  a: Pick<ComponentChannelGroup, 'key'>,
+  b: Pick<ComponentChannelGroup, 'key'>
+): number {
+  if (a.key.length === 0) {
+    return -1;
+  }
+  if (b.key.length === 0) {
+    return 1;
+  }
+  return a.key.localeCompare(b.key);
+}
+
+function buildComponentGroupLabel(base: string, suffixes: readonly string[], hasAlpha: boolean): string {
+  const channelsLabel = [...suffixes, ...(hasAlpha ? ['A'] : [])].join(',');
+  return base.length > 0 ? `${base}.(${channelsLabel})` : channelsLabel;
+}
+
+function parseChannelNameSuffix<T extends string>(
+  channelName: string,
+  suffixes: readonly T[]
+): { base: string; suffix: T } | null {
+  const bareSuffix = suffixes.find((suffix) => channelName === suffix);
+  if (bareSuffix) {
+    return { base: '', suffix: bareSuffix };
+  }
+
+  const dotIndex = channelName.lastIndexOf('.');
+  if (dotIndex <= 0 || dotIndex >= channelName.length - 1) {
+    return null;
+  }
+
+  const suffixValue = channelName.slice(dotIndex + 1);
+  const suffix = suffixes.find((candidate) => candidate === suffixValue);
+  if (!suffix) {
+    return null;
+  }
+
+  return {
+    base: channelName.slice(0, dotIndex),
+    suffix
+  };
+}
+
+function isMuellerMatrixElementName(value: string): boolean {
+  return /^M[0-3][0-3]$/.test(value);
+}
+
+function isMuellerMatrixRgbComponentSuffix(value: string | undefined): value is 'R' | 'G' | 'B' {
+  return value === 'R' || value === 'G' || value === 'B';
+}
+
+export function isRecognizedSelectionType(selection: DisplaySelection | null): boolean {
+  return Boolean(
+    selection &&
+    (
+      isStokesSelection(selection) ||
+      isSpectralRgbSelection(selection) ||
+      isMuellerMatrixSelection(selection) ||
+      selection.kind === 'channelRgb' ||
+      selection.kind === 'channelMono'
+    )
+  );
+}
+
+export function getRecognizedSelectionLabel(selection: DisplaySelection): string {
+  return getDisplaySelectionOptionLabel(selection);
+}

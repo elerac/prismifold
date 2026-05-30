@@ -1,12 +1,13 @@
 import { cloneDisplaySelection, sameDisplaySelection, serializeDisplaySelectionKey, type DisplaySelection } from './display-model';
 import {
-  buildChannelDisplayOptions,
   findMergedSelectionForSplitDisplay,
   findSplitSelectionForMergedDisplay
 } from './display-selection';
-import { getStokesDisplayOptions, type StokesParameterVisibilitySettings } from './stokes';
-import { getSpectralRgbDisplayOptions, getSpectralRgbSplitChannelNames } from './spectral';
-import { getMuellerMatrixDisplayOptions } from './mueller';
+import {
+  recognizeLayerChannels,
+  type RecognizedChannelCandidate
+} from './channel-recognition';
+import type { StokesParameterVisibilitySettings } from './stokes';
 import type { DisplayChannelMapping } from './types';
 
 export interface ChannelViewItem {
@@ -238,43 +239,30 @@ function buildDisplayItems(
   config: ChannelViewItemsConfig
 ): Omit<ChannelViewItem, 'mergedOrder' | 'splitOrder'>[] {
   const spectralRgbGroupingEnabled = config.spectralRgbGroupingEnabled !== false;
-  const spectralSplitChannelNames = includeSplitRgbChannels
-    ? null
-    : spectralRgbGroupingEnabled
-      ? getSpectralRgbSplitChannelNames(channelNames)
-      : new Set<string>();
-  const channelOptions = buildChannelDisplayOptions(channelNames, {
-    includeRgbGroups: !includeSplitRgbChannels,
-    includeSplitChannels: includeSplitRgbChannels
-  }).filter((option) => (
-    includeSplitRgbChannels ||
-    option.selection.kind !== 'channelMono' ||
-    !spectralSplitChannelNames?.has(option.selection.channel)
-  ));
-  const stokesOptions = getStokesDisplayOptions(channelNames, {
-    includeRgbGroups: !includeSplitRgbChannels,
-    includeSplitChannels: includeSplitRgbChannels,
-    parameterVisibility: config.stokesParameterVisibility,
+  const recognition = recognizeLayerChannels(channelNames, {
+    stokesParameterVisibility: config.stokesParameterVisibility,
     spectralRgbGroupingEnabled
   });
-  const muellerOptions = getMuellerMatrixDisplayOptions(channelNames, {
-    includeRgbGroups: !includeSplitRgbChannels,
-    includeSplitChannels: includeSplitRgbChannels
-  });
-  const spectralOptions = includeSplitRgbChannels || !spectralRgbGroupingEnabled
-    ? []
-    : getSpectralRgbDisplayOptions(channelNames);
-  return [...channelOptions, ...spectralOptions, ...stokesOptions, ...muellerOptions].map((option) => {
-    const channelCount = 'channelCount' in option ? option.channelCount : undefined;
-    return {
-      value: option.key,
-      label: formatChannelViewLabel(option.label),
-      meta: formatChannelViewMeta(option.mapping, channelCount),
-      swatches: getChannelViewSwatches(option.mapping),
-      selection: cloneDisplaySelection(option.selection) ?? option.selection,
-      selectionKey: serializeDisplaySelectionKey(option.selection)
-    };
-  });
+
+  return recognition.candidates
+    .filter((candidate) => includeSplitRgbChannels ? candidate.availability.split : candidate.availability.merged)
+    .filter((candidate) => includeSplitRgbChannels || !candidate.metadata.hiddenInMergedChannelView)
+    .sort((a, b) => a.sourceOrder - b.sourceOrder)
+    .map((candidate) => {
+      const channelCount = getChannelViewCandidateChannelCount(candidate);
+      return {
+        value: candidate.key,
+        label: formatChannelViewLabel(candidate.label),
+        meta: formatChannelViewMeta(candidate.mapping, channelCount),
+        swatches: getChannelViewSwatches(candidate.mapping),
+        selection: cloneDisplaySelection(candidate.selection) ?? candidate.selection,
+        selectionKey: serializeDisplaySelectionKey(candidate.selection)
+      };
+    });
+}
+
+function getChannelViewCandidateChannelCount(candidate: RecognizedChannelCandidate): number | undefined {
+  return candidate.kind === 'muellerMatrix' ? candidate.metadata.channelCount : undefined;
 }
 
 function compareNullableOrder(a: number | null, b: number | null): number {
