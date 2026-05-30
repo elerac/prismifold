@@ -243,7 +243,7 @@ describe('channel recognition', () => {
     ]);
   });
 
-  it('exposes default priority, alpha repair candidates, and fallback candidates', () => {
+  it('exposes default priority, exact Y preference, alpha repair candidates, and fallback candidates', () => {
     const rgbMuellerNames = MUELLER_MATRIX_ELEMENTS.flatMap((element) => [
       `${element}.R`,
       `${element}.G`,
@@ -255,7 +255,12 @@ describe('channel recognition', () => {
       'channelRgb:normal.X:normal.Y:normal.Z:'
     );
     expect(defaultSelectionKey(['400nm', '500nm', 'Y'])).toBe('spectralRgb:');
-    expect(defaultSelectionKey(['Z', 'Y', 'mask'])).toBe('channelMono:Z:');
+    expect(defaultSelectionKey(['Z', 'Y', 'mask'])).toBe('channelMono:Y:');
+    expect(visibleKeys(['Z', 'Y', 'mask'])).toEqual(['channel:Y', 'channel:Z', 'channel:mask']);
+    expect(findCandidate(['Z', 'Y', 'mask'], 'channel:Y')?.metadata.defaultReason).toBe('exactY');
+    expect(defaultSelectionKey(['foo.Z', 'foo.Y'])).toBe('channelMono:foo.Z:');
+    expect(findCandidate(['foo.Z', 'foo.Y'], 'channel:foo.Y')?.metadata.defaultReason).toBe('fallback');
+    expect(visibleKeys(['foo.Z', 'foo.Y', 'Y'])).toEqual(['channel:Y', 'channel:foo.Z', 'channel:foo.Y']);
     expect(defaultSelectionKey(rgbMuellerNames)).toBe('muellerMatrixRgb:');
     expect(defaultSelectionKey(MUELLER_MATRIX_ELEMENTS.slice(0, -1))).toBe('channelMono:M00:');
     expect(defaultSelectionKey(['A', 'Z'])).toBe('channelMono:Z:A');

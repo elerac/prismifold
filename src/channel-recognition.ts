@@ -93,7 +93,7 @@ export interface ChannelRecognitionMetadata {
   rgb?: boolean;
   hiddenInMergedChannelView?: boolean;
   synthetic?: boolean;
-  defaultReason?: 'component' | 'rgbMueller' | 'spectral' | 'grayscale' | 'mueller' | 'fallback';
+  defaultReason?: 'component' | 'rgbMueller' | 'spectral' | 'exactY' | 'grayscale' | 'mueller' | 'fallback';
 }
 
 interface BaseRecognizedChannelCandidate {
@@ -192,6 +192,7 @@ const DEFAULT_PRIORITY_RGB_MUELLER = 20;
 const DEFAULT_PRIORITY_RGB_LIKE = 30;
 const DEFAULT_PRIORITY_VECTOR = 40;
 const DEFAULT_PRIORITY_SPECTRAL_RGB = 50;
+const DEFAULT_PRIORITY_EXACT_Y = 55;
 const DEFAULT_PRIORITY_GRAYSCALE = 60;
 const DEFAULT_PRIORITY_MUELLER = 70;
 const DEFAULT_PRIORITY_FALLBACK = 80;
@@ -478,7 +479,7 @@ function buildMergedSingleChannelCandidates(
   const grayscaleChannel = pickGrayscaleDisplayChannel(channelNames);
   const fallbackChannel = pickFallbackDisplayChannel(channelNames);
   const candidates: SingleChannelCandidate[] = [];
-  for (const channelName of channelNames) {
+  for (const channelName of orderSingleChannelNames(channelNames)) {
     if (groupedComponentChannels.has(channelName) || consumedAlphaChannels.has(channelName)) {
       continue;
     }
@@ -562,7 +563,7 @@ function buildSplitSingleChannelCandidates(
     });
   });
 
-  channelNames.forEach((channelName, index) => {
+  orderSingleChannelNames(channelNames).forEach((channelName, index) => {
     if (singleChannelOptions.has(channelName)) {
       return;
     }
@@ -621,9 +622,7 @@ function buildSingleChannelCandidate(args: {
       channelCount: channels.length,
       hiddenInMergedChannelView: args.hiddenInMergedChannelView,
       defaultReason: args.defaultEligible
-        ? args.priority === DEFAULT_PRIORITY_GRAYSCALE
-          ? 'grayscale'
-          : 'fallback'
+        ? getSingleChannelDefaultReason(args.priority)
         : undefined
     }
   };
@@ -967,6 +966,10 @@ function getSingleChannelDefaultPriority(
   grayscaleChannel: string | null,
   fallbackChannel: string | null
 ): number {
+  if (isExactYChannel(channelName)) {
+    return DEFAULT_PRIORITY_EXACT_Y;
+  }
+
   if (channelName === grayscaleChannel) {
     return DEFAULT_PRIORITY_GRAYSCALE;
   }
@@ -974,6 +977,33 @@ function getSingleChannelDefaultPriority(
   return channelName === fallbackChannel
     ? DEFAULT_PRIORITY_FALLBACK
     : DEFAULT_PRIORITY_FALLBACK;
+}
+
+function getSingleChannelDefaultReason(priority: number): ChannelRecognitionMetadata['defaultReason'] {
+  if (priority === DEFAULT_PRIORITY_EXACT_Y) {
+    return 'exactY';
+  }
+
+  if (priority === DEFAULT_PRIORITY_GRAYSCALE) {
+    return 'grayscale';
+  }
+
+  return 'fallback';
+}
+
+function orderSingleChannelNames(channelNames: readonly string[]): string[] {
+  if (!channelNames.some(isExactYChannel)) {
+    return [...channelNames];
+  }
+
+  return [
+    ...channelNames.filter(isExactYChannel),
+    ...channelNames.filter((channelName) => !isExactYChannel(channelName))
+  ];
+}
+
+function isExactYChannel(channelName: string): boolean {
+  return channelName === 'Y';
 }
 
 function buildSingleChannelSplitChildren(selection: ChannelMonoSelection): string[] {
