@@ -89,8 +89,8 @@ export function createViewerUi({
           const input = document.getElementById('file-input') as HTMLInputElement;
           input.click();
         },
-        onPaths: (paths) => {
-          void getSessionController().enqueuePaths(paths);
+        onEntries: (entries) => {
+          void getSessionController().enqueuePathEntries(entries);
         }
       });
     },
@@ -100,8 +100,8 @@ export function createViewerUi({
           const input = document.getElementById('folder-input') as HTMLInputElement;
           input.click();
         },
-        onFolderPath: (path) => {
-          void getSessionController().enqueueFolderPath(path);
+        onEntries: (entries) => {
+          void getSessionController().enqueueFolderPathEntries(entries);
         }
       });
     },
@@ -109,7 +109,7 @@ export function createViewerUi({
       request: ExportImageRequest,
       onProgress?: (update: ExportProgressUpdate) => void
     ) => {
-      await handleExportImage(request, {
+      return await handleExportImage(request, {
         core,
         resolveImageExportPixels,
         exportSink: host,
@@ -128,7 +128,7 @@ export function createViewerUi({
       request: ExportScreenshotRegionsRequest,
       onProgress?: (update: ExportProgressUpdate) => void
     ) => {
-      await handleExportScreenshotRegions(request, {
+      return await handleExportScreenshotRegions(request, {
         core,
         resolveImageExportPixels,
         exportSink: host,
@@ -146,7 +146,7 @@ export function createViewerUi({
       signal: AbortSignal,
       onProgress?: (update: ExportProgressUpdate) => void
     ) => {
-      await handleExportImageBatch(request, signal, {
+      return await handleExportImageBatch(request, signal, {
         core,
         getRenderCache,
         getRenderer,
@@ -164,7 +164,7 @@ export function createViewerUi({
       });
     },
     onExportColormap: async (request: ExportColormapRequest) => {
-      await handleExportColormap(request, {
+      return await handleExportColormap(request, {
         core,
         resolveColormapExportPixels,
         exportSink: host,
@@ -435,7 +435,7 @@ export function createViewerUi({
     }
   };
 
-  return new ViewerUi(callbacks);
+  return new ViewerUi(callbacks, host.appFullscreen);
 }
 
 function promoteActiveChannelThumbnail(

@@ -1,4 +1,5 @@
 import { DisposableBag, type Disposable } from '../lifecycle';
+import type { AppFullscreenHost } from '../platform';
 import type { AppFullscreenElements } from './elements';
 
 const ENTER_FULLSCREEN_LABEL = 'Enter app fullscreen';
@@ -18,16 +19,20 @@ export class AppFullscreenController implements Disposable {
 
   constructor(
     private readonly elements: AppFullscreenElements,
-    private readonly callbacks: AppFullscreenControllerCallbacks
+    private readonly callbacks: AppFullscreenControllerCallbacks,
+    private readonly host: AppFullscreenHost
   ) {
     this.disposables.addEventListener(this.elements.appFullscreenButton, 'click', () => {
       void this.toggle();
     });
-    this.disposables.addEventListener(document, 'fullscreenchange', () => {
+    void this.host.onChange(() => {
       this.syncState();
-    });
-    this.disposables.addEventListener(document, 'fullscreenerror', () => {
-      this.syncState();
+    }).then((disposable) => {
+      if (this.disposed) {
+        disposable.dispose();
+        return;
+      }
+      this.disposables.addDisposable(disposable);
     });
     this.syncState();
   }
@@ -48,43 +53,14 @@ export class AppFullscreenController implements Disposable {
 
     this.callbacks.onBeforeToggle();
 
-    if (document.fullscreenElement === this.elements.appShell) {
-      await this.exit();
-      return;
-    }
-
-    await this.enter();
-  }
-
-  private async enter(): Promise<void> {
-    const requestFullscreen = this.elements.appShell.requestFullscreen;
-    if (typeof requestFullscreen !== 'function') {
-      this.syncState();
-      return;
-    }
-
     try {
-      await requestFullscreen.call(this.elements.appShell);
+      const active = await this.host.isActive();
+      await this.host.setActive(!active);
     } catch {
-      // Browser/user-agent rejection is reflected by the next state sync.
-    }
-
-    this.syncState();
-  }
-
-  private async exit(): Promise<void> {
-    if (document.fullscreenElement !== this.elements.appShell || typeof document.exitFullscreen !== 'function') {
+      // Host/user-agent rejection is reflected by the next state sync.
+    } finally {
       this.syncState();
-      return;
     }
-
-    try {
-      await document.exitFullscreen();
-    } catch {
-      // Keep the visible state aligned with the browser's current fullscreen element.
-    }
-
-    this.syncState();
   }
 
   private syncState(): void {
@@ -93,7 +69,27 @@ export class AppFullscreenController implements Disposable {
     }
 
     const supported = this.isSupported();
-    const active = document.fullscreenElement === this.elements.appShell;
+    try {
+      const active = supported ? this.host.isActive() : false;
+      if (active instanceof Promise) {
+        void active.then((resolvedActive) => {
+          this.applyState(supported, resolvedActive);
+        }).catch(() => {
+          this.applyState(supported, false);
+        });
+        return;
+      }
+      this.applyState(supported, active);
+    } catch {
+      this.applyState(supported, false);
+    }
+  }
+
+  private applyState(supported: boolean, active: boolean): void {
+    if (this.disposed) {
+      return;
+    }
+
     const label = supported ? (active ? EXIT_FULLSCREEN_LABEL : ENTER_FULLSCREEN_LABEL) : FULLSCREEN_UNAVAILABLE_LABEL;
     const tooltip = supported
       ? (active ? EXIT_FULLSCREEN_TOOLTIP : ENTER_FULLSCREEN_TOOLTIP)
@@ -107,9 +103,6 @@ export class AppFullscreenController implements Disposable {
   }
 
   private isSupported(): boolean {
-    return (
-      typeof this.elements.appShell.requestFullscreen === 'function' &&
-      typeof document.exitFullscreen === 'function'
-    );
+    return this.host.isSupported();
   }
 }

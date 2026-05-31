@@ -225,8 +225,12 @@ export type SessionSource =
     }
   | {
       kind: 'path';
+      grantId: string;
       path: string;
+      filename: string;
       displayPath?: string;
+      relativePath?: string;
+      fileSizeBytes: number;
     };
 
 export interface OpenedImageSession {

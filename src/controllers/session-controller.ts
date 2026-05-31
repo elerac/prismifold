@@ -207,6 +207,7 @@ export class SessionController implements Disposable {
       (error) => {
         for (const path of paths) {
           this.onPathSessionLoadFailed({
+            grantId: '',
             path,
             filename: inferFilenameFromUrl(path),
             displayPath: path,
@@ -226,11 +227,27 @@ export class SessionController implements Disposable {
         return;
       }
 
-      return this.loadPathEntries(entries, {
+      return this.enqueuePathEntries(entries, {
         priority: 'foreground',
         category: LOAD_CATEGORY_OPEN_FILES,
         displayName: entries.length === 1 ? options.displayName : undefined
       });
+    });
+  }
+
+  enqueuePathEntries(
+    entries: DesktopFileEntry[],
+    options: FileLoadOptions & Partial<Pick<LoadQueueOptions, 'priority' | 'category' | 'groupId'>> = {}
+  ): Promise<void> {
+    if (this.disposed || entries.length === 0) {
+      return Promise.resolve();
+    }
+    this.cancelBackgroundLoads('Foreground load superseded background work.');
+    return this.loadPathEntries(entries, {
+      priority: options.priority ?? 'foreground',
+      category: options.category ?? LOAD_CATEGORY_OPEN_FILES,
+      groupId: options.groupId,
+      displayName: entries.length === 1 ? options.displayName : undefined
     });
   }
 
@@ -304,6 +321,20 @@ export class SessionController implements Disposable {
         groupId,
         folderOptions: options
       });
+    });
+  }
+
+  enqueueFolderPathEntries(entries: DesktopFileEntry[], options: FolderLoadOptions = {}): Promise<void> {
+    if (this.disposed || entries.length === 0) {
+      return Promise.resolve();
+    }
+
+    const groupId = this.takeLoadGroupId('folder');
+    return this.loadPathEntries(entries, {
+      priority: 'background',
+      category: LOAD_CATEGORY_FOLDER,
+      groupId,
+      folderOptions: options
     });
   }
 
@@ -645,7 +676,8 @@ export class SessionController implements Disposable {
       folderOptions?: FolderLoadOptions;
     }
   ): Promise<void> {
-    if (entries.length === 0) {
+    const dedupedEntries = this.filterDuplicatePathEntries(entries);
+    if (dedupedEntries.length === 0) {
       return;
     }
 
@@ -653,7 +685,7 @@ export class SessionController implements Disposable {
     const category = options.category ?? LOAD_CATEGORY_OPEN_FILES;
 
     if (category === LOAD_CATEGORY_FOLDER) {
-      const admission = createFolderLoadAdmission(getPathLoadStats(entries), DEFAULT_FOLDER_LOAD_LIMITS);
+      const admission = createFolderLoadAdmission(getPathLoadStats(dedupedEntries), DEFAULT_FOLDER_LOAD_LIMITS);
       if (admission.exceeded && !options.folderOptions?.overrideLimits) {
         this.core.dispatch({
           type: 'errorSet',
@@ -663,16 +695,52 @@ export class SessionController implements Disposable {
       }
     }
 
-    const reservedLoads = this.reservePendingPathLoads(entries, {
+    const reservedLoads = this.reservePendingPathLoads(dedupedEntries, {
       priority,
       category,
-      displayName: entries.length === 1 ? options.displayName : undefined
+      displayName: dedupedEntries.length === 1 ? options.displayName : undefined
     });
 
     await this.enqueueOrderedPathLoadGroup(reservedLoads, {
       priority,
       category,
       groupId: options.groupId
+    });
+  }
+
+  private filterDuplicatePathEntries(entries: DesktopFileEntry[]): DesktopFileEntry[] {
+    if (entries.length === 0) {
+      return [];
+    }
+
+    const state = this.core.getState();
+    const openGrantIds = new Set<string>();
+    const openPaths = new Set<string>();
+    for (const source of [
+      ...state.sessions.map((session) => session.source),
+      ...state.pendingOpenedImages.map((reservation) => reservation.source)
+    ]) {
+      if (source.kind !== 'path') {
+        continue;
+      }
+      openGrantIds.add(source.grantId);
+      openPaths.add(source.path);
+    }
+
+    const seenGrantIds = new Set<string>();
+    const seenPaths = new Set<string>();
+    return entries.filter((entry) => {
+      if (
+        openGrantIds.has(entry.grantId) ||
+        openPaths.has(entry.path) ||
+        seenGrantIds.has(entry.grantId) ||
+        seenPaths.has(entry.path)
+      ) {
+        return false;
+      }
+      seenGrantIds.add(entry.grantId);
+      seenPaths.add(entry.path);
+      return true;
     });
   }
 
@@ -778,8 +846,12 @@ export class SessionController implements Disposable {
       if (result.status === 'loaded') {
         this.applyDecodedImage(result.decoded, load.entry.filename, load.entry.fileSizeBytes, {
           kind: 'path',
+          grantId: load.entry.grantId,
           path: load.entry.path,
-          ...(load.entry.displayPath ? { displayPath: load.entry.displayPath } : {})
+          filename: load.entry.filename,
+          fileSizeBytes: load.entry.fileSizeBytes,
+          ...(load.entry.displayPath ? { displayPath: load.entry.displayPath } : {}),
+          ...(load.entry.relativePath ? { relativePath: load.entry.relativePath } : {})
         }, {
           activate: !group.activatedLoadedFile,
           sessionId: load.reservation.id,
@@ -931,8 +1003,12 @@ export class SessionController implements Disposable {
         fileSizeBytes: entry.fileSizeBytes,
         source: {
           kind: 'path',
+          grantId: entry.grantId,
           path: entry.path,
-          ...(entry.displayPath ? { displayPath: entry.displayPath } : {})
+          filename: entry.filename,
+          fileSizeBytes: entry.fileSizeBytes,
+          ...(entry.displayPath ? { displayPath: entry.displayPath } : {}),
+          ...(entry.relativePath ? { relativePath: entry.relativePath } : {})
         }
       };
       existingFilenames.push(filename);
@@ -1102,7 +1178,7 @@ export class SessionController implements Disposable {
     }
 
     this.throwIfStopped(signal);
-    const file = await this.pathFileProvider.readExrFile(entry.path, signal);
+    const file = await this.pathFileProvider.readExrFile(entry.grantId, signal);
     this.throwIfStopped(signal);
     const decoded = await this.decodeBytes(file.bytes, {
       signal,
@@ -1250,13 +1326,13 @@ async function decodeExrFromSessionSource(
     if (!pathFileProvider) {
       throw new Error('Desktop path loading is unavailable.');
     }
-    const file = await pathFileProvider.readExrFile(source.path, signal);
+    const file = await pathFileProvider.readExrFile(source.grantId, signal);
     if (signal) {
       throwIfAborted(signal, 'Session reload was aborted.');
     }
     return decodeBytes(file.bytes, {
       signal,
-      filename: file.filename || filename
+      filename: source.relativePath || source.filename || file.filename || filename
     });
   }
 

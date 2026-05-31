@@ -134,6 +134,7 @@ describe('session controller shim', () => {
 
   it('loads desktop path entries as reloadable path-backed sessions', async () => {
     const entry: DesktopFileEntry = {
+      grantId: 'grant-beauty',
       path: '/renders/beauty.exr',
       filename: 'beauty.exr',
       displayPath: '/renders/beauty.exr',
@@ -142,6 +143,7 @@ describe('session controller shim', () => {
     const pathFileProvider: PathFileProvider = {
       resolveExrPaths: vi.fn(async () => [entry]),
       listExrFolder: vi.fn(async () => []),
+      openRecentFile: vi.fn(async () => entry),
       readExrFile: vi.fn(async () => ({
         ...entry,
         bytes: new Uint8Array([1, 2, 3])
@@ -158,13 +160,14 @@ describe('session controller shim', () => {
     await controller.enqueuePaths(['/renders/beauty.exr']);
 
     expect(pathFileProvider.resolveExrPaths).toHaveBeenCalledWith(['/renders/beauty.exr'], expect.any(AbortSignal));
-    expect(pathFileProvider.readExrFile).toHaveBeenCalledWith('/renders/beauty.exr', expect.any(AbortSignal));
+    expect(pathFileProvider.readExrFile).toHaveBeenCalledWith('grant-beauty', expect.any(AbortSignal));
     expect(onPathSessionLoaded).toHaveBeenCalledWith(entry);
     expect(controller.getActiveSession()).toMatchObject({
       filename: 'beauty.exr',
       fileSizeBytes: 3,
       source: {
         kind: 'path',
+        grantId: 'grant-beauty',
         path: '/renders/beauty.exr',
         displayPath: '/renders/beauty.exr'
       }
@@ -179,6 +182,7 @@ describe('session controller shim', () => {
   it('loads desktop folder paths in stable listed order', async () => {
     const entries: DesktopFileEntry[] = [
       {
+        grantId: 'grant-b',
         path: '/renders/shot/b.exr',
         filename: 'b.exr',
         displayPath: '/renders/shot/b.exr',
@@ -186,6 +190,7 @@ describe('session controller shim', () => {
         fileSizeBytes: 3
       },
       {
+        grantId: 'grant-a',
         path: '/renders/shot/a.exr',
         filename: 'a.exr',
         displayPath: '/renders/shot/a.exr',
@@ -196,8 +201,9 @@ describe('session controller shim', () => {
     const pathFileProvider: PathFileProvider = {
       resolveExrPaths: vi.fn(async () => []),
       listExrFolder: vi.fn(async () => entries),
-      readExrFile: vi.fn(async (path) => ({
-        ...entries.find((entry) => entry.path === path)!,
+      openRecentFile: vi.fn(async () => entries[0]!),
+      readExrFile: vi.fn(async (grantId) => ({
+        ...entries.find((entry) => entry.grantId === grantId)!,
         bytes: new Uint8Array([1, 2, 3])
       }))
     };

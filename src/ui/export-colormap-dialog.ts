@@ -19,6 +19,7 @@ import {
   type ExportColormapRequest,
   type PngCompressionLevel
 } from '../types';
+import type { ExportSaveResult } from '../platform';
 import { bindDialogBackdropDismiss } from './dialog-backdrop';
 import type { ExportColormapDialogElements } from './elements';
 import { syncSelectOptions } from './render-helpers';
@@ -32,7 +33,7 @@ const COLORMAP_EXPORT_PREVIEW_INVALID_MESSAGE = 'Enter a valid width and height 
 const PNG_COMPRESSION_VALIDATION_MESSAGE = 'PNG compression must be an integer from 0 to 9.';
 
 interface ExportColormapDialogCallbacks {
-  onExportColormap: (request: ExportColormapRequest) => Promise<void>;
+  onExportColormap: (request: ExportColormapRequest) => Promise<ExportSaveResult>;
   onResolveExportColormapPreview: (
     request: ExportColormapPreviewRequest,
     signal: AbortSignal
@@ -344,11 +345,13 @@ export class ExportColormapDialogController implements Disposable {
     this.syncBusyControls();
 
     try {
-      await this.callbacks.onExportColormap(request);
+      const result = await this.callbacks.onExportColormap(request);
       if (!isPendingMatch(this.exportResource, 'export-colormap', exportRequestId)) {
         return;
       }
-      this.close(true);
+      if (result.status === 'saved') {
+        this.close(true);
+      }
     } catch (error) {
       if (!isPendingMatch(this.exportResource, 'export-colormap', exportRequestId)) {
         return;

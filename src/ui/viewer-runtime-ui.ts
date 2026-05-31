@@ -38,6 +38,7 @@ import type {
   ScreenshotSelectionSnapGuide
 } from '../interaction/screenshot-selection';
 import type { Disposable } from '../lifecycle';
+import type { DesktopCommandId } from '../platform';
 
 export interface ScreenshotSelectionInteractionState {
   active: boolean;
@@ -125,6 +126,8 @@ export interface ViewerRuntimeUi extends Disposable {
     channelStackScopeKey?: string
   ): void;
   clearImageBrowserPanels(): void;
+  executeDesktopCommand?(commandId: DesktopCommandId): void;
+  showDropOverlay?(show: boolean): void;
 
   setProbeReadout(
     mode: 'Hover' | 'Locked',

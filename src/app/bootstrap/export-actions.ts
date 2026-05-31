@@ -51,7 +51,7 @@ import type {
   VisualizationMode
 } from '../../types';
 import type { WebGlExrRenderer } from '../../renderer';
-import type { ExportSink } from '../../platform';
+import type { ExportSaveResult, ExportSink } from '../../platform';
 
 type BatchPreviewRangeStrategy = 'exact' | 'sampledPreview';
 
@@ -151,7 +151,7 @@ interface ExportColormapActionDependencies {
 const BROWSER_EXPORT_SINK: ExportSink = {
   async saveBlob(blob, options) {
     triggerBrowserDownload(blob, options.filename);
-    return true;
+    return { status: 'saved' };
   },
   validateCopyPngBlob() {
     if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
@@ -354,7 +354,7 @@ export async function handleExportImage(
     isDisposed
   }: ExportImageActionDependencies,
   onProgress?: ExportProgressReporter
-): Promise<void> {
+): Promise<ExportSaveResult> {
   if (isDisposed()) {
     throw createAbortError('Viewer application has been disposed.');
   }
@@ -398,13 +398,13 @@ export async function handleExportImage(
         [request.filename]: new Uint8Array(await blob.arrayBuffer()),
         [jsonFilename]: new Uint8Array(await createJsonBlob(metadata).arrayBuffer())
       });
-      await exportSink.saveBlob(zipBlob, {
+      return await exportSink.saveBlob(zipBlob, {
         filename: buildScreenshotMetadataBundleFilename(request.filename),
         title: 'Export Screenshot Metadata',
         extensions: ['zip']
       });
     } else {
-      await exportSink.saveBlob(blob, {
+      return await exportSink.saveBlob(blob, {
         filename: request.filename,
         title: 'Export Image',
         extensions: ['png']
@@ -479,7 +479,7 @@ export async function handleExportScreenshotRegions(
     isDisposed
   }: ExportScreenshotRegionsActionDependencies,
   onProgress?: ExportProgressReporter
-): Promise<void> {
+): Promise<ExportSaveResult> {
   if (isDisposed()) {
     throw createAbortError('Viewer application has been disposed.');
   }
@@ -586,7 +586,7 @@ export async function handleExportScreenshotRegions(
       total: request.regions.length,
       stage: 'packaging'
     });
-    await exportSink.saveBlob(createZipBlob(files), {
+    return await exportSink.saveBlob(createZipBlob(files), {
       filename: request.archiveFilename,
       title: 'Export Screenshot Regions',
       extensions: ['zip']
@@ -617,7 +617,7 @@ export async function handleExportImageBatch(
     isDisposed
   }: ExportImageBatchActionDependencies,
   onProgress?: ExportProgressReporter
-): Promise<void> {
+): Promise<ExportSaveResult> {
   if (isDisposed()) {
     throw createAbortError('Viewer application has been disposed.');
   }
@@ -736,7 +736,7 @@ export async function handleExportImageBatch(
     if (isDisposed()) {
       throw createAbortError('Viewer application has been disposed.');
     }
-    await exportSink.saveBlob(zipBlob, {
+    return await exportSink.saveBlob(zipBlob, {
       filename: request.archiveFilename,
       title: 'Export Batch',
       extensions: ['zip']
@@ -902,7 +902,7 @@ export async function handleExportColormap(
     exportSink = BROWSER_EXPORT_SINK,
     isDisposed
   }: ExportColormapActionDependencies
-): Promise<void> {
+): Promise<ExportSaveResult> {
   if (isDisposed()) {
     throw createAbortError('Viewer application has been disposed.');
   }
@@ -916,7 +916,7 @@ export async function handleExportColormap(
       throw createAbortError('Viewer application has been disposed.');
     }
 
-    await exportSink.saveBlob(blob, {
+    return await exportSink.saveBlob(blob, {
       filename: request.filename,
       title: 'Export Colormap',
       extensions: ['png']

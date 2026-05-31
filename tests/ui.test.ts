@@ -11256,20 +11256,20 @@ function installFullscreenApiMock(options: { requestBehavior?: 'resolve' | 'reje
   };
 }
 
-function createUiCallbacks(overrides: Partial<ReturnType<typeof createUiCallbacksBase>> = {}) {
+function createUiCallbacks(overrides: Record<string, unknown> = {}) {
   return {
     ...createUiCallbacksBase(),
     ...overrides
-  };
+  } as ReturnType<typeof createUiCallbacksBase>;
 }
 
 function createUiCallbacksBase() {
   return {
     onOpenFileClick: () => {},
     onOpenFolderClick: () => {},
-    onExportImage: async (_request: unknown) => {},
+    onExportImage: async (_request: unknown) => ({ status: 'saved' as const }),
     onCopyImageToClipboard: async () => {},
-    onExportScreenshotRegions: async (_request: unknown) => {},
+    onExportScreenshotRegions: async (_request: unknown) => ({ status: 'saved' as const }),
     onResolveExportImagePreview: async (_request: unknown, _signal: AbortSignal) => createPreviewPixels(),
     onExportImageBatch: async (_request: {
       archiveFilename: string;
@@ -11281,7 +11281,7 @@ function createUiCallbacksBase() {
         outputFilename: string;
       }>;
       format: 'png-zip';
-    }, _signal: AbortSignal) => {},
+    }, _signal: AbortSignal) => ({ status: 'saved' as const }),
     onResolveExportImageBatchPreview: async (_request: {
       sessionId: string;
       activeLayer: number;
@@ -11295,7 +11295,7 @@ function createUiCallbacksBase() {
       orientation: 'horizontal' | 'vertical';
       filename: string;
       format: 'png';
-    }) => {},
+    }) => ({ status: 'saved' as const }),
     onResolveExportColormapPreview: async (_request: {
       colormapId: string;
       width: number;

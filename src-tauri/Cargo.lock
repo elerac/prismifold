@@ -2404,11 +2404,14 @@ name = "openexr-viewer-desktop"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-clipboard-manager",
  "tauri-plugin-dialog",
  "tauri-plugin-single-instance",
+ "tempfile",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

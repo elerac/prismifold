@@ -547,6 +547,22 @@ output {
   cursor: not-allowed;
 }
 
+.app-menu-item--heading {
+  min-height: 20px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  color: var(--text-dim);
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-line-height);
+  cursor: default;
+}
+
+.app-menu-item--heading:hover,
+.app-menu-item--heading:focus-visible {
+  background: transparent;
+  color: var(--text-dim);
+}
+
 .app-menu-item--with-shortcut {
   display: flex;
   align-items: center;

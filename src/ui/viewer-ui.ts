@@ -169,12 +169,61 @@ import {
   type ChannelRecognitionNameRules
 } from '../channel-recognition-name-rules';
 import { recognizeLayerChannels, type RecognizedChannelCandidate } from '../channel-recognition';
+import type { AppFullscreenHost, DesktopCommandId, ExportSaveResult } from '../platform';
 
 const AUTO_FIT_IMAGE_ON_SELECT_STORAGE_KEY = 'openexr-viewer:auto-fit-image-on-select:v1';
 const AUTO_EXPOSURE_STORAGE_KEY = 'openexr-viewer:auto-exposure:v1';
 const AUTO_EXPOSURE_PERCENTILE_STORAGE_KEY = 'openexr-viewer:auto-exposure-percentile:v1';
 const RULERS_VISIBLE_STORAGE_KEY = 'openexr-viewer:rulers-visible:v1';
 const SCREENSHOT_SELECTION_DUPLICATE_OFFSET = 24;
+
+function createDefaultAppFullscreenHost(target: HTMLElement): AppFullscreenHost {
+  return {
+    isSupported(): boolean {
+      return typeof target.requestFullscreen === 'function' &&
+        typeof document.exitFullscreen === 'function';
+    },
+    isActive(): boolean {
+      return document.fullscreenElement === target;
+    },
+    async setActive(active: boolean): Promise<void> {
+      if (active) {
+        await target.requestFullscreen();
+        return;
+      }
+      if (document.fullscreenElement && typeof document.exitFullscreen === 'function') {
+        await document.exitFullscreen();
+      }
+    },
+    async onChange(callback: () => void): Promise<Disposable> {
+      document.addEventListener('fullscreenchange', callback);
+      document.addEventListener('fullscreenerror', callback);
+      return {
+        dispose: () => {
+          document.removeEventListener('fullscreenchange', callback);
+          document.removeEventListener('fullscreenerror', callback);
+        }
+      };
+    }
+  };
+}
+
+const unsupportedAppFullscreenHost: AppFullscreenHost = {
+  isSupported(): boolean {
+    return false;
+  },
+  isActive(): boolean {
+    return false;
+  },
+  async setActive(_active: boolean): Promise<void> {},
+  async onChange(_callback: () => void): Promise<Disposable> {
+    return { dispose: () => {} };
+  }
+};
+
+function normalizeExportSaveResult(result: ExportSaveResult | void): ExportSaveResult {
+  return result ?? { status: 'saved' };
+}
 
 interface ScreenshotSelectionRegion {
   id: string;
@@ -217,12 +266,12 @@ interface ScreenshotSelectionContext {
 export interface UiCallbacks {
   onOpenFileClick: () => void;
   onOpenFolderClick: () => void;
-  onExportImage: (request: ExportImageRequest, onProgress?: (update: ExportProgressUpdate) => void) => Promise<void>;
+  onExportImage: (request: ExportImageRequest, onProgress?: (update: ExportProgressUpdate) => void) => Promise<ExportSaveResult>;
   onCopyImageToClipboard: () => Promise<void>;
   onExportScreenshotRegions: (
     request: ExportScreenshotRegionsRequest,
     onProgress?: (update: ExportProgressUpdate) => void
-  ) => Promise<void>;
+  ) => Promise<ExportSaveResult>;
   onResolveExportImagePreview: (
     request: ExportImagePreviewRequest,
     signal: AbortSignal
@@ -231,12 +280,12 @@ export interface UiCallbacks {
     request: ExportImageBatchRequest,
     signal: AbortSignal,
     onProgress?: (update: ExportProgressUpdate) => void
-  ) => Promise<void>;
+  ) => Promise<ExportSaveResult>;
   onResolveExportImageBatchPreview: (
     request: ExportImageBatchPreviewRequest,
     signal: AbortSignal
   ) => Promise<ExportImagePixels>;
-  onExportColormap: (request: ExportColormapRequest) => Promise<void>;
+  onExportColormap: (request: ExportColormapRequest) => Promise<ExportSaveResult>;
   onResolveExportColormapPreview: (
     request: ExportColormapPreviewRequest,
     signal: AbortSignal
@@ -398,8 +447,16 @@ export class ViewerUi implements Disposable {
   private hasActiveChannelImage = false;
   private disposed = false;
 
-  constructor(private readonly callbacks: UiCallbacks) {
+  constructor(
+    private readonly callbacks: UiCallbacks,
+    appFullscreenHost?: AppFullscreenHost
+  ) {
     this.elements = resolveElements();
+    const resolvedAppFullscreenHost = appFullscreenHost ?? (
+      typeof document === 'undefined'
+        ? unsupportedAppFullscreenHost
+        : createDefaultAppFullscreenHost(this.elements.appShell)
+    );
     this.loadingOverlayDisclosure = new ProgressiveLoadingOverlayDisclosure((phase) => {
       this.renderLoadingOverlayPhase(phase);
     });
@@ -529,7 +586,7 @@ export class ViewerUi implements Disposable {
         this.settingsDialog.close(false);
         this.metadataDialog.close(false);
       }
-    });
+    }, resolvedAppFullscreenHost);
     this.globalKeyboardController = new GlobalKeyboardController(this.elements, {
       isExportImageDialogOpen: () => this.exportImageDialog.isOpen(),
       isExportImageDialogBusy: () => this.exportImageDialog.isBusy(),
@@ -594,15 +651,19 @@ export class ViewerUi implements Disposable {
     this.windowPreviewController = new WindowPreviewController(this.elements);
     this.exportImageDialog = new ExportImageDialogController(this.elements, {
       onExportImage: async (request, onProgress) => {
-        await this.callbacks.onExportImage(request, onProgress);
-        if (request.mode === 'screenshot') {
+        const result = normalizeExportSaveResult(await this.callbacks.onExportImage(request, onProgress));
+        if (result.status === 'saved' && request.mode === 'screenshot') {
           this.hideScreenshotSelection();
         }
+        return result;
       },
       onExportScreenshotRegions: async (request, onProgress) => {
         this.lastScreenshotOutputScale = request.outputScale;
-        await this.callbacks.onExportScreenshotRegions(request, onProgress);
-        this.hideScreenshotSelection();
+        const result = normalizeExportSaveResult(await this.callbacks.onExportScreenshotRegions(request, onProgress));
+        if (result.status === 'saved') {
+          this.hideScreenshotSelection();
+        }
+        return result;
       },
       onCancel: (target) => {
         if (target?.kind === 'screenshot' || target?.kind === 'screenshot-regions') {
@@ -621,10 +682,11 @@ export class ViewerUi implements Disposable {
     });
     this.exportImageBatchDialog = new ExportImageBatchDialogController(this.elements, {
       onExportImageBatch: async (request, signal, onProgress) => {
-        await this.callbacks.onExportImageBatch(request, signal, onProgress);
-        if (request.entries.some((entry) => entry.mode === 'screenshot')) {
+        const result = normalizeExportSaveResult(await this.callbacks.onExportImageBatch(request, signal, onProgress));
+        if (result.status === 'saved' && request.entries.some((entry) => entry.mode === 'screenshot')) {
           this.hideScreenshotSelection();
         }
+        return result;
       },
       onResolveExportImageBatchPreview: (request, signal) => {
         return this.callbacks.onResolveExportImageBatchPreview(request, signal);
@@ -642,8 +704,8 @@ export class ViewerUi implements Disposable {
       }
     });
     this.exportColormapDialog = new ExportColormapDialogController(this.elements, {
-      onExportColormap: (request) => {
-        return this.callbacks.onExportColormap(request);
+      onExportColormap: async (request) => {
+        return normalizeExportSaveResult(await this.callbacks.onExportColormap(request));
       },
       onResolveExportColormapPreview: (request, signal) => {
         return this.callbacks.onResolveExportColormapPreview(request, signal);
@@ -1768,6 +1830,95 @@ export class ViewerUi implements Disposable {
     setImageStats(this.elements, readout);
   }
 
+  executeDesktopCommand(commandId: DesktopCommandId): void {
+    if (this.disposed) {
+      return;
+    }
+
+    switch (commandId) {
+      case 'openFile':
+        this.callbacks.onOpenFileClick();
+        return;
+      case 'openFolder':
+        this.callbacks.onOpenFolderClick();
+        return;
+      case 'exportImage':
+        this.openExportImageDialog();
+        return;
+      case 'exportScreenshot':
+        this.startScreenshotSelectionFromAction();
+        return;
+      case 'exportBatch':
+        this.openExportImageBatchDialogFromAction();
+        return;
+      case 'exportColormap':
+        this.openExportColormapDialogFromAction();
+        return;
+      case 'copyImage':
+        this.copyImageToClipboardFromContextMenu();
+        return;
+      case 'reloadAll':
+        if (!this.elements.reloadAllOpenedImagesButton.disabled) {
+          this.callbacks.onReloadAllOpenedImages();
+        }
+        return;
+      case 'closeAll':
+        if (!this.elements.closeAllOpenedImagesButton.disabled) {
+          this.callbacks.onCloseAllOpenedImages();
+        }
+        return;
+      case 'settings':
+        this.settingsDialog.openDialog();
+        return;
+      case 'metadata':
+        this.metadataDialog.openDialog();
+        return;
+      case 'viewerModeImage':
+        if (!this.elements.imageViewerMenuItem.disabled) {
+          this.callbacks.onViewerModeChange('image');
+        }
+        return;
+      case 'viewerModePanorama':
+        if (!this.elements.panoramaViewerMenuItem.disabled) {
+          this.callbacks.onViewerModeChange('panorama');
+        }
+        return;
+      case 'viewerModeDepth':
+        if (!this.elements.depthViewerMenuItem.disabled) {
+          this.callbacks.onViewerModeChange('depth');
+        }
+        return;
+      case 'toggleRulers': {
+        const enabled = !this.rulersVisible;
+        this.setRulersVisible(enabled, true);
+        this.callbacks.onRulersVisibleChange(enabled);
+        return;
+      }
+      case 'windowPreviewNormal':
+        void this.windowPreviewController.setEnabled(false);
+        return;
+      case 'windowPreviewFullscreen':
+        if (!this.elements.windowFullScreenPreviewMenuItem.disabled) {
+          void this.windowPreviewController.setEnabled(true);
+        }
+        return;
+      case 'paneReset':
+        this.resetViewerPanesFromAction();
+        return;
+      case 'paneSplitVertical':
+        this.splitViewerPaneFromAction('vertical');
+        return;
+      case 'paneSplitHorizontal':
+        this.splitViewerPaneFromAction('horizontal');
+        return;
+      case 'toggleAppFullscreen':
+        this.elements.appFullscreenButton.click();
+        return;
+      case 'clearRecentFiles':
+        return;
+    }
+  }
+
   showDropOverlay(show: boolean): void {
     if (this.disposed) {
       return;
@@ -1988,6 +2139,30 @@ export class ViewerUi implements Disposable {
     this.exportColormapDialog.close(false);
     this.topMenuController.closeAll();
     this.exportImageDialog.openDialog();
+  }
+
+  private openExportImageBatchDialogFromAction(): void {
+    if (this.elements.exportImageBatchButton.disabled) {
+      return;
+    }
+
+    this.clearViewerKeyboardNavigationInput();
+    this.exportImageDialog.close(false);
+    this.exportColormapDialog.close(false);
+    this.topMenuController.closeAll();
+    this.exportImageBatchDialog.openDialog();
+  }
+
+  private openExportColormapDialogFromAction(): void {
+    if (this.elements.exportColormapButton.disabled) {
+      return;
+    }
+
+    this.clearViewerKeyboardNavigationInput();
+    this.exportImageDialog.close(false);
+    this.exportImageBatchDialog.close(false);
+    this.topMenuController.closeAll();
+    this.exportColormapDialog.openDialog();
   }
 
   private openScreenshotBatchExportDialog(): void {
@@ -2720,27 +2895,11 @@ export class ViewerUi implements Disposable {
     });
 
     this.disposables.addEventListener(this.elements.exportImageBatchButton, 'click', () => {
-      if (this.elements.exportImageBatchButton.disabled) {
-        return;
-      }
-
-      this.clearViewerKeyboardNavigationInput();
-      this.exportImageDialog.close(false);
-      this.exportColormapDialog.close(false);
-      this.topMenuController.closeAll();
-      this.exportImageBatchDialog.openDialog();
+      this.openExportImageBatchDialogFromAction();
     });
 
     this.disposables.addEventListener(this.elements.exportColormapButton, 'click', () => {
-      if (this.elements.exportColormapButton.disabled) {
-        return;
-      }
-
-      this.clearViewerKeyboardNavigationInput();
-      this.exportImageDialog.close(false);
-      this.exportImageBatchDialog.close(false);
-      this.topMenuController.closeAll();
-      this.exportColormapDialog.openDialog();
+      this.openExportColormapDialogFromAction();
     });
 
     for (const galleryItem of this.getGalleryMenuItemButtons()) {

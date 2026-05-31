@@ -1,248 +1,147 @@
-use serde::Serialize;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    sync::Mutex,
-};
-use tauri::{Emitter, Manager};
+mod desktop_error;
+mod desktop_io;
+
+use desktop_error::DesktopResult;
+use desktop_io::{DesktopFileEntry, DesktopRecentFile, DesktopState, ExportSaveResult};
+use tauri::{ipc::Response, AppHandle};
 
 const DESKTOP_OPEN_PATHS_EVENT: &str = "desktop-open-paths";
 
-#[derive(Default)]
-struct InitialOpenPaths(Mutex<Vec<String>>);
-
-#[derive(Serialize, Clone)]
-struct DesktopFileEntry {
-    path: String,
-    filename: String,
-    display_path: Option<String>,
-    relative_path: Option<String>,
-    file_size_bytes: u64,
-}
-
-#[derive(Serialize)]
-struct DesktopFileBytes {
-    path: String,
-    filename: String,
-    display_path: Option<String>,
-    relative_path: Option<String>,
-    file_size_bytes: u64,
-    bytes: Vec<u8>,
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .manage(InitialOpenPaths(Mutex::new(collect_exr_open_paths(
-            std::env::args_os().skip(1),
-        ))))
+    let builder = tauri::Builder::default()
+        .manage(DesktopState::with_initial_open_paths(
+            desktop_io::collect_exr_open_paths(std::env::args_os().skip(1)),
+        ))
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_focus();
-            }
-
-            let paths = collect_exr_open_paths(args);
-            if !paths.is_empty() {
-                let _ = app.emit(DESKTOP_OPEN_PATHS_EVENT, paths);
-            }
+            desktop_io::emit_open_paths(
+                app,
+                desktop_io::collect_exr_open_paths(args),
+                DESKTOP_OPEN_PATHS_EVENT,
+            );
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(tauri::generate_handler![
-            read_exr_file,
-            list_exr_folder,
+            open_exr_files_dialog,
+            open_exr_folder_dialog,
             resolve_exr_paths,
-            write_export_file,
-            take_initial_open_paths
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
-}
+            read_exr_file,
+            save_export_file,
+            get_recent_files,
+            record_recent_file,
+            open_recent_file,
+            remove_recent_file,
+            clear_recent_files,
+            take_initial_open_entries
+        ]);
 
-#[tauri::command]
-fn read_exr_file(path: String) -> Result<DesktopFileBytes, String> {
-    let entry = build_file_entry(Path::new(&path), None)?;
-    let bytes =
-        fs::read(&entry.path).map_err(|error| format!("Failed to read EXR file: {error}"))?;
-    Ok(DesktopFileBytes {
-        path: entry.path,
-        filename: entry.filename,
-        display_path: entry.display_path,
-        relative_path: entry.relative_path,
-        file_size_bytes: entry.file_size_bytes,
-        bytes,
-    })
-}
+    let app = builder
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
 
-#[tauri::command]
-fn list_exr_folder(path: String) -> Result<Vec<DesktopFileEntry>, String> {
-    list_exr_folder_entries(Path::new(&path))
-}
-
-#[tauri::command]
-fn resolve_exr_paths(paths: Vec<String>) -> Result<Vec<DesktopFileEntry>, String> {
-    let mut entries = Vec::new();
-    for path in paths {
-        let path = PathBuf::from(path);
-        if path.is_dir() {
-            entries.extend(list_exr_folder_entries(&path)?);
-        } else if path.is_file() && is_exr_path(&path) {
-            entries.push(build_file_entry(&path, None)?);
-        } else if !path.exists() {
-            return Err("File does not exist.".to_string());
+    app.run(|app_handle, event| {
+        #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+        if let tauri::RunEvent::Opened { urls } = event {
+            let paths = urls
+                .into_iter()
+                .filter_map(|url| url.to_file_path().ok())
+                .map(|path| path.to_string_lossy().into_owned())
+                .collect::<Vec<_>>();
+            desktop_io::emit_open_paths(app_handle, paths, DESKTOP_OPEN_PATHS_EVENT);
         }
-    }
-    sort_entries(&mut entries);
-    Ok(entries)
-}
-
-#[tauri::command]
-fn write_export_file(path: String, bytes: Vec<u8>) -> Result<(), String> {
-    let output_path = PathBuf::from(path);
-    let extension = output_path
-        .extension()
-        .and_then(|value| value.to_str())
-        .unwrap_or_default();
-    if !extension.eq_ignore_ascii_case("png") && !extension.eq_ignore_ascii_case("zip") {
-        return Err("Export path must end with .png or .zip.".to_string());
-    }
-
-    let parent = output_path
-        .parent()
-        .ok_or_else(|| "Export path has no parent directory.".to_string())?;
-    if !parent.is_dir() {
-        return Err("Export parent directory does not exist.".to_string());
-    }
-
-    fs::write(&output_path, bytes).map_err(|error| format!("Failed to write export file: {error}"))
-}
-
-#[tauri::command]
-fn take_initial_open_paths(
-    state: tauri::State<'_, InitialOpenPaths>,
-) -> Result<Vec<String>, String> {
-    let mut paths = state
-        .0
-        .lock()
-        .map_err(|_| "Failed to read initial open paths.".to_string())?;
-    Ok(std::mem::take(&mut *paths))
-}
-
-fn collect_exr_open_paths<I, P>(paths: I) -> Vec<String>
-where
-    I: IntoIterator<Item = P>,
-    P: Into<PathBuf>,
-{
-    paths
-        .into_iter()
-        .map(Into::into)
-        .filter(|path| path.is_file() && is_exr_path(path))
-        .filter_map(|path| path.canonicalize().ok())
-        .map(path_to_string)
-        .collect()
-}
-
-fn list_exr_folder_entries(path: &Path) -> Result<Vec<DesktopFileEntry>, String> {
-    let root = path
-        .canonicalize()
-        .map_err(|_| "Folder does not exist.".to_string())?;
-    if !root.is_dir() {
-        return Err("Path is not a folder.".to_string());
-    }
-
-    let mut entries = Vec::new();
-    collect_exr_entries_recursive(&root, &root, &mut entries)?;
-    sort_entries(&mut entries);
-    Ok(entries)
-}
-
-fn collect_exr_entries_recursive(
-    root: &Path,
-    directory: &Path,
-    entries: &mut Vec<DesktopFileEntry>,
-) -> Result<(), String> {
-    let read_dir = fs::read_dir(directory)
-        .map_err(|error| format!("Failed to read folder {}: {error}", directory.display()))?;
-    for item in read_dir {
-        let item = item.map_err(|error| format!("Failed to read folder entry: {error}"))?;
-        let path = item.path();
-        if path.is_dir() {
-            collect_exr_entries_recursive(root, &path, entries)?;
-            continue;
-        }
-        if path.is_file() && is_exr_path(&path) {
-            entries.push(build_file_entry(&path, Some(root))?);
-        }
-    }
-    Ok(())
-}
-
-fn build_file_entry(path: &Path, root: Option<&Path>) -> Result<DesktopFileEntry, String> {
-    let canonical_path = path
-        .canonicalize()
-        .map_err(|_| "File does not exist.".to_string())?;
-    if !canonical_path.is_file() {
-        return Err("Path is not a file.".to_string());
-    }
-    if !is_exr_path(&canonical_path) {
-        return Err("File is not an OpenEXR .exr file.".to_string());
-    }
-
-    let metadata = fs::metadata(&canonical_path)
-        .map_err(|error| format!("Failed to read file metadata: {error}"))?;
-    let filename = canonical_path
-        .file_name()
-        .and_then(|value| value.to_str())
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or("image.exr")
-        .to_string();
-    let relative_path = root.and_then(|root_path| {
-        canonical_path
-            .strip_prefix(root_path)
-            .ok()
-            .map(path_to_relative_string)
-    });
-
-    Ok(DesktopFileEntry {
-        path: path_to_string(canonical_path),
-        filename,
-        display_path: Some(path_to_string(path)),
-        relative_path,
-        file_size_bytes: metadata.len(),
-    })
-}
-
-fn sort_entries(entries: &mut [DesktopFileEntry]) {
-    entries.sort_by(|left, right| {
-        let left_key = left
-            .relative_path
-            .as_deref()
-            .or(left.display_path.as_deref())
-            .unwrap_or(&left.filename)
-            .to_lowercase();
-        let right_key = right
-            .relative_path
-            .as_deref()
-            .or(right.display_path.as_deref())
-            .unwrap_or(&right.filename)
-            .to_lowercase();
-        left_key.cmp(&right_key)
     });
 }
 
-fn is_exr_path(path: &Path) -> bool {
-    path.extension()
-        .and_then(|value| value.to_str())
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("exr"))
+#[tauri::command]
+fn open_exr_files_dialog(
+    app: AppHandle,
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Vec<DesktopFileEntry>> {
+    desktop_io::open_exr_files_dialog(&app, &state)
 }
 
-fn path_to_relative_string(path: &Path) -> String {
-    path.components()
-        .map(|component| component.as_os_str().to_string_lossy())
-        .collect::<Vec<_>>()
-        .join("/")
+#[tauri::command]
+fn open_exr_folder_dialog(
+    app: AppHandle,
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Vec<DesktopFileEntry>> {
+    desktop_io::open_exr_folder_dialog(&app, &state)
 }
 
-fn path_to_string(path: impl AsRef<Path>) -> String {
-    path.as_ref().to_string_lossy().into_owned()
+#[tauri::command]
+fn resolve_exr_paths(
+    paths: Vec<String>,
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Vec<DesktopFileEntry>> {
+    desktop_io::resolve_paths(paths, &state)
+}
+
+#[tauri::command]
+fn read_exr_file(
+    grant_id: String,
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Response> {
+    desktop_io::read_grant_file(grant_id, &state)
+}
+
+#[tauri::command]
+fn save_export_file(
+    app: AppHandle,
+    filename: String,
+    title: Option<String>,
+    extensions: Vec<String>,
+    bytes: Vec<u8>,
+) -> DesktopResult<ExportSaveResult> {
+    desktop_io::save_export_file(&app, filename, title, extensions, bytes)
+}
+
+#[tauri::command]
+fn get_recent_files(
+    app: AppHandle,
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Vec<DesktopRecentFile>> {
+    desktop_io::get_recent_files(&app, &state)
+}
+
+#[tauri::command]
+fn record_recent_file(
+    app: AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    grant_id: String,
+) -> DesktopResult<Vec<DesktopRecentFile>> {
+    desktop_io::record_recent_file(&app, &state, grant_id)
+}
+
+#[tauri::command]
+fn open_recent_file(
+    app: AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    path: String,
+) -> DesktopResult<DesktopFileEntry> {
+    desktop_io::open_recent_file(&app, &state, path)
+}
+
+#[tauri::command]
+fn remove_recent_file(
+    app: AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    path: String,
+) -> DesktopResult<Vec<DesktopRecentFile>> {
+    desktop_io::remove_recent_file(&app, &state, path)
+}
+
+#[tauri::command]
+fn clear_recent_files(
+    app: AppHandle,
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Vec<DesktopRecentFile>> {
+    desktop_io::clear_recent_files(&app, &state)
+}
+
+#[tauri::command]
+fn take_initial_open_entries(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Vec<DesktopFileEntry>> {
+    desktop_io::take_initial_open_entries(&state)
 }

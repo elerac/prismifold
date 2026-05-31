@@ -35,6 +35,7 @@ import {
   type ExportScreenshotRegion,
   type ExportScreenshotRegionItem
 } from '../types';
+import type { ExportSaveResult } from '../platform';
 import { bindDialogBackdropDismiss } from './dialog-backdrop';
 import type { ExportImageBatchDialogElements } from './elements';
 
@@ -68,7 +69,7 @@ interface ExportImageBatchDialogCallbacks {
     request: ExportImageBatchRequest,
     signal: AbortSignal,
     onProgress?: (update: ExportProgressUpdate) => void
-  ) => Promise<void>;
+  ) => Promise<ExportSaveResult>;
   onResolveExportImageBatchPreview: (
     request: ExportImageBatchPreviewRequest,
     signal: AbortSignal
@@ -1842,7 +1843,7 @@ export class ExportImageBatchDialogController implements Disposable {
     const abortController = new AbortController();
     this.abortController = abortController;
     try {
-      await this.callbacks.onExportImageBatch({
+      const result = await this.callbacks.onExportImageBatch({
         archiveFilename,
         entries,
         format: 'png-zip',
@@ -1854,7 +1855,9 @@ export class ExportImageBatchDialogController implements Disposable {
       if (this.abortController === abortController) {
         this.abortController = null;
       }
-      this.close(true);
+      if (result.status === 'saved') {
+        this.close(true);
+      }
     } catch (error) {
       if (abortController.signal.aborted || isAbortError(error)) {
         this.close(true);

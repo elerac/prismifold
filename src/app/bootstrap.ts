@@ -182,15 +182,18 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
     });
     if (host.kind === 'tauri') {
       const recentMenu = host.installRecentFilesMenu({
-        onOpenPath: (path) => {
-          void getServices().sessionController.enqueuePaths([path]);
+        onOpenEntry: (entry) => {
+          void getServices().sessionController.enqueuePathEntries([entry]);
         }
       });
       unsubscribers.push(() => recentMenu.dispose());
 
       void host.setupDesktopEvents({
-        onPaths: (paths) => {
-          void getServices().sessionController.enqueuePaths(paths);
+        onEntries: (entries) => {
+          void getServices().sessionController.enqueuePathEntries(entries);
+        },
+        onDragStateChange: (active) => {
+          ui.showDropOverlay?.(active);
         }
       }).then((events) => {
         if (disposed) {
@@ -200,6 +203,28 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
         unsubscribers.push(() => events.dispose());
       }).catch((error) => {
         const message = error instanceof Error ? error.message : 'Failed to initialize desktop file events.';
+        core.dispatch({ type: 'errorSet', message });
+      });
+
+      void host.setupDesktopCommands({
+        onCommand: (commandId) => {
+          if (commandId === 'clearRecentFiles') {
+            void host.clearRecentFiles();
+            return;
+          }
+          ui.executeDesktopCommand?.(commandId);
+        },
+        onOpenRecent: (entry) => {
+          void getServices().sessionController.enqueuePathEntries([entry]);
+        }
+      }).then((commands) => {
+        if (disposed) {
+          commands.dispose();
+          return;
+        }
+        unsubscribers.push(() => commands.dispose());
+      }).catch((error) => {
+        const message = error instanceof Error ? error.message : 'Failed to initialize desktop menus.';
         core.dispatch({ type: 'errorSet', message });
       });
     }

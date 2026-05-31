@@ -1,6 +1,7 @@
 import type { Disposable } from '../lifecycle';
 
 export interface DesktopFileEntry {
+  grantId: string;
   path: string;
   filename: string;
   displayPath?: string;
@@ -13,9 +14,10 @@ export interface DesktopFileBytes extends DesktopFileEntry {
 }
 
 export interface PathFileProvider {
-  readExrFile(path: string, signal?: AbortSignal): Promise<DesktopFileBytes>;
+  readExrFile(grantId: string, signal?: AbortSignal): Promise<DesktopFileBytes>;
   listExrFolder(path: string, signal?: AbortSignal): Promise<DesktopFileEntry[]>;
   resolveExrPaths(paths: string[], signal?: AbortSignal): Promise<DesktopFileEntry[]>;
+  openRecentFile(path: string, signal?: AbortSignal): Promise<DesktopFileEntry>;
 }
 
 export interface ExportFileSaveOptions {
@@ -24,37 +26,94 @@ export interface ExportFileSaveOptions {
   extensions: string[];
 }
 
+export type ExportSaveResult =
+  | {
+      status: 'saved';
+      path?: string;
+    }
+  | {
+      status: 'cancelled';
+    };
+
 export interface ExportSink {
-  saveBlob(blob: Blob, options: ExportFileSaveOptions): Promise<boolean>;
+  saveBlob(blob: Blob, options: ExportFileSaveOptions): Promise<ExportSaveResult>;
   validateCopyPngBlob?(): void;
   copyPngBlob(blob: Blob): Promise<void>;
 }
 
 export interface HostOpenFileOptions {
   fallback: () => void;
-  onPaths: (paths: string[]) => void;
+  onEntries: (entries: DesktopFileEntry[]) => void;
 }
 
 export interface HostOpenFolderOptions {
   fallback: () => void;
-  onFolderPath: (path: string) => void;
+  onEntries: (entries: DesktopFileEntry[]) => void;
 }
 
 export interface DesktopEventCallbacks {
-  onPaths: (paths: string[]) => void;
+  onEntries: (entries: DesktopFileEntry[]) => void;
+  onDragStateChange?: (active: boolean) => void;
 }
 
 export interface RecentFileCallbacks {
-  onOpenPath: (path: string) => void;
+  onOpenEntry: (entry: DesktopFileEntry) => void;
+}
+
+export interface DesktopRecentFile {
+  path: string;
+  label: string;
+  displayPath: string;
+  openedAt: number;
+}
+
+export type DesktopCommandId =
+  | 'openFile'
+  | 'openFolder'
+  | 'exportImage'
+  | 'exportScreenshot'
+  | 'exportBatch'
+  | 'exportColormap'
+  | 'copyImage'
+  | 'reloadAll'
+  | 'closeAll'
+  | 'settings'
+  | 'metadata'
+  | 'viewerModeImage'
+  | 'viewerModePanorama'
+  | 'viewerModeDepth'
+  | 'toggleRulers'
+  | 'windowPreviewNormal'
+  | 'windowPreviewFullscreen'
+  | 'paneReset'
+  | 'paneSplitVertical'
+  | 'paneSplitHorizontal'
+  | 'toggleAppFullscreen'
+  | 'clearRecentFiles';
+
+export interface DesktopCommandCallbacks {
+  onCommand: (commandId: DesktopCommandId) => void;
+  onOpenRecent: (entry: DesktopFileEntry) => void;
+}
+
+export interface AppFullscreenHost {
+  isSupported(): boolean;
+  isActive(): boolean | Promise<boolean>;
+  setActive(active: boolean): Promise<void>;
+  onChange(callback: () => void): Promise<Disposable>;
 }
 
 export interface ViewerHost extends ExportSink {
   kind: 'web' | 'tauri';
   pathFileProvider: PathFileProvider | null;
+  appFullscreen: AppFullscreenHost;
   openFiles(options: HostOpenFileOptions): void;
   openFolder(options: HostOpenFolderOptions): void;
   setupDesktopEvents(callbacks: DesktopEventCallbacks): Promise<Disposable>;
+  setupDesktopCommands(callbacks: DesktopCommandCallbacks): Promise<Disposable>;
   installRecentFilesMenu(callbacks: RecentFileCallbacks): Disposable;
+  refreshRecentFiles(): Promise<DesktopRecentFile[]>;
+  clearRecentFiles(): Promise<void>;
   recordRecentFile(entry: DesktopFileEntry): void;
   recordPathLoadFailure(entry: DesktopFileEntry, error: unknown): void;
 }

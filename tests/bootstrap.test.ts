@@ -1041,7 +1041,7 @@ describe('bootstrap app lifecycle', () => {
       filename: 'viridis.png',
       format: 'png',
       pngCompressionLevel: 4
-    })).resolves.toBeUndefined();
+    })).resolves.toEqual({ status: 'saved' });
 
     expect(mocks.loadColormapLut).toHaveBeenCalledWith(registry, '0', undefined);
     expect(mocks.buildColormapExportPixels).toHaveBeenCalledWith({
@@ -1347,7 +1347,7 @@ describe('bootstrap app lifecycle', () => {
       format: 'png'
     }, (update) => {
       progressUpdates.push({ ...update });
-    })).resolves.toBeUndefined();
+    })).resolves.toEqual({ status: 'saved' });
 
     expect(progressUpdates).toEqual([
       { completed: 0, total: 1, stage: 'preparing', currentFilename: 'image.png', indeterminate: true },
@@ -1670,7 +1670,7 @@ describe('bootstrap app lifecycle', () => {
       outputHeight: 120,
       pngCompressionLevel: 6,
       includeReproductionMetadata: true
-    })).resolves.toBeUndefined();
+    })).resolves.toEqual({ status: 'saved' });
 
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(anchorClick).toHaveBeenCalledTimes(1);
@@ -2269,7 +2269,7 @@ describe('bootstrap app lifecycle', () => {
       ]
     }, new AbortController().signal, (update) => {
       progressUpdates.push({ ...update });
-    })).resolves.toBeUndefined();
+    })).resolves.toEqual({ status: 'saved' });
 
     expect(progressUpdates).toEqual([
       { completed: 0, total: 2, stage: 'preparing' },
@@ -2567,7 +2567,7 @@ describe('bootstrap app lifecycle', () => {
           outputFilename: 'depth-screenshot.Z.png'
         }
       ]
-    }, new AbortController().signal)).resolves.toBeUndefined();
+    }, new AbortController().signal)).resolves.toEqual({ status: 'saved' });
 
     expect(mocks.rendererReadExportPixels).toHaveBeenCalledTimes(2);
     expect(mocks.rendererReadExportPixels).toHaveBeenNthCalledWith(1, expect.objectContaining({
@@ -2741,7 +2741,7 @@ describe('bootstrap app lifecycle', () => {
         outputHeight: 40,
         outputFilename: 'beauty-screenshot.RGB.png'
       }]
-    }, new AbortController().signal)).resolves.toBeUndefined();
+    }, new AbortController().signal)).resolves.toEqual({ status: 'saved' });
 
     const zipBlob = createObjectURL.mock.calls[0]?.[0] as Blob;
     const entries = unzipSync(new Uint8Array(await zipBlob.arrayBuffer()));
@@ -2978,7 +2978,7 @@ describe('bootstrap app lifecycle', () => {
           outputFilename: 'active.AoLP.png'
         }
       ]
-    }, new AbortController().signal)).resolves.toBeUndefined();
+    }, new AbortController().signal)).resolves.toEqual({ status: 'saved' });
 
     const preparedStates = mocks.renderCachePrepareActiveSession.mock.calls.map((call) => {
       return (call as unknown[])[1];

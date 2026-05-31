@@ -7,9 +7,14 @@ export function createViewerHost(): ViewerHost {
 }
 
 export type {
+  AppFullscreenHost,
+  DesktopCommandCallbacks,
+  DesktopCommandId,
   DesktopFileBytes,
   DesktopFileEntry,
+  DesktopRecentFile,
   ExportFileSaveOptions,
+  ExportSaveResult,
   ExportSink,
   PathFileProvider,
   ViewerHost

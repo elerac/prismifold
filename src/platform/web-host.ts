@@ -1,25 +1,58 @@
 import type {
+  DesktopCommandCallbacks,
   DesktopEventCallbacks,
   DesktopFileEntry,
+  DesktopRecentFile,
   ExportFileSaveOptions,
+  ExportSaveResult,
   HostOpenFileOptions,
   HostOpenFolderOptions,
   RecentFileCallbacks,
   ViewerHost
 } from './types';
 
+const webAppFullscreenHost = {
+  isSupported(): boolean {
+    return typeof document.documentElement.requestFullscreen === 'function' &&
+      typeof document.exitFullscreen === 'function';
+  },
+  isActive(): boolean {
+    return document.fullscreenElement !== null;
+  },
+  async setActive(active: boolean): Promise<void> {
+    if (active) {
+      await document.documentElement.requestFullscreen();
+      return;
+    }
+    if (document.fullscreenElement && typeof document.exitFullscreen === 'function') {
+      await document.exitFullscreen();
+    }
+  },
+  async onChange(callback: () => void) {
+    document.addEventListener('fullscreenchange', callback);
+    document.addEventListener('fullscreenerror', callback);
+    return {
+      dispose: () => {
+        document.removeEventListener('fullscreenchange', callback);
+        document.removeEventListener('fullscreenerror', callback);
+      }
+    };
+  }
+};
+
 export const webHost: ViewerHost = {
   kind: 'web',
   pathFileProvider: null,
+  appFullscreen: webAppFullscreenHost,
   openFiles({ fallback }: HostOpenFileOptions): void {
     fallback();
   },
   openFolder({ fallback }: HostOpenFolderOptions): void {
     fallback();
   },
-  async saveBlob(blob: Blob, options: ExportFileSaveOptions): Promise<boolean> {
+  async saveBlob(blob: Blob, options: ExportFileSaveOptions): Promise<ExportSaveResult> {
     triggerBrowserDownload(blob, options.filename);
-    return true;
+    return { status: 'saved' };
   },
   validateCopyPngBlob(): void {
     if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
@@ -41,9 +74,16 @@ export const webHost: ViewerHost = {
   async setupDesktopEvents(_callbacks: DesktopEventCallbacks) {
     return { dispose: () => {} };
   },
+  async setupDesktopCommands(_callbacks: DesktopCommandCallbacks) {
+    return { dispose: () => {} };
+  },
   installRecentFilesMenu(_callbacks: RecentFileCallbacks) {
     return { dispose: () => {} };
   },
+  async refreshRecentFiles(): Promise<DesktopRecentFile[]> {
+    return [];
+  },
+  async clearRecentFiles(): Promise<void> {},
   recordRecentFile(_entry: DesktopFileEntry): void {},
   recordPathLoadFailure(_entry: DesktopFileEntry, _error: unknown): void {}
 };

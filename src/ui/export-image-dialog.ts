@@ -28,6 +28,7 @@ import {
   type ExportScreenshotRegionsRequest,
   type ExportImageTarget
 } from '../types';
+import type { ExportSaveResult } from '../platform';
 import { bindDialogBackdropDismiss } from './dialog-backdrop';
 import type { ExportImageDialogElements } from './elements';
 
@@ -36,11 +37,11 @@ const PNG_COMPRESSION_VALIDATION_MESSAGE = 'PNG compression must be an integer f
 const EXPORT_PROGRESS_REVEAL_DELAY_MS = 300;
 
 interface ExportImageDialogCallbacks {
-  onExportImage: (request: ExportImageRequest, onProgress?: (update: ExportProgressUpdate) => void) => Promise<void>;
+  onExportImage: (request: ExportImageRequest, onProgress?: (update: ExportProgressUpdate) => void) => Promise<ExportSaveResult>;
   onExportScreenshotRegions: (
     request: ExportScreenshotRegionsRequest,
     onProgress?: (update: ExportProgressUpdate) => void
-  ) => Promise<void>;
+  ) => Promise<ExportSaveResult>;
   onCancel?: (target: ExportImageTarget | null) => void;
   onScreenshotOutputSizeChange?: (size: { width: number; height: number }) => void;
   onScreenshotOutputScaleChange?: (scale: number) => void;
@@ -336,11 +337,13 @@ export class ExportImageDialogController implements Disposable {
       const reportProgress = this.startExportProgress();
 
       try {
-        await this.callbacks.onExportScreenshotRegions(request, reportProgress);
+        const result = await this.callbacks.onExportScreenshotRegions(request, reportProgress);
         if (!isPendingMatch(this.exportResource, 'export-image', exportRequestId)) {
           return;
         }
-        this.close(true);
+        if (result.status === 'saved') {
+          this.close(true);
+        }
       } catch (error) {
         if (isAbortError(error)) {
           this.close(true);
@@ -385,11 +388,13 @@ export class ExportImageDialogController implements Disposable {
     const reportProgress = this.startExportProgress();
 
     try {
-      await this.callbacks.onExportImage(request, reportProgress);
+      const result = await this.callbacks.onExportImage(request, reportProgress);
       if (!isPendingMatch(this.exportResource, 'export-image', exportRequestId)) {
         return;
       }
-      this.close(true);
+      if (result.status === 'saved') {
+        this.close(true);
+      }
     } catch (error) {
       if (isAbortError(error)) {
         this.close(true);
