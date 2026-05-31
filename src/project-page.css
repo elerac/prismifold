@@ -88,7 +88,6 @@ svg {
 }
 
 .site-nav a,
-.text-link,
 .site-footer a {
   transition:
     color 160ms ease,
@@ -98,8 +97,6 @@ svg {
 
 .site-nav a:hover,
 .site-nav a:focus-visible,
-.text-link:hover,
-.text-link:focus-visible,
 .site-footer a:hover,
 .site-footer a:focus-visible {
   color: var(--accent-dark);
@@ -185,10 +182,11 @@ main {
   background: var(--accent-dark);
 }
 
-.text-link {
-  color: var(--accent-dark);
-  font-size: 14px;
-  font-weight: 680;
+.button-disabled {
+  color: var(--text-subtle);
+  background: #f1f4f8;
+  border-color: var(--border);
+  cursor: not-allowed;
 }
 
 .preview-section {
@@ -393,10 +391,6 @@ main {
 
   .button {
     width: 100%;
-  }
-
-  .text-link {
-    padding: 6px 0;
   }
 
   .preview-section {
