@@ -2835,9 +2835,10 @@ describe('view menu', () => {
     ]);
     expect(Array.from(document.querySelectorAll('#channel-recognition-settings-control input[data-channel-recognition-setting]'))
       .map((input) => (input as HTMLInputElement).dataset.channelRecognitionSetting)).toEqual(
-      CHANNEL_RECOGNITION_SETTING_DESCRIPTORS.map((descriptor) => descriptor.id)
+      CHANNEL_RECOGNITION_SETTING_DESCRIPTORS
+        .filter((descriptor) => descriptor.mutable)
+        .map((descriptor) => descriptor.id)
     );
-    expect(getRecognitionCheckbox('fallback.singleChannel').disabled).toBe(true);
     expect(autoExposurePercentileInput.value).toBe('99.5');
     expect(autoExposurePercentileInput.min).toBe('1');
     expect(autoExposurePercentileInput.max).toBe('100');
@@ -3033,16 +3034,13 @@ describe('view menu', () => {
     const ui = new ViewerUi(createUiCallbacks({ onChannelRecognitionSettingsChange }));
     const control = document.getElementById('channel-recognition-settings-control') as HTMLElement;
     const checkbox = getRecognitionCheckbox('spectral.series');
-    const singleChannelCheckbox = getRecognitionCheckbox('fallback.singleChannel');
 
     expect(control).not.toBeNull();
     expect(control.closest('#settings-dialog')).toBe(document.getElementById('settings-dialog'));
     expect(checkbox).not.toBeNull();
     expect(checkbox.checked).toBe(true);
     expect(checkbox.closest('#channel-recognition-settings-control')).toBe(control);
-    expect(singleChannelCheckbox.checked).toBe(true);
-    expect(singleChannelCheckbox.disabled).toBe(true);
-    expect(singleChannelCheckbox.parentElement?.textContent).toContain('required');
+    expect(control.querySelector('[data-channel-recognition-setting="fallback.singleChannel"]')).toBeNull();
 
     checkbox.checked = false;
     checkbox.dispatchEvent(new Event('change', { bubbles: true }));
