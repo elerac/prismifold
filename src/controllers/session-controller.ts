@@ -29,7 +29,7 @@ import type {
   ViewportInsets
 } from '../types';
 import type { ViewerPanePath } from '../viewer-pane-layout';
-import type { DesktopFileEntry, PathFileProvider } from '../platform';
+import { presentDesktopError, type DesktopFileEntry, type PathFileProvider } from '../platform';
 
 const DESKTOP_CBOX_RGB_URL = 'https://raw.githubusercontent.com/elerac/openexr_viewer/main/public/cbox_rgb.exr';
 const CBOX_RGB_GALLERY_IMAGE = import.meta.env.MODE === 'desktop'
@@ -384,7 +384,7 @@ export class SessionController implements Disposable {
       this.throwIfStopped(signal);
       const error = await this.reloadSessionByIdInternal(sessionId, signal);
       if (error) {
-        this.core.dispatch({ type: 'errorSet', message: `Reload failed: ${error}` });
+        this.core.dispatch({ type: 'errorSet', message: `Reload failed: ${error.message}` });
       }
     }, {
       priority: 'foreground',
@@ -414,7 +414,7 @@ export class SessionController implements Disposable {
 
         const error = await this.reloadSessionByIdInternal(target.id, signal);
         if (error) {
-          failures.push(`${target.label}: ${error}`);
+          failures.push(`${target.label}: ${error.message}`);
         }
       }, {
         priority: 'background',
@@ -663,7 +663,7 @@ export class SessionController implements Disposable {
         return [];
       }
       onError?.(error);
-      const message = error instanceof Error ? error.message : 'Failed to inspect desktop paths.';
+      const { message } = presentDesktopError(error, 'Failed to inspect desktop paths.');
       this.core.dispatch({ type: 'errorSet', message });
       return [];
     }
@@ -824,7 +824,7 @@ export class SessionController implements Disposable {
       if (!this.disposed) {
         this.core.dispatch({
           type: 'errorSet',
-          message: result.error instanceof Error ? `Load failed: ${result.error.message}` : 'Load failed.'
+          message: `Load failed: ${presentDesktopError(result.error, 'Load failed.').message}`
         });
       }
     }
@@ -868,7 +868,7 @@ export class SessionController implements Disposable {
       if (!this.disposed) {
         this.core.dispatch({
           type: 'errorSet',
-          message: result.error instanceof Error ? `Load failed: ${result.error.message}` : 'Load failed.'
+          message: `Load failed: ${presentDesktopError(result.error, 'Load failed.').message}`
         });
       }
     }
@@ -1225,12 +1225,12 @@ export class SessionController implements Disposable {
     });
   }
 
-  private async reloadSessionByIdInternal(sessionId: string, signal: AbortSignal): Promise<string | null> {
+  private async reloadSessionByIdInternal(sessionId: string, signal: AbortSignal): Promise<Error | null> {
     this.throwIfStopped(signal);
 
     const session = this.getSessions().find((current) => current.id === sessionId);
     if (!session) {
-      return 'Session not found.';
+      return new Error('Session not found.');
     }
 
     try {
@@ -1268,7 +1268,7 @@ export class SessionController implements Disposable {
       if (isAbortError(error)) {
         throw error;
       }
-      return error instanceof Error ? error.message : 'Unknown error.';
+      return new Error(presentDesktopError(error, 'Unknown error.').message);
     }
   }
 

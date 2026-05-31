@@ -41,7 +41,7 @@ import type { WebGlExrRenderer } from '../../renderer';
 import type { DisplaySelection } from '../../display-model';
 import { saveStoredInvalidValueWarningSetting } from '../../invalid-value-warning-settings';
 import type { ViewerHost } from '../../platform';
-import { normalizeDesktopError } from '../../platform';
+import { presentDesktopError } from '../../platform';
 
 interface InteractionInputBridge {
   setViewerKeyboardNavigationInput(input: ViewerKeyboardNavigationInput): void;
@@ -94,7 +94,10 @@ export function createViewerUi({
           void getSessionController().enqueuePathEntries(entries);
         },
         onError: (error) => {
-          core.dispatch({ type: 'errorSet', message: normalizeDesktopError(error).message });
+          const { message } = presentDesktopError(error);
+          if (message) {
+            core.dispatch({ type: 'errorSet', message });
+          }
         }
       });
     },
@@ -108,7 +111,10 @@ export function createViewerUi({
           void getSessionController().enqueueFolderPathEntries(entries);
         },
         onError: (error) => {
-          core.dispatch({ type: 'errorSet', message: normalizeDesktopError(error).message });
+          const { message } = presentDesktopError(error);
+          if (message) {
+            core.dispatch({ type: 'errorSet', message });
+          }
         }
       });
     },

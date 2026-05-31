@@ -1,9 +1,11 @@
 mod desktop_error;
 mod desktop_io;
+mod desktop_window_state;
 
 use desktop_error::DesktopResult;
 use desktop_io::{DesktopFileEntry, DesktopRecentFile, DesktopState, ExportSaveResult};
-use tauri::{ipc::Response, AppHandle};
+use desktop_window_state::DesktopWindowStateTracker;
+use tauri::{ipc::Response, AppHandle, Manager};
 
 const DESKTOP_OPEN_PATHS_EVENT: &str = "desktop-open-paths";
 
@@ -13,6 +15,17 @@ pub fn run() {
         .manage(DesktopState::with_initial_open_paths(
             desktop_io::collect_exr_open_paths(std::env::args_os().skip(1)),
         ))
+        .manage(DesktopWindowStateTracker::default())
+        .setup(|app| {
+            desktop_window_state::restore_main_window(app.handle());
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            if desktop_window_state::is_main_window(window.label()) {
+                let tracker = window.app_handle().state::<DesktopWindowStateTracker>();
+                tracker.record_window_event(window, event);
+            }
+        })
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             desktop_io::emit_open_paths(
                 app,
@@ -40,9 +53,12 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    app.run(|app_handle, event| {
+    app.run(|app_handle, event| match event {
+        tauri::RunEvent::Exit => {
+            desktop_window_state::save_main_window_state(app_handle);
+        }
         #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
-        if let tauri::RunEvent::Opened { urls } = event {
+        tauri::RunEvent::Opened { urls } => {
             let paths = urls
                 .into_iter()
                 .filter_map(|url| url.to_file_path().ok())
@@ -50,6 +66,7 @@ pub fn run() {
                 .collect::<Vec<_>>();
             desktop_io::emit_open_paths(app_handle, paths, DESKTOP_OPEN_PATHS_EVENT);
         }
+        _ => {}
     });
 }
 

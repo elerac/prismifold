@@ -45,3 +45,43 @@ export function isStaleDesktopPathError(error: unknown): boolean {
   }
   return /does not exist|not a file/i.test(desktopError.message);
 }
+
+export interface DesktopErrorPresentation {
+  message: string;
+  detail: string;
+  code?: DesktopErrorCode;
+}
+
+export function presentDesktopError(error: unknown, fallbackMessage = 'Desktop command failed.'): DesktopErrorPresentation {
+  const desktopError = normalizeDesktopError(error, fallbackMessage);
+  return {
+    message: desktopError.code ? messageForDesktopErrorCode(desktopError.code, fallbackMessage) : desktopError.message,
+    detail: desktopError.message,
+    ...(desktopError.code ? { code: desktopError.code } : {})
+  };
+}
+
+function messageForDesktopErrorCode(code: DesktopErrorCode, fallbackMessage: string): string {
+  switch (code) {
+    case 'notFound':
+      return 'File was not found.';
+    case 'notFile':
+      return 'Path is not a file.';
+    case 'notExr':
+      return 'Choose an OpenEXR .exr file.';
+    case 'permissionDenied':
+      return 'Permission denied while accessing the file.';
+    case 'tooLarge':
+      return 'EXR file is too large.';
+    case 'folderLimit':
+      return 'Folder contains too many or too-large EXR files.';
+    case 'invalidOutput':
+      return 'Choose a valid .png or .zip export path.';
+    case 'cancelled':
+      return '';
+    case 'io':
+      return 'Desktop file operation failed.';
+    default:
+      return fallbackMessage;
+  }
+}

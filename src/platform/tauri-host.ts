@@ -41,6 +41,8 @@ type RawBytes = number[] | Uint8Array | ArrayBuffer;
 
 let nativeMenuCallbacks: DesktopCommandCallbacks | null = null;
 let nativeMenuRefreshSerial = 0;
+let nativeMenuRefreshTimer: number | null = null;
+let lastNativeMenuSignature: string | null = null;
 
 async function importTauriCore() {
   return await import('@tauri-apps/api/core');
@@ -64,6 +66,27 @@ function normalizeRecentFile(entry: DesktopRecentFileWire): DesktopRecentFile {
     displayPath: entry.displayPath,
     openedAt: entry.openedAt
   };
+}
+
+function normalizeRecentFiles(entries: DesktopRecentFileWire[]): DesktopRecentFile[] {
+  const recentFiles = entries.map(normalizeRecentFile);
+  const labelCounts = new Map<string, number>();
+  for (const item of recentFiles) {
+    labelCounts.set(item.label, (labelCounts.get(item.label) ?? 0) + 1);
+  }
+  return recentFiles.map((item) => (
+    (labelCounts.get(item.label) ?? 0) > 1
+      ? {
+          ...item,
+          label: `${item.label} - ${shortParentFolder(item.displayPath)}`
+        }
+      : item
+  ));
+}
+
+function shortParentFolder(path: string): string {
+  const parts = path.split(/[\\/]+/).filter(Boolean);
+  return parts.length >= 2 ? parts[parts.length - 2]! : path;
 }
 
 function normalizeBytes(value: RawBytes): Uint8Array {
@@ -263,7 +286,8 @@ export const tauriHost: ViewerHost = {
   },
   async setupDesktopCommands(callbacks: DesktopCommandCallbacks): Promise<Disposable> {
     nativeMenuCallbacks = callbacks;
-    await installNativeMenu(callbacks);
+    lastNativeMenuSignature = null;
+    await installNativeMenu(callbacks, { force: true });
     const onCommandStateChanged = () => {
       refreshNativeMenu();
     };
@@ -274,6 +298,10 @@ export const tauriHost: ViewerHost = {
         if (nativeMenuCallbacks === callbacks) {
           nativeMenuCallbacks = null;
         }
+        if (nativeMenuRefreshTimer !== null) {
+          window.clearTimeout(nativeMenuRefreshTimer);
+          nativeMenuRefreshTimer = null;
+        }
       }
     };
   },
@@ -282,7 +310,7 @@ export const tauriHost: ViewerHost = {
   },
   async refreshRecentFiles(): Promise<DesktopRecentFile[]> {
     const entries = await invokeDesktop<DesktopRecentFileWire[]>('get_recent_files');
-    return entries.map(normalizeRecentFile);
+    return normalizeRecentFiles(entries);
   },
   async clearRecentFiles(): Promise<void> {
     await invokeDesktop<DesktopRecentFileWire[]>('clear_recent_files');
@@ -315,10 +343,15 @@ function notifyRecentFilesChanged(): void {
   refreshNativeMenu();
 }
 
-async function installNativeMenu(callbacks: DesktopCommandCallbacks): Promise<void> {
+async function installNativeMenu(callbacks: DesktopCommandCallbacks, options: { force?: boolean } = {}): Promise<void> {
   const { Menu, Submenu, PredefinedMenuItem } = await import('@tauri-apps/api/menu');
   const recents = await tauriHost.refreshRecentFiles();
   const commandState = callbacks.getCommandState?.() ?? {};
+  const signature = buildNativeMenuSignature(commandState, recents);
+  if (!options.force && signature === lastNativeMenuSignature) {
+    return;
+  }
+  lastNativeMenuSignature = signature;
   const isEnabled = (id: DesktopCommandId) => commandState[id] ?? true;
   const command = (id: DesktopCommandId) => () => {
     callbacks.onCommand(id);
@@ -431,12 +464,36 @@ function refreshNativeMenu(): void {
     return;
   }
   const serial = ++nativeMenuRefreshSerial;
-  void Promise.resolve().then(async () => {
-    if (serial !== nativeMenuRefreshSerial || nativeMenuCallbacks !== callbacks) {
-      return;
-    }
-    await installNativeMenu(callbacks);
-  }).catch(() => {});
+  if (nativeMenuRefreshTimer !== null) {
+    window.clearTimeout(nativeMenuRefreshTimer);
+  }
+  nativeMenuRefreshTimer = window.setTimeout(() => {
+    nativeMenuRefreshTimer = null;
+    void Promise.resolve().then(async () => {
+      if (serial !== nativeMenuRefreshSerial || nativeMenuCallbacks !== callbacks) {
+        return;
+      }
+      await installNativeMenu(callbacks);
+    }).catch(() => {});
+  }, 75);
+}
+
+function buildNativeMenuSignature(
+  commandState: Partial<Record<DesktopCommandId, boolean>>,
+  recents: DesktopRecentFile[]
+): string {
+  const sortedCommandState = Object.entries(commandState)
+    .sort(([left], [right]) => left.localeCompare(right));
+  const recentState = recents.map((recent) => [
+    recent.path,
+    recent.label,
+    recent.displayPath,
+    recent.openedAt
+  ]);
+  return JSON.stringify({
+    commands: sortedCommandState,
+    recents: recentState
+  });
 }
 
 function installRustRecentFilesMenu(callbacks: RecentFileCallbacks): Disposable {

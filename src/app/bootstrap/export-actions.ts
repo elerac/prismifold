@@ -51,7 +51,7 @@ import type {
   VisualizationMode
 } from '../../types';
 import type { WebGlExrRenderer } from '../../renderer';
-import type { ExportSaveResult, ExportSink } from '../../platform';
+import { presentDesktopError, type ExportSaveResult, type ExportSink } from '../../platform';
 
 type BatchPreviewRangeStrategy = 'exact' | 'sampledPreview';
 
@@ -419,7 +419,7 @@ export async function handleExportImage(
       throw error;
     }
 
-    const message = error instanceof Error ? error.message : 'Export failed.';
+    const { message } = presentDesktopError(error, 'Export failed.');
     core.dispatch({ type: 'errorSet', message });
     throw new Error(message);
   }
@@ -464,7 +464,7 @@ export async function handleCopyImageToClipboard({
       throw error;
     }
 
-    const message = error instanceof Error ? error.message : 'Copy image failed.';
+    const { message } = presentDesktopError(error, 'Copy image failed.');
     core.dispatch({ type: 'errorSet', message });
     throw new Error(message);
   }
@@ -600,7 +600,7 @@ export async function handleExportScreenshotRegions(
       throw error;
     }
 
-    const message = error instanceof Error ? error.message : 'Screenshot regions export failed.';
+    const { message } = presentDesktopError(error, 'Screenshot regions export failed.');
     core.dispatch({ type: 'errorSet', message });
     throw new Error(message);
   }
@@ -755,7 +755,7 @@ export async function handleExportImageBatch(
       throw error instanceof Error ? error : createAbortError('Batch export cancelled.');
     }
 
-    const message = error instanceof Error ? error.message : 'Batch export failed.';
+    const { message } = presentDesktopError(error, 'Batch export failed.');
     core.dispatch({ type: 'errorSet', message });
     throw new Error(message);
   } finally {
@@ -926,7 +926,7 @@ export async function handleExportColormap(
       throw error instanceof Error ? error : createAbortError('Viewer application has been disposed.');
     }
 
-    const message = error instanceof Error ? error.message : 'Export failed.';
+    const { message } = presentDesktopError(error, 'Export failed.');
     core.dispatch({ type: 'errorSet', message });
     throw new Error(message);
   }

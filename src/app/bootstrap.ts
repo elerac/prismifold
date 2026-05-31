@@ -29,7 +29,7 @@ import { registerBootstrapEffects } from './bootstrap/register-effects';
 import { createViewerInteraction, initializeViewportLifecycle } from './bootstrap/viewport-lifecycle';
 import { installE2EHooks } from './e2e-hooks';
 import { selectActiveSession } from './viewer-app-selectors';
-import { createViewerHost, normalizeDesktopError } from '../platform';
+import { createViewerHost, presentDesktopError } from '../platform';
 import type { ViewerRuntimeUi } from '../ui/viewer-runtime-ui';
 
 export interface BootstrapAppOptions {
@@ -64,7 +64,10 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
   const loadQueue = new LoadQueueService({ maxWorkers: initialImageLoadWorkers });
   const host = createViewerHost();
   const reportDesktopError = (error: unknown, fallbackMessage: string): void => {
-    const message = normalizeDesktopError(error, fallbackMessage).message;
+    const { message } = presentDesktopError(error, fallbackMessage);
+    if (!message) {
+      return;
+    }
     core.dispatch({ type: 'errorSet', message });
   };
   const resolveColormapExportPixels = createColormapExportPixelsResolver({

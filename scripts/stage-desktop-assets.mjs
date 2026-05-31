@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const distDir = resolve(rootDir, 'dist');
+const distDir = resolve(rootDir, 'dist-desktop');
 const colormapSourceDir = resolve(rootDir, 'public', 'colormaps');
 const colormapOutputDir = resolve(distDir, 'colormaps');
 
@@ -14,4 +14,4 @@ await cp(colormapSourceDir, colormapOutputDir, {
   filter: (source) => !source.endsWith('.DS_Store')
 });
 
-console.log('Staged desktop assets: public/colormaps -> dist/colormaps');
+console.log('Staged desktop assets: public/colormaps -> dist-desktop/colormaps');

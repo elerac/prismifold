@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => {
     envPrefix: ['VITE_', 'TAURI_ENV_*'],
     build: desktopBuild
       ? {
+          outDir: 'dist-desktop',
           target: tauriPlatform === 'windows' ? 'chrome105' : 'safari13',
           minify: process.env.TAURI_ENV_DEBUG ? false : 'esbuild',
           sourcemap: Boolean(process.env.TAURI_ENV_DEBUG)

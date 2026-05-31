@@ -24,5 +24,6 @@ export type {
 
 export {
   isStaleDesktopPathError,
-  normalizeDesktopError
+  normalizeDesktopError,
+  presentDesktopError
 } from './desktop-errors';
