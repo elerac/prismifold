@@ -8,6 +8,7 @@
       content="OpenEXR Viewer is a browser-based OpenEXR viewer for local file loading, raw pixel probes, channel views, ROI statistics, panoramas, metadata, and PNG export."
     />
     <title>OpenEXR Viewer</title>
+    <script src="embed/openexr-viewer.js"></script>
     <script type="module" src="/src/project-page.ts"></script>
   </head>
   <body>
@@ -22,6 +23,7 @@
       <nav class="site-nav" aria-label="Project links">
         <a href="app/">App</a>
         <a href="#features">Features</a>
+        <a href="#gallery">Gallery</a>
         <a href="https://github.com/elerac/openexr_viewer#readme">Docs</a>
         <a href="https://github.com/elerac/openexr_viewer">GitHub</a>
       </nav>
@@ -110,6 +112,27 @@
               <li>No uploads for local files</li>
             </ul>
           </section>
+        </div>
+      </section>
+
+      <section id="gallery" class="gallery-section" aria-labelledby="gallery-title">
+        <h2 id="gallery-title">Gallery</h2>
+        <div class="gallery-grid">
+          <figure class="gallery-item">
+            <figcaption>
+              <strong>Cornell Box</strong>
+              <a href="https://elerac.github.io/openexr_viewer/cbox_rgb.exr">cbox_rgb.exr</a>
+            </figcaption>
+            <div class="exr-embed-frame">
+              <openexr-viewer
+                data-responsive-height
+                src="https://elerac.github.io/openexr_viewer/cbox_rgb.exr"
+                name="Cornell Box"
+                width="100%"
+                height="420">
+              </openexr-viewer>
+            </div>
+          </figure>
         </div>
       </section>
     </main>

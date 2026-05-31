@@ -210,11 +210,29 @@ main {
   object-fit: cover;
 }
 
+.exr-embed-frame {
+  overflow: hidden;
+  background: #05070a;
+  border: 1px solid #1d2735;
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+
+.exr-embed-frame openexr-viewer {
+  display: block;
+  width: 100%;
+}
+
 .features-section {
   padding: 20px 0 58px;
 }
 
-.features-section h2 {
+.gallery-section {
+  padding: 0 0 58px;
+}
+
+.features-section h2,
+.gallery-section h2 {
   margin: 0 0 14px;
   color: var(--text-strong);
   font-size: 27px;
@@ -227,6 +245,38 @@ main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.78fr);
   gap: 24px;
+}
+
+.gallery-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.gallery-item {
+  min-width: 0;
+  margin: 0;
+}
+
+.gallery-item figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 10px;
+}
+
+.gallery-item strong {
+  color: var(--text-strong);
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 720;
+}
+
+.gallery-item a {
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 650;
 }
 
 .feature-column {
@@ -401,11 +451,13 @@ main {
     aspect-ratio: 4 / 3;
   }
 
-  .features-section {
+  .features-section,
+  .gallery-section {
     padding-bottom: 42px;
   }
 
-  .features-section h2 {
+  .features-section h2,
+  .gallery-section h2 {
     font-size: 24px;
   }
 
