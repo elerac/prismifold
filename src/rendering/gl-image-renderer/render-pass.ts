@@ -8,6 +8,12 @@ import {
   resolveDisplaySourceModeUniformValue,
   resolveStokesParameterUniformValue
 } from '../../display/gpu-bindings';
+import {
+  DEFAULT_VIEWER_BACKGROUND_ID,
+  getViewerBackgroundColor,
+  isSolidViewerBackground,
+  type ViewerBackgroundId
+} from '../../viewer-background-settings';
 import { clampPanoramaProjectionPitch } from '../../interaction/panorama-geometry';
 import {
   clampDepthPitch,
@@ -27,8 +33,13 @@ import {
 import type {
   CommonUniforms,
   GlImageRendererState,
+  RenderBackgroundMode,
   RenderPassOptions
 } from './types';
+
+const BACKGROUND_MODE_NONE = 0;
+const BACKGROUND_MODE_CHECKER = 1;
+const BACKGROUND_MODE_SOLID = 2;
 
 export function render(
   state: GlImageRendererState,
@@ -60,6 +71,7 @@ export function render(
       gl.scissor(rect.x, glY, rect.width, rect.height);
       const options = {
         ...DEFAULT_RENDER_PASS_OPTIONS,
+        ...resolveViewerBackgroundOptions(viewerState.viewerBackground),
         viewportWidth: rect.width,
         viewportHeight: rect.height,
         viewportLeft: state.viewportOrigin.left + rect.x,
@@ -156,7 +168,7 @@ export function renderDepthPass(
     ...options,
     imageWidth: sourceSize.width,
     imageHeight: sourceSize.height,
-    compositeCheckerboard: false
+    backgroundMode: 'none'
   });
   gl.uniform1f(
     program.uniforms.depthFocalLengthPx,
@@ -255,8 +267,34 @@ function setCommonUniforms(
     ) === 'saturation' ? 1 : 0
   );
   gl.uniform1i(uniforms.useImageAlpha, state.activeBinding.usesImageAlpha ? 1 : 0);
-  gl.uniform1i(uniforms.compositeCheckerboard, options.compositeCheckerboard ? 1 : 0);
+  gl.uniform1i(uniforms.backgroundMode, resolveBackgroundModeUniformValue(options.backgroundMode));
+  gl.uniform3f(
+    uniforms.backgroundColor,
+    options.backgroundColor[0],
+    options.backgroundColor[1],
+    options.backgroundColor[2]
+  );
   gl.uniform1i(uniforms.alphaOutputMode, resolveAlphaOutputModeUniformValue(options.alphaOutputMode));
+}
+
+function resolveViewerBackgroundOptions(
+  viewerBackground: ViewerBackgroundId = DEFAULT_VIEWER_BACKGROUND_ID
+): Pick<RenderPassOptions, 'backgroundMode' | 'backgroundColor'> {
+  return {
+    backgroundMode: isSolidViewerBackground(viewerBackground) ? 'solid' : 'checker',
+    backgroundColor: getViewerBackgroundColor(viewerBackground)
+  };
+}
+
+function resolveBackgroundModeUniformValue(mode: RenderBackgroundMode): number {
+  switch (mode) {
+    case 'none':
+      return BACKGROUND_MODE_NONE;
+    case 'checker':
+      return BACKGROUND_MODE_CHECKER;
+    case 'solid':
+      return BACKGROUND_MODE_SOLID;
+  }
 }
 
 function createFullViewportPane(state: GlImageRendererState): ViewerPaneRenderInfo {

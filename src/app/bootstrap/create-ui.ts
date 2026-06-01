@@ -281,6 +281,9 @@ export function createViewerUi({
     onRulersVisibleChange: (enabled) => {
       core.dispatch({ type: 'rulersVisibleSet', enabled });
     },
+    onViewerBackgroundChange: (background) => {
+      core.dispatch({ type: 'viewerBackgroundSet', background });
+    },
     onViewerPaneSplit: (orientation) => {
       core.dispatch({ type: 'viewerPaneSplit', orientation });
     },

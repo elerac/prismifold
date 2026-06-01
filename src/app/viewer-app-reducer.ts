@@ -10,6 +10,7 @@ import {
   createDefaultStokesParameterVisibilitySettings
 } from '../stokes';
 import { DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED } from '../spectral-default-settings';
+import { DEFAULT_VIEWER_BACKGROUND_ID } from '../viewer-background-settings';
 import { createInteractionState } from '../view-state';
 import { createSinglePaneLayout } from '../viewer-pane-layout';
 import { createInitialState } from '../viewer-store';
@@ -63,6 +64,7 @@ export function createInitialViewerAppState(): ViewerAppState {
     stokesParameterVisibility: createDefaultStokesParameterVisibilitySettings(),
     channelRecognitionSettings: createDefaultChannelRecognitionSettings(),
     channelRecognitionNameRules: createDefaultChannelRecognitionNameRules(),
+    viewerBackground: DEFAULT_VIEWER_BACKGROUND_ID,
     maskInvalidStokesVectors: DEFAULT_MASK_INVALID_STOKES_VECTORS,
     spectralRgbGroupingEnabled: DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED,
     invalidValueWarningEnabled: DEFAULT_INVALID_VALUE_WARNING_ENABLED,

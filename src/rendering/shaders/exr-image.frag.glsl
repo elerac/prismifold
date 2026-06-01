@@ -29,7 +29,8 @@ uniform float uInvalidValueWarningPhase;
 uniform bool uUseStokesDegreeModulation;
 uniform int uStokesDegreeModulationMode;
 uniform bool uUseImageAlpha;
-uniform bool uCompositeCheckerboard;
+uniform int uBackgroundMode;
+uniform vec3 uBackgroundColor;
 uniform int uAlphaOutputMode;
 out vec4 outColor;
 
@@ -47,6 +48,9 @@ const int DISPLAY_MODE_CHANNEL_NORMAL_MAP = 10;
 const int ALPHA_OUTPUT_OPAQUE = 0;
 const int ALPHA_OUTPUT_STRAIGHT = 1;
 const int ALPHA_OUTPUT_PREMULTIPLIED = 2;
+const int BACKGROUND_MODE_NONE = 0;
+const int BACKGROUND_MODE_CHECKER = 1;
+const int BACKGROUND_MODE_SOLID = 2;
 const int STOKES_DEGREE_MODULATION_MODE_VALUE = 0;
 const int STOKES_DEGREE_MODULATION_MODE_SATURATION = 1;
 
@@ -170,8 +174,12 @@ vec3 checker(vec2 screen) {
 }
 
 vec4 backgroundColor(vec2 screen) {
-  if (uCompositeCheckerboard) {
+  if (uBackgroundMode == BACKGROUND_MODE_CHECKER) {
     return vec4(checker(screen), 1.0);
+  }
+
+  if (uBackgroundMode == BACKGROUND_MODE_SOLID) {
+    return vec4(uBackgroundColor, 1.0);
   }
 
   if (uAlphaOutputMode == ALPHA_OUTPUT_OPAQUE) {
@@ -182,8 +190,12 @@ vec4 backgroundColor(vec2 screen) {
 }
 
 vec4 encodeOutputColor(vec2 screen, vec3 color, float alpha) {
-  if (uCompositeCheckerboard) {
+  if (uBackgroundMode == BACKGROUND_MODE_CHECKER) {
     return vec4(mix(checker(screen), color, alpha), 1.0);
+  }
+
+  if (uBackgroundMode == BACKGROUND_MODE_SOLID) {
+    return vec4(mix(uBackgroundColor, color, alpha), 1.0);
   }
 
   if (uAlphaOutputMode == ALPHA_OUTPUT_PREMULTIPLIED) {

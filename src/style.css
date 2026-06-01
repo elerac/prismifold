@@ -1903,6 +1903,27 @@ body.is-resizing-panel-rows * {
   background-image: none;
 }
 
+.viewer-container[data-viewer-background='white'] {
+  --viewer-background: #fff;
+  --viewer-fullscreen-background: #fff;
+  --viewer-checker-opacity: 0;
+  --viewer-grid-opacity: 0;
+}
+
+.viewer-container[data-viewer-background='black'] {
+  --viewer-background: #000;
+  --viewer-fullscreen-background: #000;
+  --viewer-checker-opacity: 0;
+  --viewer-grid-opacity: 0;
+}
+
+.viewer-container[data-viewer-background='gray'] {
+  --viewer-background: #808080;
+  --viewer-fullscreen-background: #808080;
+  --viewer-checker-opacity: 0;
+  --viewer-grid-opacity: 0;
+}
+
 .viewer-container::before,
 .viewer-container::after {
   content: "";

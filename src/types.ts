@@ -6,6 +6,7 @@ import type {
 import type { ChannelStorage, FiniteValueRange } from './channel-storage';
 import type { ChannelRecognitionSettings } from './channel-recognition-settings';
 import type { ChannelRecognitionNameRules } from './channel-recognition-name-rules';
+import type { ViewerBackgroundId } from './viewer-background-settings';
 
 export type VisualizationMode = 'rgb' | 'colormap';
 export type ColormapRangeMode = 'alwaysAuto' | 'oneTime';
@@ -190,6 +191,7 @@ export interface ViewerInteractionState {
 }
 
 export interface ViewerRenderState extends ViewerSessionState {
+  viewerBackground?: ViewerBackgroundId;
   maskInvalidStokesVectors?: boolean;
   spectralRgbGroupingEnabled?: boolean;
   channelRecognitionSettings?: ChannelRecognitionSettings;

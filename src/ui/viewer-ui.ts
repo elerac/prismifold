@@ -109,6 +109,14 @@ import { syncSelectOptions } from './render-helpers';
 import type { ViewportClientRect } from '../interaction/image-geometry';
 import type { ThemeId } from '../theme';
 import {
+  DEFAULT_VIEWER_BACKGROUND_ID,
+  VIEWER_BACKGROUNDS,
+  parseStoredViewerBackground,
+  readStoredViewerBackground,
+  saveStoredViewerBackground,
+  type ViewerBackgroundId
+} from '../viewer-background-settings';
+import {
   DEFAULT_SPECTRUM_LATTICE_MOTION_PREFERENCE,
   parseSpectrumLatticeMotionPreference,
   readStoredSpectrumLatticeMotionPreference,
@@ -328,6 +336,7 @@ export interface UiCallbacks {
   onAutoExposurePercentileChange: (percentile: number) => void;
   onImageLoadWorkersChange: (workerCount: number) => void;
   onRulersVisibleChange: (enabled: boolean) => void;
+  onViewerBackgroundChange: (background: ViewerBackgroundId) => void;
   onViewerPaneSplit: (orientation: ViewerPaneSplitOrientation) => void;
   onViewerPaneReset: () => void;
   onViewerPaneActivated: (path: ViewerPanePath) => void;
@@ -441,6 +450,7 @@ export class ViewerUi implements Disposable {
   private autoExposurePercentile = AUTO_EXPOSURE_PERCENTILE;
   private imageLoadWorkers = getDefaultImageLoadWorkers();
   private rulersVisible = false;
+  private viewerBackground: ViewerBackgroundId = DEFAULT_VIEWER_BACKGROUND_ID;
   private viewerPaneLayout: ViewerPaneLayoutState = createSinglePaneLayout();
   private viewerPaneRenderInfos: ViewerPaneRenderInfo[] = [];
   private hasActiveChannelImage = false;
@@ -767,6 +777,7 @@ export class ViewerUi implements Disposable {
     this.disposables.addDisposable(this.collapsibleSectionsController);
     this.disposables.addDisposable(this.viewerBackgroundController);
     this.disposables.addDisposable(this.themeController);
+    this.renderViewerBackgroundOptions();
     this.clearImageBrowserPanels();
     this.setStokesDefaultSettingsOptions([], this.stokesColormapDefaults, this.stokesParameterVisibility);
     this.setViewerMode('image');
@@ -780,6 +791,8 @@ export class ViewerUi implements Disposable {
     this.callbacks.onImageLoadWorkersChange(this.imageLoadWorkers);
     this.setRulersVisible(readStoredRulersVisible(), false);
     this.callbacks.onRulersVisibleChange(this.rulersVisible);
+    this.setViewerBackground(readStoredViewerBackground(), false);
+    this.callbacks.onViewerBackgroundChange(this.viewerBackground);
     this.refreshViewerPaneLayout();
     this.updateViewerModeMenuItemsDisabled();
     this.updateWindowPaneMenuItemsDisabled();
@@ -1026,6 +1039,19 @@ export class ViewerUi implements Disposable {
     }
 
     this.themeController.setTheme(theme, { persist });
+  }
+
+  setViewerBackground(background: ViewerBackgroundId, persist = true): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.viewerBackground = background;
+    this.elements.viewerBackgroundSelect.value = background;
+    this.viewerBackgroundController.setViewerBackground(background);
+    if (persist) {
+      saveStoredViewerBackground(background);
+    }
   }
 
   setSpectrumLatticeMotionPreference(
@@ -3085,6 +3111,12 @@ export class ViewerUi implements Disposable {
       this.resetChannelRecognitionRuleDraft();
     });
 
+    this.disposables.addEventListener(this.elements.viewerBackgroundSelect, 'change', () => {
+      const background = parseStoredViewerBackground(this.elements.viewerBackgroundSelect.value);
+      this.setViewerBackground(background);
+      this.callbacks.onViewerBackgroundChange(this.viewerBackground);
+    });
+
     this.disposables.addEventListener(this.elements.spectrumLatticeMotionSelect, 'change', () => {
       this.setSpectrumLatticeMotionPreference(
         parseSpectrumLatticeMotionPreference(this.elements.spectrumLatticeMotionSelect.value)
@@ -3106,6 +3138,8 @@ export class ViewerUi implements Disposable {
     this.disposables.addEventListener(this.elements.resetSettingsButton, 'click', () => {
       this.layoutSplitController.resetToDefaults();
       this.themeController.reset();
+      this.setViewerBackground(DEFAULT_VIEWER_BACKGROUND_ID);
+      this.callbacks.onViewerBackgroundChange(this.viewerBackground);
       this.setSpectrumLatticeMotionPreference(DEFAULT_SPECTRUM_LATTICE_MOTION_PREFERENCE);
       this.setAutoExposurePercentile(AUTO_EXPOSURE_PERCENTILE, true);
       this.callbacks.onAutoExposurePercentileChange(this.autoExposurePercentile);
@@ -3135,6 +3169,17 @@ export class ViewerUi implements Disposable {
 
       this.callbacks.onClearRoi();
     });
+  }
+
+  private renderViewerBackgroundOptions(): void {
+    this.elements.viewerBackgroundSelect.replaceChildren(
+      ...VIEWER_BACKGROUNDS.map((background) => {
+        const option = document.createElement('option');
+        option.value = background.id;
+        option.textContent = background.label;
+        return option;
+      })
+    );
   }
 
   private readonly onScreenshotSelectionPointerGuard = (event: Event): void => {

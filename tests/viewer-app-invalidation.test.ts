@@ -144,6 +144,25 @@ describe('viewer app lanes', () => {
     expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.ResourcePrepare)).toBe(false);
   });
 
+  it('exposes viewer background through UI and image render lanes only', () => {
+    const state = createActiveState();
+    const nextState = {
+      ...state,
+      viewerBackground: 'gray' as const
+    };
+    const selectUiSnapshot = createViewerUiSnapshotSelector();
+    const snapshot = selectUiSnapshot(nextState);
+    const uiFlags = createUiFlags(state, nextState);
+    const renderFlags = createRenderFlags(state, nextState);
+
+    expect(snapshot.viewerBackground).toBe('gray');
+    expect(hasUiFlag(uiFlags, ViewerUiInvalidationFlags.ViewerBackground)).toBe(true);
+    expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.RenderImage)).toBe(true);
+    expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.ResourcePrepare)).toBe(false);
+    expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.RenderValueOverlay)).toBe(false);
+    expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.RenderProbeOverlay)).toBe(false);
+  });
+
   it('exposes ruler visibility through UI and ruler render lanes only', () => {
     const state = createActiveState();
     const nextState = {

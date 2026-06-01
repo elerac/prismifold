@@ -64,7 +64,8 @@ export const enum ViewerUiInvalidationFlags {
   ColormapReverse = 1 << 27,
   DepthModeAvailability = 1 << 28,
   ChannelRecognitionSettings = 1 << 29,
-  ChannelRecognitionNameRules = 1 << 30
+  ChannelRecognitionNameRules = 1 << 30,
+  ViewerBackground = 1 << 31
 }
 
 export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => ViewerUiSnapshot {
@@ -128,6 +129,7 @@ export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => Vie
       stokesParameterVisibility: state.stokesParameterVisibility,
       channelRecognitionSettings: state.channelRecognitionSettings,
       channelRecognitionNameRules: state.channelRecognitionNameRules,
+      viewerBackground: state.viewerBackground,
       maskInvalidStokesVectors: state.maskInvalidStokesVectors,
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
       invalidValueWarningEnabled: state.invalidValueWarningEnabled,
@@ -279,6 +281,10 @@ export function computeViewerUiInvalidation(
 
   if (previous.invalidValueWarningEnabled !== next.invalidValueWarningEnabled) {
     flags |= ViewerUiInvalidationFlags.InvalidValueWarning;
+  }
+
+  if (previous.viewerBackground !== next.viewerBackground) {
+    flags |= ViewerUiInvalidationFlags.ViewerBackground;
   }
 
   if (previous.activeColormapId !== next.activeColormapId) {
@@ -574,6 +580,7 @@ function sameViewerUiSnapshot(a: ViewerUiSnapshot, b: ViewerUiSnapshot): boolean
     sameStokesParameterVisibilitySettings(a.stokesParameterVisibility, b.stokesParameterVisibility) &&
     sameChannelRecognitionSettings(a.channelRecognitionSettings, b.channelRecognitionSettings) &&
     sameChannelRecognitionNameRules(a.channelRecognitionNameRules, b.channelRecognitionNameRules) &&
+    a.viewerBackground === b.viewerBackground &&
     a.maskInvalidStokesVectors === b.maskInvalidStokesVectors &&
     a.spectralRgbGroupingEnabled === b.spectralRgbGroupingEnabled &&
     a.invalidValueWarningEnabled === b.invalidValueWarningEnabled &&

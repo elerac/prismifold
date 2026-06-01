@@ -40,7 +40,8 @@ export function getCommonUniforms(gl: WebGL2RenderingContext, program: WebGLProg
     useStokesDegreeModulation: getRequiredUniformLocation(gl, program, 'uUseStokesDegreeModulation'),
     stokesDegreeModulationMode: getRequiredUniformLocation(gl, program, 'uStokesDegreeModulationMode'),
     useImageAlpha: getRequiredUniformLocation(gl, program, 'uUseImageAlpha'),
-    compositeCheckerboard: getRequiredUniformLocation(gl, program, 'uCompositeCheckerboard'),
+    backgroundMode: getRequiredUniformLocation(gl, program, 'uBackgroundMode'),
+    backgroundColor: getRequiredUniformLocation(gl, program, 'uBackgroundColor'),
     alphaOutputMode: getRequiredUniformLocation(gl, program, 'uAlphaOutputMode')
   };
 }

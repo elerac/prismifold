@@ -230,6 +230,7 @@ function createRenderStateSelector(): (state: ViewerAppState) => ViewerRenderSna
   let previousResult: ViewerRenderSnapshot['renderState'] | null = null;
   return (state) => {
     const nextResult = mergeRenderState(state.sessionState, state.interactionState, {
+      viewerBackground: state.viewerBackground,
       maskInvalidStokesVectors: state.maskInvalidStokesVectors,
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
       channelRecognitionSettings: state.channelRecognitionSettings,
@@ -272,7 +273,8 @@ function selectPaneRenderSources(
           state.spectralRgbGroupingEnabled,
           state.channelRecognitionSettings,
           state.channelRecognitionNameRules,
-          state.invalidValueWarningEnabled
+          state.invalidValueWarningEnabled,
+          state.viewerBackground
         );
     const layer = session.decoded.layers[renderState.activeLayer] ?? null;
     if (!layer) {
@@ -319,10 +321,12 @@ function createStoredPaneRenderState(
   spectralRgbGroupingEnabled: boolean,
   channelRecognitionSettings: ChannelRecognitionSettings,
   channelRecognitionNameRules: ChannelRecognitionNameRules,
-  invalidValueWarningEnabled: boolean
+  invalidValueWarningEnabled: boolean,
+  viewerBackground: ViewerAppState['viewerBackground']
 ): ViewerRenderState {
   return {
     ...sessionState,
+    viewerBackground,
     maskInvalidStokesVectors,
     spectralRgbGroupingEnabled,
     channelRecognitionSettings,
@@ -805,6 +809,7 @@ function buildViewerStateReadout(
   activeSession: OpenedImageSession | null
 ): ViewerRenderSnapshot['viewerStateReadout'] {
   const renderState = mergeRenderState(state.sessionState, state.interactionState, {
+    viewerBackground: state.viewerBackground,
     maskInvalidStokesVectors: state.maskInvalidStokesVectors,
     spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
     channelRecognitionSettings: state.channelRecognitionSettings,
@@ -972,6 +977,7 @@ function samePaneImageInput(a: ViewerPaneRenderSource, b: ViewerPaneRenderSource
   const next = b.renderState;
   const sharesCommonInputs = (
     previous.viewerMode === next.viewerMode &&
+    previous.viewerBackground === next.viewerBackground &&
     previous.exposureEv === next.exposureEv &&
     previous.displayGamma === next.displayGamma &&
     previous.colormapExposureEv === next.colormapExposureEv &&
@@ -1067,6 +1073,7 @@ function sameViewerRenderState(a: ViewerRenderState, b: ViewerRenderState): bool
   return (
     a.exposureEv === b.exposureEv &&
     a.displayGamma === b.displayGamma &&
+    a.viewerBackground === b.viewerBackground &&
     a.viewerMode === b.viewerMode &&
     a.visualizationMode === b.visualizationMode &&
     a.activeColormapId === b.activeColormapId &&

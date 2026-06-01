@@ -15,6 +15,8 @@ describe('ViewerBackgroundController', () => {
     const elements = createElements();
     const controller = new ViewerBackgroundController(elements);
 
+    expect(elements.viewerContainer.dataset.viewerBackground).toBe('checker');
+
     controller.setViewportRect({ left: 40, top: 10, width: 260, height: 200 });
     expect(elements.viewerContainer.style.getPropertyValue('--viewer-checker-offset-x')).toBe('-40px');
     expect(elements.viewerContainer.style.getPropertyValue('--viewer-checker-offset-y')).toBe('-10px');
@@ -39,6 +41,28 @@ describe('ViewerBackgroundController', () => {
     expect(elements.spectrumLatticeCanvas.classList.contains('hidden')).toBe(true);
     expect(elements.viewerContainer.style.getPropertyValue('--viewer-checker-opacity')).toBe('');
     expect(elements.viewerContainer.style.getPropertyValue('--viewer-grid-opacity')).toBe('');
+  });
+
+  it('applies solid viewer backgrounds and suppresses Spectrum lattice layers', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    const elements = createElements();
+    const controller = new ViewerBackgroundController(elements);
+
+    controller.setTheme(SPECTRUM_LATTICE_THEME_ID);
+    expect(elements.spectrumLatticeCanvas.classList.contains('hidden')).toBe(false);
+    expect(elements.viewerContainer.classList.contains('is-spectrum-lattice-idle')).toBe(true);
+
+    controller.setViewerBackground('gray');
+    expect(elements.viewerContainer.dataset.viewerBackground).toBe('gray');
+    expect(elements.appShell.classList.contains('is-spectrum-lattice-idle')).toBe(false);
+    expect(elements.mainLayout.classList.contains('is-spectrum-lattice-idle')).toBe(false);
+    expect(elements.viewerContainer.classList.contains('is-spectrum-lattice-idle')).toBe(false);
+    expect(elements.spectrumLatticeCanvas.classList.contains('hidden')).toBe(true);
+
+    controller.setViewerBackground('checker');
+    expect(elements.viewerContainer.dataset.viewerBackground).toBe('checker');
+    expect(elements.viewerContainer.classList.contains('is-spectrum-lattice-idle')).toBe(true);
+    expect(elements.spectrumLatticeCanvas.classList.contains('hidden')).toBe(false);
   });
 });
 

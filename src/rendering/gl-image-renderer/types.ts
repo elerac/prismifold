@@ -27,7 +27,8 @@ export interface CommonUniforms {
   useStokesDegreeModulation: WebGLUniformLocation;
   stokesDegreeModulationMode: WebGLUniformLocation;
   useImageAlpha: WebGLUniformLocation;
-  compositeCheckerboard: WebGLUniformLocation;
+  backgroundMode: WebGLUniformLocation;
+  backgroundColor: WebGLUniformLocation;
   alphaOutputMode: WebGLUniformLocation;
 }
 
@@ -75,9 +76,11 @@ export interface ExportSurface {
 }
 
 export type AlphaOutputMode = 'opaque' | 'straight' | 'premultiplied';
+export type RenderBackgroundMode = 'none' | 'checker' | 'solid';
 
 export interface RenderPassOptions {
-  compositeCheckerboard: boolean;
+  backgroundMode: RenderBackgroundMode;
+  backgroundColor: readonly [number, number, number];
   alphaOutputMode: AlphaOutputMode;
   warnInvalidValues?: boolean;
   invalidValueWarningPhase?: number;

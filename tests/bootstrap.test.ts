@@ -39,6 +39,7 @@ const mocks = vi.hoisted(() => {
     autoExposureEnabled: false,
     autoExposurePercentile: 99.5,
     rulersVisible: false,
+    viewerBackground: 'checker',
     viewerPaneLayout: {
       root: { type: 'leaf', sessionId: null },
       activePanePath: []
@@ -287,6 +288,7 @@ vi.mock('../src/ui/viewer-ui', () => ({
     readonly setAutoFitImageOnSelect = vi.fn();
     readonly setAutoExposureEnabled = vi.fn();
     readonly setRulersVisible = vi.fn();
+    readonly setViewerBackground = vi.fn();
     readonly setDisplayCacheBudget = vi.fn();
     readonly setDisplayCacheUsage = vi.fn();
     readonly setOpenedImageOptions = vi.fn();

@@ -43,6 +43,7 @@ export function createViewerInteraction({
     getState: () => {
       const state = core.getState();
       return mergeRenderState(state.sessionState, state.interactionState, {
+        viewerBackground: state.viewerBackground,
         maskInvalidStokesVectors: state.maskInvalidStokesVectors,
         spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
         channelRecognitionSettings: state.channelRecognitionSettings,
@@ -168,6 +169,7 @@ export function initializeViewportLifecycle({
     if (selectActiveSession(core.getState())) {
       const state = core.getState();
       renderer.render(mergeRenderState(state.sessionState, interactionCoordinator.getState(), {
+        viewerBackground: state.viewerBackground,
         maskInvalidStokesVectors: state.maskInvalidStokesVectors,
         spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
         channelRecognitionSettings: state.channelRecognitionSettings,

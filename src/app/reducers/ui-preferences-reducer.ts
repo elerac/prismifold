@@ -23,6 +23,7 @@ import {
   splitActiveViewerPane,
   sameViewerPaneLayout
 } from '../../viewer-pane-layout';
+import { parseStoredViewerBackground } from '../../viewer-background-settings';
 import { selectActiveSession } from '../viewer-app-selectors';
 import type { ViewerAppState, ViewerIntent } from '../viewer-app-types';
 import { patchSessionState, type ViewerReducerContext } from './shared';
@@ -80,6 +81,13 @@ export function uiPreferencesReducer(
       return reduceChannelRecognitionNameRulesSet(state, intent.rules);
     case 'channelRecognitionNameRulesReset':
       return reduceChannelRecognitionNameRulesSet(state, createDefaultChannelRecognitionNameRules());
+    case 'viewerBackgroundSet': {
+      const background = parseStoredViewerBackground(intent.background);
+      return state.viewerBackground === background ? state : {
+        ...state,
+        viewerBackground: background
+      };
+    }
     case 'invalidValueWarningSet':
       return state.invalidValueWarningEnabled === intent.enabled ? state : {
         ...state,

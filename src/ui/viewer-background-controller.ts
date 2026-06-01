@@ -2,6 +2,11 @@ import type { ViewportClientRect } from '../interaction/image-geometry';
 import { DEFAULT_THEME_ID, SPECTRUM_LATTICE_THEME_ID, type ThemeId } from '../theme';
 import { type Disposable } from '../lifecycle';
 import type { SpectrumLatticeMotionPreference } from '../spectrum-lattice-motion';
+import {
+  DEFAULT_VIEWER_BACKGROUND_ID,
+  isSolidViewerBackground,
+  type ViewerBackgroundId
+} from '../viewer-background-settings';
 import type { Elements } from './elements';
 import { SpectrumLatticeRenderer, type SpectrumLatticeBlend, type SpectrumLatticeMode } from './spectrum-lattice-renderer';
 
@@ -19,6 +24,7 @@ const VIEWER_GRID_OPACITY = '--viewer-grid-opacity';
 export class ViewerBackgroundController implements Disposable {
   private readonly spectrumRenderer: SpectrumLatticeRenderer;
   private theme: ThemeId = DEFAULT_THEME_ID;
+  private background: ViewerBackgroundId = DEFAULT_VIEWER_BACKGROUND_ID;
   private hasOpenImages = false;
   private disposed = false;
 
@@ -38,6 +44,15 @@ export class ViewerBackgroundController implements Disposable {
     }
 
     this.theme = theme;
+    this.sync();
+  }
+
+  setViewerBackground(background: ViewerBackgroundId): void {
+    if (this.disposed || this.background === background) {
+      return;
+    }
+
+    this.background = background;
     this.sync();
   }
 
@@ -74,13 +89,16 @@ export class ViewerBackgroundController implements Disposable {
     }
 
     this.disposed = true;
+    delete this.elements.viewerContainer.dataset.viewerBackground;
     this.clearSpectrumIdleClasses();
     this.applySpectrumBlend(null);
     this.spectrumRenderer.dispose();
   }
 
   private sync(): void {
-    const spectrumEnabled = this.theme === SPECTRUM_LATTICE_THEME_ID;
+    this.elements.viewerContainer.dataset.viewerBackground = this.background;
+    const backgroundAllowsSpectrum = !isSolidViewerBackground(this.background);
+    const spectrumEnabled = this.theme === SPECTRUM_LATTICE_THEME_ID && backgroundAllowsSpectrum;
     const idle = !this.hasOpenImages;
     const spectrumIdle = spectrumEnabled && idle;
     this.elements.appShell.classList.toggle(SPECTRUM_IDLE_CLASS, spectrumIdle);

@@ -39,6 +39,7 @@ import type {
 } from '../interaction/screenshot-selection';
 import type { Disposable } from '../lifecycle';
 import type { DesktopCommandId } from '../platform';
+import type { ViewerBackgroundId } from '../viewer-background-settings';
 
 export interface ScreenshotSelectionInteractionState {
   active: boolean;
@@ -82,6 +83,7 @@ export interface ViewerRuntimeUi extends Disposable {
   setAutoFitImageOnSelect(enabled: boolean, persist?: boolean): void;
   setAutoExposureEnabled(enabled: boolean, persist?: boolean): void;
   setRulersVisible(enabled: boolean, persist?: boolean): void;
+  setViewerBackground(background: ViewerBackgroundId, persist?: boolean): void;
   setOpenedImageOptions(items: ViewerOpenedImageOption[], activeId: string | null): void;
   setExportTarget(target: ExportImageTarget | null): void;
   setExportBatchTarget(target: ExportImageBatchTarget | null): void;

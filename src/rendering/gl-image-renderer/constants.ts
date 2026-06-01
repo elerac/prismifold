@@ -6,6 +6,7 @@ export const DEPTH_TEXTURE_UNIT = DISPLAY_SOURCE_SLOT_COUNT + 1;
 export const REQUIRED_TEXTURE_UNITS = DISPLAY_SOURCE_SLOT_COUNT + 2;
 
 export const DEFAULT_RENDER_PASS_OPTIONS: RenderPassOptions = {
-  compositeCheckerboard: true,
+  backgroundMode: 'checker',
+  backgroundColor: [0, 0, 0],
   alphaOutputMode: 'opaque'
 };

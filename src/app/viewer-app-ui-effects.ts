@@ -114,6 +114,10 @@ export function applyUiEffects(ui: ViewerRuntimeUi, transition: ViewerUiTransiti
     ui.setInvalidValueWarningEnabled(snapshot.invalidValueWarningEnabled);
   }
 
+  if (invalidation & ViewerUiInvalidationFlags.ViewerBackground) {
+    ui.setViewerBackground(snapshot.viewerBackground);
+  }
+
   if (invalidation & ViewerUiInvalidationFlags.ColormapGradient) {
     ui.setColormapGradient(snapshot.activeColormapLut, snapshot.colormapReversed);
   }

@@ -21,6 +21,11 @@ describe('shader source regressions', () => {
     expect(source).toContain('uniform bool uMaskInvalidStokesVectors;');
     expect(source).toContain('uniform bool uWarnInvalidValues;');
     expect(source).toContain('uniform float uInvalidValueWarningPhase;');
+    expect(source).toContain('uniform int uBackgroundMode;');
+    expect(source).toContain('uniform vec3 uBackgroundColor;');
+    expect(source).toContain('BACKGROUND_MODE_CHECKER');
+    expect(source).toContain('BACKGROUND_MODE_SOLID');
+    expect(source).toContain('mix(uBackgroundColor, color, alpha)');
     expect(source).toContain('linearToDisplayGamma');
     expect(source).toContain('sign(linear) * pow(abs(linear)');
     expect(source).toContain('float scaledValue = value * exp2(uColormapExposure);');

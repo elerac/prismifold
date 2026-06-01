@@ -4,6 +4,7 @@ import type { AutoExposureResult } from '../analysis/auto-exposure';
 import type { ColormapLut, ColormapRegistry } from '../colormaps';
 import type { ChannelRecognitionSettingId, ChannelRecognitionSettings } from '../channel-recognition-settings';
 import type { ChannelRecognitionNameRules } from '../channel-recognition-name-rules';
+import type { ViewerBackgroundId } from '../viewer-background-settings';
 import type { ProbeColorPreview } from '../probe';
 import type { SpectralChannel, SpectralPlotPoint } from '../spectral';
 import type {
@@ -191,6 +192,7 @@ export interface ViewerAppState {
   stokesParameterVisibility: StokesParameterVisibilitySettings;
   channelRecognitionSettings: ChannelRecognitionSettings;
   channelRecognitionNameRules: ChannelRecognitionNameRules;
+  viewerBackground: ViewerBackgroundId;
   maskInvalidStokesVectors: boolean;
   spectralRgbGroupingEnabled: boolean;
   invalidValueWarningEnabled: boolean;
@@ -251,6 +253,7 @@ export type ViewerIntent =
   | { type: 'channelRecognitionSettingsReset' }
   | { type: 'channelRecognitionNameRulesSet'; rules: ChannelRecognitionNameRules }
   | { type: 'channelRecognitionNameRulesReset' }
+  | { type: 'viewerBackgroundSet'; background: ViewerBackgroundId }
   | { type: 'maskInvalidStokesVectorsSet'; enabled: boolean }
   | { type: 'spectralRgbGroupingSet'; enabled: boolean }
   | { type: 'invalidValueWarningSet'; enabled: boolean }
@@ -377,6 +380,7 @@ export interface ViewerUiSnapshot {
   stokesParameterVisibility: StokesParameterVisibilitySettings;
   channelRecognitionSettings: ChannelRecognitionSettings;
   channelRecognitionNameRules: ChannelRecognitionNameRules;
+  viewerBackground: ViewerBackgroundId;
   maskInvalidStokesVectors: boolean;
   spectralRgbGroupingEnabled: boolean;
   invalidValueWarningEnabled: boolean;

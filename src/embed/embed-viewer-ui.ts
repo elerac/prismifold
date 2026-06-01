@@ -53,6 +53,7 @@ import type {
 } from '../viewer-pane-layout';
 import type { ChannelThumbnailOptionItem } from '../ui/viewer-ui';
 import type { EmbedBottomPanelMode } from './embed-params';
+import type { ViewerBackgroundId } from '../viewer-background-settings';
 
 interface EmbedViewerUiCallbacks {
   bottomPanel?: EmbedBottomPanelMode;
@@ -355,6 +356,7 @@ export class EmbedViewerUi implements ViewerRuntimeUi {
   setAutoFitImageOnSelect(_enabled: boolean): void {}
   setAutoExposureEnabled(_enabled: boolean): void {}
   setRulersVisible(_enabled: boolean): void {}
+  setViewerBackground(_background: ViewerBackgroundId): void {}
 
   setOpenedImageOptions(items: ViewerOpenedImageOption[], activeId: string | null): void {
     const active = items.find((item) => item.id === activeId) ?? items[0] ?? null;

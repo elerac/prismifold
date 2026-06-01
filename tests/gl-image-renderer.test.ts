@@ -486,7 +486,8 @@ describe('gl image renderer', () => {
 
     renderer.render(state);
 
-    expect(lastUniform1iValue(gl, 'uCompositeCheckerboard')).toBe(1);
+    expect(lastUniform1iValue(gl, 'uBackgroundMode')).toBe(1);
+    expect(lastUniform3fValue(gl, 'uBackgroundColor')).toEqual([0, 0, 0]);
     expect(lastUniform1iValue(gl, 'uAlphaOutputMode')).toBe(0);
     expect(lastUniform1fValue(gl, 'uDisplayGamma')).toBe(1.8);
     expect(lastUniform1iValue(gl, 'uWarnInvalidValues')).toBe(1);
@@ -503,9 +504,42 @@ describe('gl image renderer', () => {
       sourceHeight: 1
     });
 
-    expect(lastUniform1iValue(gl, 'uCompositeCheckerboard')).toBe(0);
+    expect(lastUniform1iValue(gl, 'uBackgroundMode')).toBe(0);
     expect(lastUniform1iValue(gl, 'uAlphaOutputMode')).toBe(1);
     expect(lastUniform1iValue(gl, 'uWarnInvalidValues')).toBe(0);
+  });
+
+  it('renders the onscreen viewer with the selected solid background', () => {
+    const { renderer, gl } = createHarness();
+    const layer = createInterleavedLayerFromChannels({
+      R: [1],
+      G: [0],
+      B: [0],
+      A: [0.5]
+    });
+    const state = {
+      ...createInitialState(),
+      viewerBackground: 'gray' as const,
+      displaySelection: createChannelRgbSelection('R', 'G', 'B', 'A'),
+      hoveredPixel: null,
+      draftRoi: null,
+      roiInteraction: createEmptyRoiInteractionState()
+    };
+
+    renderer.ensureLayerChannelsResident('session-1', 0, 1, 1, layer, ['R', 'G', 'B', 'A']);
+    renderer.setDisplaySelectionBindings(
+      'session-1',
+      0,
+      1,
+      1,
+      buildDisplaySourceBinding(layer, state.displaySelection)
+    );
+
+    renderer.render(state);
+
+    expect(lastUniform1iValue(gl, 'uBackgroundMode')).toBe(2);
+    expect(lastUniform3fValue(gl, 'uBackgroundColor')).toEqual([0.5, 0.5, 0.5]);
+    expect(lastUniform1iValue(gl, 'uAlphaOutputMode')).toBe(0);
   });
 
   it('keeps the renderer-owned invalid value warning phase across ordinary redraws', () => {
@@ -578,7 +612,7 @@ describe('gl image renderer', () => {
       sourceHeight: 2
     });
 
-    expect(lastUniform1iValue(gl, 'uCompositeCheckerboard')).toBe(0);
+    expect(lastUniform1iValue(gl, 'uBackgroundMode')).toBe(0);
     expect(lastUniform1iValue(gl, 'uAlphaOutputMode')).toBe(0);
 
     gl.uniform1i.mockClear();
@@ -596,7 +630,7 @@ describe('gl image renderer', () => {
       }
     });
 
-    expect(lastUniform1iValue(gl, 'uCompositeCheckerboard')).toBe(0);
+    expect(lastUniform1iValue(gl, 'uBackgroundMode')).toBe(0);
     expect(lastUniform1iValue(gl, 'uAlphaOutputMode')).toBe(1);
   });
 
@@ -649,7 +683,7 @@ describe('gl image renderer', () => {
     expect(lastUniform2fValue(gl, 'uViewport')).toEqual([2, 1]);
     expect(lastUniform2fValue(gl, 'uPan')).toEqual([2, 1]);
     expect(lastUniform1fValue(gl, 'uZoom')).toBe(0.5);
-    expect(lastUniform1iValue(gl, 'uCompositeCheckerboard')).toBe(0);
+    expect(lastUniform1iValue(gl, 'uBackgroundMode')).toBe(0);
     expect(lastUniform1iValue(gl, 'uAlphaOutputMode')).toBe(1);
   });
 
@@ -1035,6 +1069,21 @@ function lastUniform2fValue(
   return [lastCall[1] as number, lastCall[2] as number];
 }
 
+function lastUniform3fValue(
+  gl: ReturnType<typeof createWebGlContextMock>,
+  uniformName: string
+): [number, number, number] | undefined {
+  const calls = gl.uniform3f.mock.calls.filter((call) => {
+    const [location] = call as [{ name?: string } | null, ...unknown[]];
+    return location?.name === uniformName;
+  });
+  const lastCall = calls.at(-1);
+  if (!lastCall) {
+    return undefined;
+  }
+  return [lastCall[1] as number, lastCall[2] as number, lastCall[3] as number];
+}
+
 function lastUniform2iValue(
   gl: ReturnType<typeof createWebGlContextMock>,
   uniformName: string
@@ -1063,6 +1112,7 @@ function createWebGlContextMock(): WebGL2RenderingContext & {
   uniform1i: ReturnType<typeof vi.fn>;
   uniform1f: ReturnType<typeof vi.fn>;
   uniform2f: ReturnType<typeof vi.fn>;
+  uniform3f: ReturnType<typeof vi.fn>;
   uniform2i: ReturnType<typeof vi.fn>;
   clearColor: ReturnType<typeof vi.fn>;
   clear: ReturnType<typeof vi.fn>;
@@ -1160,6 +1210,7 @@ function createWebGlContextMock(): WebGL2RenderingContext & {
     uniform1iv: vi.fn(),
     uniform1f: vi.fn(),
     uniform2f: vi.fn(),
+    uniform3f: vi.fn(),
     uniform2i: vi.fn(),
     clearColor: vi.fn(),
     clear: vi.fn(),
@@ -1189,6 +1240,7 @@ function createWebGlContextMock(): WebGL2RenderingContext & {
     uniform1i: ReturnType<typeof vi.fn>;
     uniform1f: ReturnType<typeof vi.fn>;
     uniform2f: ReturnType<typeof vi.fn>;
+    uniform3f: ReturnType<typeof vi.fn>;
     uniform2i: ReturnType<typeof vi.fn>;
     blitFramebuffer: ReturnType<typeof vi.fn>;
     deleteTexture: ReturnType<typeof vi.fn>;
