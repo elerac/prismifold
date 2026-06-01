@@ -25,10 +25,14 @@ const BEACHBALL_MULTIPART_URL =
   'https://raw.githubusercontent.com/AcademySoftwareFoundation/openexr-images/main/Beachball/multipart.0001.exr';
 const BROWN_PHOTOSTUDIO_02_1K_URL =
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/brown_photostudio_02_1k.exr';
-const KAIST_SCENE27_REFLECTANCE_URL =
-  'https://huggingface.co/datasets/danaroth/kaist-hyperspectral/resolve/main/exr/scene27_reflectance.exr';
+const KAIST_HYPERSPECTRAL_BASE_URL =
+  'https://huggingface.co/datasets/danaroth/kaist-hyperspectral/resolve/main/exr/';
 const POLANALYSER_STOKES_BASE_URL =
   'https://huggingface.co/datasets/elerac/polanalyser/resolve/main/data/stokes/imx250mzr/stokes/';
+const KAIST_GALLERY_FILES: readonly [string, string][] = Array.from({ length: 30 }, (_, index): [string, string] => {
+  const sceneNumber = String(index + 1).padStart(2, '0');
+  return [`kaist-scene${sceneNumber}-reflectance`, `scene${sceneNumber}_reflectance.exr`];
+});
 const POLANALYSER_GALLERY_FILES: readonly [string, string][] = [
   ['polanalyser-avocado', 'avocado.exr'],
   ['polanalyser-bean', 'bean.exr'],
@@ -51,6 +55,11 @@ const POLANALYSER_GALLERY_CASES = POLANALYSER_GALLERY_FILES.map(([galleryId, fil
   galleryId,
   filename,
   url: `${POLANALYSER_STOKES_BASE_URL}${filename}`
+}));
+const KAIST_GALLERY_CASES = KAIST_GALLERY_FILES.map(([galleryId, filename]) => ({
+  galleryId,
+  filename,
+  url: `${KAIST_HYPERSPECTRAL_BASE_URL}${filename}`
 }));
 
 const rulerFitInsets = {
@@ -269,11 +278,7 @@ describe('session controller shim', () => {
       filename: 'brown_photostudio_02_1k.exr',
       url: BROWN_PHOTOSTUDIO_02_1K_URL
     },
-    {
-      galleryId: 'kaist-scene27-reflectance',
-      filename: 'scene27_reflectance.exr',
-      url: KAIST_SCENE27_REFLECTANCE_URL
-    },
+    ...KAIST_GALLERY_CASES,
     ...POLANALYSER_GALLERY_CASES
   ])('loads $filename from its configured raw URL', async ({ galleryId, filename, url }) => {
     const encodedBytes = new Uint8Array([9, 8, 7]);

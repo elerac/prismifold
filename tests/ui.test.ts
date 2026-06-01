@@ -2472,6 +2472,13 @@ describe('view menu', () => {
     expect(navButtonLabels).not.toContain('Settings');
   });
 
+  const KAIST_GALLERY_FILES: readonly [string, string][] = Array.from({ length: 30 }, (_, index): [string, string] => {
+    const sceneNumber = String(index + 1).padStart(2, '0');
+    return [`kaist-scene${sceneNumber}-reflectance`, `scene${sceneNumber}_reflectance.exr`];
+  });
+  const KAIST_GALLERY_IDS = KAIST_GALLERY_FILES.map(([galleryId]) => galleryId);
+  const KAIST_GALLERY_LABELS = KAIST_GALLERY_FILES.map(([, label]) => label);
+
   it('dispatches gallery selections for every gallery menu item', () => {
     installUiFixture();
 
@@ -2494,14 +2501,14 @@ describe('view menu', () => {
       'cbox_rgb.exr',
       'multipart.0001.exr',
       'brown_photostudio_02_1k.exr',
-      'scene27_reflectance.exr',
+      'KAIST Hyperspectral',
       'Polanalyser'
     ]);
     expect(galleryItems.map((item) => item.textContent?.trim())).toEqual([
       'cbox_rgb.exr',
       'multipart.0001.exr',
       'brown_photostudio_02_1k.exr',
-      'scene27_reflectance.exr',
+      ...KAIST_GALLERY_LABELS,
       'avocado.exr',
       'bean.exr',
       'camera.exr',
@@ -2523,7 +2530,7 @@ describe('view menu', () => {
       'cbox-rgb',
       'beachball-multipart-0001',
       'brown-photostudio-02-1k',
-      'kaist-scene27-reflectance',
+      ...KAIST_GALLERY_IDS,
       'polanalyser-avocado',
       'polanalyser-bean',
       'polanalyser-camera',
@@ -3663,20 +3670,43 @@ describe('view menu', () => {
     expectTopMenuOpen('gallery-menu-button', 'gallery-menu');
   });
 
-  it('opens and closes the Gallery Polanalyser submenu by pointer and keyboard', () => {
+  it('opens and closes the Gallery dataset submenus by pointer and keyboard', () => {
     installUiFixture();
 
     new ViewerUi(createUiCallbacks());
     const galleryButton = document.getElementById('gallery-menu-button') as HTMLButtonElement;
-    const polanalyserRoot = document.querySelector('#gallery-menu .app-menu-submenu') as HTMLElement;
+    const kaistButton = document.getElementById('gallery-kaist-menu-button') as HTMLButtonElement;
+    const kaistRoot = kaistButton.closest('.app-menu-submenu') as HTMLElement;
+    const kaistMenu = document.getElementById('gallery-kaist-menu') as HTMLElement;
+    const kaistScene01Button = document.getElementById('gallery-kaist-scene01-reflectance-button') as HTMLButtonElement;
     const polanalyserButton = document.getElementById('gallery-polanalyser-menu-button') as HTMLButtonElement;
+    const polanalyserRoot = polanalyserButton.closest('.app-menu-submenu') as HTMLElement;
     const polanalyserMenu = document.getElementById('gallery-polanalyser-menu') as HTMLElement;
     const avocadoButton = document.getElementById('gallery-polanalyser-avocado-button') as HTMLButtonElement;
 
     galleryButton.click();
     expectTopMenuOpen('gallery-menu-button', 'gallery-menu');
+    expect(kaistMenu.classList.contains('hidden')).toBe(true);
+    expect(kaistButton.getAttribute('aria-expanded')).toBe('false');
     expect(polanalyserMenu.classList.contains('hidden')).toBe(true);
     expect(polanalyserButton.getAttribute('aria-expanded')).toBe('false');
+
+    kaistRoot.dispatchEvent(new Event('pointerenter'));
+    expect(kaistMenu.classList.contains('hidden')).toBe(false);
+    expect(kaistButton.getAttribute('aria-expanded')).toBe('true');
+
+    kaistRoot.dispatchEvent(new MouseEvent('pointerleave', { relatedTarget: document.body }));
+    expect(kaistMenu.classList.contains('hidden')).toBe(true);
+    expect(kaistButton.getAttribute('aria-expanded')).toBe('false');
+
+    kaistButton.focus();
+    kaistButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(kaistMenu.classList.contains('hidden')).toBe(false);
+    expect(document.activeElement).toBe(kaistScene01Button);
+
+    kaistScene01Button.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(kaistMenu.classList.contains('hidden')).toBe(true);
+    expect(document.activeElement).toBe(kaistButton);
 
     polanalyserRoot.dispatchEvent(new Event('pointerenter'));
     expect(polanalyserMenu.classList.contains('hidden')).toBe(false);
@@ -3929,7 +3959,7 @@ describe('view menu', () => {
       'cbox-rgb',
       'beachball-multipart-0001',
       'brown-photostudio-02-1k',
-      'kaist-scene27-reflectance',
+      ...KAIST_GALLERY_IDS,
       'polanalyser-avocado',
       'polanalyser-bean',
       'polanalyser-camera',

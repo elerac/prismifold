@@ -41,6 +41,8 @@ interface GalleryImage {
 const DESKTOP_CBOX_RGB_URL = 'https://raw.githubusercontent.com/elerac/openexr_viewer/main/public/cbox_rgb.exr';
 const POLANALYSER_STOKES_BASE_URL =
   'https://huggingface.co/datasets/elerac/polanalyser/resolve/main/data/stokes/imx250mzr/stokes/';
+const KAIST_HYPERSPECTRAL_BASE_URL =
+  'https://huggingface.co/datasets/danaroth/kaist-hyperspectral/resolve/main/exr/';
 const POLANALYSER_STOKES_FILENAMES = [
   'avocado.exr',
   'bean.exr',
@@ -58,6 +60,38 @@ const POLANALYSER_STOKES_FILENAMES = [
   'spheres1.exr',
   'spheres2.exr',
   'spoons.exr'
+] as const;
+const KAIST_HYPERSPECTRAL_FILENAMES = [
+  'scene01_reflectance.exr',
+  'scene02_reflectance.exr',
+  'scene03_reflectance.exr',
+  'scene04_reflectance.exr',
+  'scene05_reflectance.exr',
+  'scene06_reflectance.exr',
+  'scene07_reflectance.exr',
+  'scene08_reflectance.exr',
+  'scene09_reflectance.exr',
+  'scene10_reflectance.exr',
+  'scene11_reflectance.exr',
+  'scene12_reflectance.exr',
+  'scene13_reflectance.exr',
+  'scene14_reflectance.exr',
+  'scene15_reflectance.exr',
+  'scene16_reflectance.exr',
+  'scene17_reflectance.exr',
+  'scene18_reflectance.exr',
+  'scene19_reflectance.exr',
+  'scene20_reflectance.exr',
+  'scene21_reflectance.exr',
+  'scene22_reflectance.exr',
+  'scene23_reflectance.exr',
+  'scene24_reflectance.exr',
+  'scene25_reflectance.exr',
+  'scene26_reflectance.exr',
+  'scene27_reflectance.exr',
+  'scene28_reflectance.exr',
+  'scene29_reflectance.exr',
+  'scene30_reflectance.exr'
 ] as const;
 const CBOX_RGB_GALLERY_IMAGE = import.meta.env.MODE === 'desktop'
   ? {
@@ -79,6 +113,13 @@ const POLANALYSER_GALLERY_IMAGES: GalleryImage[] = POLANALYSER_STOKES_FILENAMES.
   url: `${POLANALYSER_STOKES_BASE_URL}${filename}`
 }));
 
+const KAIST_GALLERY_IMAGES: GalleryImage[] = KAIST_HYPERSPECTRAL_FILENAMES.map((filename) => ({
+  id: `kaist-${filename.replace(/\.exr$/, '').replaceAll('_', '-')}`,
+  label: filename,
+  filename,
+  url: `${KAIST_HYPERSPECTRAL_BASE_URL}${filename}`
+}));
+
 const GALLERY_IMAGES: GalleryImage[] = [
   CBOX_RGB_GALLERY_IMAGE,
   {
@@ -92,14 +133,8 @@ const GALLERY_IMAGES: GalleryImage[] = [
     label: 'brown_photostudio_02_1k.exr',
     filename: 'brown_photostudio_02_1k.exr',
     url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/brown_photostudio_02_1k.exr'
-  },
-  {
-    id: 'kaist-scene27-reflectance',
-    label: 'scene27_reflectance.exr',
-    filename: 'scene27_reflectance.exr',
-    url: 'https://huggingface.co/datasets/danaroth/kaist-hyperspectral/resolve/main/exr/scene27_reflectance.exr'
   }
-].concat(POLANALYSER_GALLERY_IMAGES);
+].concat(KAIST_GALLERY_IMAGES, POLANALYSER_GALLERY_IMAGES);
 
 const LOAD_CATEGORY_OPEN_FILES = 'open-files';
 const LOAD_CATEGORY_FOLDER = 'folder';
