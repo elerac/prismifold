@@ -2478,22 +2478,68 @@ describe('view menu', () => {
     const onGalleryImageSelected = vi.fn();
     new ViewerUi(createUiCallbacks({ onGalleryImageSelected }));
 
+    const galleryMenu = document.getElementById('gallery-menu') as HTMLElement;
+    const galleryTopLevelLabels = Array.from(galleryMenu.children).map((item) => {
+      if (item.classList.contains('app-menu-submenu')) {
+        return item.querySelector('.app-menu-submenu-trigger')?.textContent?.trim();
+      }
+      return item.textContent?.trim();
+    });
     const galleryItems = Array.from(document.querySelectorAll<HTMLButtonElement>('#gallery-menu [data-gallery-id]'));
     for (const galleryItem of galleryItems) {
       galleryItem.click();
     }
 
+    expect(galleryTopLevelLabels).toEqual([
+      'cbox_rgb.exr',
+      'multipart.0001.exr',
+      'brown_photostudio_02_1k.exr',
+      'scene27_reflectance.exr',
+      'Polanalyser'
+    ]);
     expect(galleryItems.map((item) => item.textContent?.trim())).toEqual([
       'cbox_rgb.exr',
       'multipart.0001.exr',
       'brown_photostudio_02_1k.exr',
-      'scene27_reflectance.exr'
+      'scene27_reflectance.exr',
+      'avocado.exr',
+      'bean.exr',
+      'camera.exr',
+      'carps.exr',
+      'dragon.exr',
+      'fruits.exr',
+      'lp000.exr',
+      'lp045.exr',
+      'lp090.exr',
+      'lp135.exr',
+      'orange.exr',
+      'owl_spheres.exr',
+      'plastic.exr',
+      'spheres1.exr',
+      'spheres2.exr',
+      'spoons.exr'
     ]);
     expect(onGalleryImageSelected.mock.calls.map(([galleryId]) => galleryId)).toEqual([
       'cbox-rgb',
       'beachball-multipart-0001',
       'brown-photostudio-02-1k',
-      'kaist-scene27-reflectance'
+      'kaist-scene27-reflectance',
+      'polanalyser-avocado',
+      'polanalyser-bean',
+      'polanalyser-camera',
+      'polanalyser-carps',
+      'polanalyser-dragon',
+      'polanalyser-fruits',
+      'polanalyser-lp000',
+      'polanalyser-lp045',
+      'polanalyser-lp090',
+      'polanalyser-lp135',
+      'polanalyser-orange',
+      'polanalyser-owl-spheres',
+      'polanalyser-plastic',
+      'polanalyser-spheres1',
+      'polanalyser-spheres2',
+      'polanalyser-spoons'
     ]);
   });
 
@@ -3617,6 +3663,39 @@ describe('view menu', () => {
     expectTopMenuOpen('gallery-menu-button', 'gallery-menu');
   });
 
+  it('opens and closes the Gallery Polanalyser submenu by pointer and keyboard', () => {
+    installUiFixture();
+
+    new ViewerUi(createUiCallbacks());
+    const galleryButton = document.getElementById('gallery-menu-button') as HTMLButtonElement;
+    const polanalyserRoot = document.querySelector('#gallery-menu .app-menu-submenu') as HTMLElement;
+    const polanalyserButton = document.getElementById('gallery-polanalyser-menu-button') as HTMLButtonElement;
+    const polanalyserMenu = document.getElementById('gallery-polanalyser-menu') as HTMLElement;
+    const avocadoButton = document.getElementById('gallery-polanalyser-avocado-button') as HTMLButtonElement;
+
+    galleryButton.click();
+    expectTopMenuOpen('gallery-menu-button', 'gallery-menu');
+    expect(polanalyserMenu.classList.contains('hidden')).toBe(true);
+    expect(polanalyserButton.getAttribute('aria-expanded')).toBe('false');
+
+    polanalyserRoot.dispatchEvent(new Event('pointerenter'));
+    expect(polanalyserMenu.classList.contains('hidden')).toBe(false);
+    expect(polanalyserButton.getAttribute('aria-expanded')).toBe('true');
+
+    polanalyserRoot.dispatchEvent(new MouseEvent('pointerleave', { relatedTarget: document.body }));
+    expect(polanalyserMenu.classList.contains('hidden')).toBe(true);
+    expect(polanalyserButton.getAttribute('aria-expanded')).toBe('false');
+
+    polanalyserButton.focus();
+    polanalyserButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(polanalyserMenu.classList.contains('hidden')).toBe(false);
+    expect(document.activeElement).toBe(avocadoButton);
+
+    avocadoButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(polanalyserMenu.classList.contains('hidden')).toBe(true);
+    expect(document.activeElement).toBe(polanalyserButton);
+  });
+
   it('closes sticky top menus when clicking outside the menu bar', () => {
     installUiFixture();
 
@@ -3850,7 +3929,23 @@ describe('view menu', () => {
       'cbox-rgb',
       'beachball-multipart-0001',
       'brown-photostudio-02-1k',
-      'kaist-scene27-reflectance'
+      'kaist-scene27-reflectance',
+      'polanalyser-avocado',
+      'polanalyser-bean',
+      'polanalyser-camera',
+      'polanalyser-carps',
+      'polanalyser-dragon',
+      'polanalyser-fruits',
+      'polanalyser-lp000',
+      'polanalyser-lp045',
+      'polanalyser-lp090',
+      'polanalyser-lp135',
+      'polanalyser-orange',
+      'polanalyser-owl-spheres',
+      'polanalyser-plastic',
+      'polanalyser-spheres1',
+      'polanalyser-spheres2',
+      'polanalyser-spoons'
     ]);
     expect(galleryItems.every((item) => item.disabled)).toBe(true);
     expect((document.getElementById('display-control-heading') as HTMLHeadingElement).getAttribute('aria-disabled')).toBe('false');

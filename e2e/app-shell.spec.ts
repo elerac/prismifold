@@ -197,6 +197,11 @@ test('boots an empty app shell with menu actions gated until an image opens @smo
   const galleryMultipartItem = page.getByRole('menuitem', { name: 'multipart.0001.exr', exact: true });
   const galleryBrownPhotostudioItem = page.getByRole('menuitem', { name: 'brown_photostudio_02_1k.exr', exact: true });
   const galleryKaistScene27Item = page.getByRole('menuitem', { name: 'scene27_reflectance.exr', exact: true });
+  const galleryPolanalyserItem = page.locator('#gallery-polanalyser-menu-button');
+  const galleryPolanalyserMenu = page.locator('#gallery-polanalyser-menu');
+  const galleryPolanalyserAvocadoItem = page.locator('#gallery-polanalyser-avocado-button');
+  const galleryPolanalyserOwlSpheresItem = page.locator('#gallery-polanalyser-owl-spheres-button');
+  const galleryPolanalyserSpoonsItem = page.locator('#gallery-polanalyser-spoons-button');
   const openMenuItem = page.locator('#open-file-button');
   const exportMenuItem = page.locator('#export-image-button');
   const reloadAllMenuItem = page.locator('#reload-all-opened-images-button');
@@ -285,6 +290,19 @@ test('boots an empty app shell with menu actions gated until an image opens @smo
   await expect(galleryBrownPhotostudioItem).toBeEnabled();
   await expect(galleryKaistScene27Item).toBeVisible();
   await expect(galleryKaistScene27Item).toBeEnabled();
+  await expect(galleryPolanalyserItem).toBeVisible();
+  await expect(galleryPolanalyserItem).toBeEnabled();
+  await expect(galleryPolanalyserMenu).toBeHidden();
+  await galleryPolanalyserItem.click();
+  await expect(galleryPolanalyserMenu).toBeVisible();
+  await expect(galleryPolanalyserAvocadoItem).toBeVisible();
+  await expect(galleryPolanalyserAvocadoItem).toBeEnabled();
+  await expect(galleryPolanalyserOwlSpheresItem).toBeVisible();
+  await expect(galleryPolanalyserOwlSpheresItem).toBeEnabled();
+  await expect(galleryPolanalyserSpoonsItem).toBeVisible();
+  await expect(galleryPolanalyserSpoonsItem).toBeEnabled();
+  await page.keyboard.press('Escape');
+  await expect(galleryPolanalyserMenu).toBeHidden();
   await page.keyboard.press('Escape');
   await expect(galleryMenu).toBeHidden();
 

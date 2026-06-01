@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 const CBOX_RGB_URL = 'https://elerac.github.io/openexr_viewer/cbox_rgb.exr';
+const OWL_SPHERES_LINEAR_STOKES_URL =
+  'https://huggingface.co/datasets/elerac/polanalyser/resolve/main/data/stokes/imx250mzr/stokes/owl_spheres.exr';
 
 test('serves the project page with app and desktop download calls to action @smoke', async ({ page }) => {
   await page.goto('/');
@@ -27,6 +29,11 @@ test('serves the project page with app and desktop download calls to action @smo
     'href',
     CBOX_RGB_URL
   );
+  await expect(page.getByText('Linear Stokes vector image', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'owl_spheres.exr', exact: true })).toHaveAttribute(
+    'href',
+    OWL_SPHERES_LINEAR_STOKES_URL
+  );
 
   const sectionOrder = await page.evaluate(() => {
     const features = document.querySelector('#features');
@@ -39,13 +46,23 @@ test('serves the project page with app and desktop download calls to action @smo
   expect(sectionOrder).toBe(true);
 
   await page.locator('#gallery').scrollIntoViewIfNeeded();
-  const embed = page.locator('openexr-viewer');
-  await expect(embed).toHaveAttribute('src', CBOX_RGB_URL);
-  await expect(embed).toHaveAttribute('name', 'Cornell Box');
-  await expect(embed).toHaveAttribute('width', '100%');
-  await expect(embed).toHaveAttribute('height', '420');
+  const embeds = page.locator('openexr-viewer');
+  await expect(embeds).toHaveCount(2);
 
-  const iframeSrc = await embed.evaluate((element) => {
+  const cornellEmbed = embeds.first();
+  await expect(cornellEmbed).toHaveAttribute('src', CBOX_RGB_URL);
+  await expect(cornellEmbed).toHaveAttribute('name', 'Cornell Box');
+  await expect(cornellEmbed).toHaveAttribute('width', '100%');
+  await expect(cornellEmbed).toHaveAttribute('height', '420');
+
+  const stokesEmbed = embeds.nth(1);
+  await expect(stokesEmbed).toHaveAttribute('src', OWL_SPHERES_LINEAR_STOKES_URL);
+  await expect(stokesEmbed).toHaveAttribute('name', 'Owl Spheres Linear Stokes');
+  await expect(stokesEmbed).toHaveAttribute('width', '100%');
+  await expect(stokesEmbed).toHaveAttribute('height', '420');
+  await expect(stokesEmbed).toHaveAttribute('auto-load', 'false');
+
+  const iframeSrc = await cornellEmbed.evaluate((element) => {
     const iframe = element.shadowRoot?.querySelector('iframe');
     return iframe instanceof HTMLIFrameElement ? iframe.src : '';
   });
@@ -53,16 +70,32 @@ test('serves the project page with app and desktop download calls to action @smo
   expect(iframeSrc).toContain(`src=${encodeURIComponent(CBOX_RGB_URL)}`);
   expect(iframeSrc).toContain('name=Cornell+Box');
 
-  const embeddedViewer = page.frameLocator('openexr-viewer iframe');
+  const stokesIframeSrc = await stokesEmbed.evaluate((element) => {
+    const iframe = element.shadowRoot?.querySelector('iframe');
+    return iframe instanceof HTMLIFrameElement ? iframe.src : '';
+  });
+  expect(stokesIframeSrc).toContain('/app/?ui=embed');
+  expect(stokesIframeSrc).toContain(`src=${encodeURIComponent(OWL_SPHERES_LINEAR_STOKES_URL)}`);
+  expect(stokesIframeSrc).toContain('name=Owl+Spheres+Linear+Stokes');
+  expect(stokesIframeSrc).toContain('autoLoad=false');
+
+  const embeddedViewer = cornellEmbed.frameLocator('iframe');
   await expect(embeddedViewer.locator('#gl-canvas')).toBeVisible({
     timeout: 30000
   });
   await expect(embeddedViewer.getByRole('button', { name: 'Open full viewer', exact: true })).toBeEnabled();
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(embed).toHaveAttribute('height', '320');
+  await expect(cornellEmbed).toHaveAttribute('height', '320');
+  await expect(stokesEmbed).toHaveAttribute('height', '320');
   await expect.poll(async () => (
-    await embed.evaluate((element) => {
+    await cornellEmbed.evaluate((element) => {
+      const iframe = element.shadowRoot?.querySelector('iframe');
+      return iframe instanceof HTMLIFrameElement ? iframe.style.height : '';
+    })
+  )).toBe('320px');
+  await expect.poll(async () => (
+    await stokesEmbed.evaluate((element) => {
       const iframe = element.shadowRoot?.querySelector('iframe');
       return iframe instanceof HTMLIFrameElement ? iframe.style.height : '';
     })

@@ -6,6 +6,12 @@ interface TopMenuElements {
   menu: HTMLElement;
 }
 
+interface SubmenuElements {
+  root: HTMLElement;
+  button: HTMLButtonElement;
+  menu: HTMLElement;
+}
+
 type TopMenuTrackingMode = 'inactive' | 'pointer';
 
 interface TopMenuControllerCallbacks {
@@ -24,6 +30,9 @@ export class TopMenuController implements Disposable {
   ) {
     for (const menu of this.getTopMenus()) {
       this.bindTopMenu(menu);
+    }
+    for (const submenu of this.getSubmenus()) {
+      this.bindSubmenu(submenu);
     }
 
     this.disposables.addEventListener(this.elements.appMenuBar, 'pointerover', (event) => {
@@ -85,6 +94,23 @@ export class TopMenuController implements Disposable {
     return !menu.menu.classList.contains('hidden');
   }
 
+  private getSubmenus(root: ParentNode = this.elements.appMenuBar): SubmenuElements[] {
+    return Array.from(root.querySelectorAll<HTMLElement>('.app-menu-submenu'))
+      .map((submenuRoot) => {
+        const button = submenuRoot.querySelector<HTMLButtonElement>('.app-menu-submenu-trigger');
+        const submenuId = button?.getAttribute('aria-controls');
+        const submenu = submenuId ? document.getElementById(submenuId) : null;
+        return button && submenu instanceof HTMLElement
+          ? { root: submenuRoot, button, menu: submenu }
+          : null;
+      })
+      .filter((submenu): submenu is SubmenuElements => submenu !== null);
+  }
+
+  private isSubmenuOpen(submenu: SubmenuElements): boolean {
+    return !submenu.menu.classList.contains('hidden');
+  }
+
   private openTopMenu(
     menu: TopMenuElements,
     focusTarget: 'first' | 'last' | null = null,
@@ -102,6 +128,7 @@ export class TopMenuController implements Disposable {
   }
 
   private closeTopMenu(menu: TopMenuElements, restoreFocus = false): void {
+    this.closeSubmenusWithin(menu.menu);
     menu.menu.classList.add('hidden');
     menu.button.setAttribute('aria-expanded', 'false');
     if (this.hoverOpenedTopMenuButton === menu.button) {
@@ -139,6 +166,47 @@ export class TopMenuController implements Disposable {
     }
   }
 
+  private openSubmenu(
+    submenu: SubmenuElements,
+    focusTarget: 'first' | null = null
+  ): void {
+    this.closeSiblingSubmenus(submenu);
+    submenu.menu.classList.remove('hidden');
+    submenu.button.setAttribute('aria-expanded', 'true');
+    if (focusTarget === 'first') {
+      this.getEnabledMenuItems(submenu.menu).at(0)?.focus();
+    }
+  }
+
+  private closeSubmenu(submenu: SubmenuElements, restoreFocus = false): void {
+    this.closeSubmenusWithin(submenu.menu);
+    submenu.menu.classList.add('hidden');
+    submenu.button.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) {
+      submenu.button.focus();
+    }
+  }
+
+  private closeSiblingSubmenus(submenu: SubmenuElements): void {
+    const parentMenu = submenu.root.parentElement?.closest<HTMLElement>('[role="menu"]');
+    if (!parentMenu) {
+      return;
+    }
+
+    for (const sibling of this.getSubmenus(parentMenu)) {
+      if (sibling.root !== submenu.root) {
+        this.closeSubmenu(sibling);
+      }
+    }
+  }
+
+  private closeSubmenusWithin(root: HTMLElement): void {
+    for (const submenu of this.getSubmenus(root)) {
+      submenu.menu.classList.add('hidden');
+      submenu.button.setAttribute('aria-expanded', 'false');
+    }
+  }
+
   private toggleTopMenu(menu: TopMenuElements): void {
     if (this.isTopMenuOpen(menu)) {
       this.closeTopMenu(menu);
@@ -148,10 +216,18 @@ export class TopMenuController implements Disposable {
     this.openTopMenu(menu, null, 'pointer');
   }
 
+  private getEnabledMenuItems(menu: HTMLElement): HTMLElement[] {
+    return Array.from(menu.querySelectorAll<HTMLElement>('button, input, select, textarea')).filter((element) => {
+      const hiddenAncestor = element.closest('.hidden');
+      return (
+        (!hiddenAncestor || !menu.contains(hiddenAncestor)) &&
+        (!('disabled' in element) || !element.disabled)
+      );
+    });
+  }
+
   private getEnabledTopMenuItems(menu: TopMenuElements): HTMLElement[] {
-    return Array.from(menu.menu.querySelectorAll<HTMLElement>('button, input, select, textarea')).filter(
-      (element) => !('disabled' in element) || !element.disabled
-    );
+    return this.getEnabledMenuItems(menu.menu);
   }
 
   private focusTopMenuItem(menu: TopMenuElements, target: 'first' | 'last'): void {
@@ -256,6 +332,49 @@ export class TopMenuController implements Disposable {
         event.preventDefault();
         this.focusNextTopMenuItem(menu, -1);
       }
+    });
+  }
+
+  private bindSubmenu(submenu: SubmenuElements): void {
+    this.disposables.addEventListener(submenu.button, 'click', (event) => {
+      event.preventDefault();
+      this.openSubmenu(submenu);
+    });
+
+    this.disposables.addEventListener(submenu.root, 'pointerenter', () => {
+      this.openSubmenu(submenu);
+    });
+
+    this.disposables.addEventListener(submenu.root, 'pointerleave', (event) => {
+      if (event.relatedTarget instanceof Node && submenu.root.contains(event.relatedTarget)) {
+        return;
+      }
+
+      this.closeSubmenu(submenu);
+    });
+
+    this.disposables.addEventListener(submenu.button, 'keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        this.openSubmenu(submenu, event.key === 'ArrowRight' ? 'first' : null);
+        return;
+      }
+
+      if (event.key === 'Escape' && this.isSubmenuOpen(submenu)) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.closeSubmenu(submenu, true);
+      }
+    });
+
+    this.disposables.addEventListener(submenu.menu, 'keydown', (event) => {
+      if (event.key !== 'ArrowLeft') {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      this.closeSubmenu(submenu, true);
     });
   }
 }

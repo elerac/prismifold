@@ -509,6 +509,37 @@ output {
   min-width: 15.5rem;
 }
 
+.app-menu-submenu {
+  position: relative;
+}
+
+.app-menu-submenu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.8rem;
+}
+
+.app-menu-submenu-trigger::after {
+  content: "›";
+  color: var(--text-dim);
+}
+
+.app-menu-submenu-dropdown {
+  top: -5px;
+  left: calc(100% + 2px);
+  min-width: 9rem;
+  max-height: min(70vh, 28rem);
+  overflow-y: auto;
+}
+
+@media (max-width: 620px) {
+  .app-menu-submenu-dropdown {
+    top: calc(100% + 2px);
+    left: 0;
+  }
+}
+
 .app-menu-separator {
   height: 1px;
   margin: 3px 2px;

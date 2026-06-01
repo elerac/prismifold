@@ -27,6 +27,31 @@ const BROWN_PHOTOSTUDIO_02_1K_URL =
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/brown_photostudio_02_1k.exr';
 const KAIST_SCENE27_REFLECTANCE_URL =
   'https://huggingface.co/datasets/danaroth/kaist-hyperspectral/resolve/main/exr/scene27_reflectance.exr';
+const POLANALYSER_STOKES_BASE_URL =
+  'https://huggingface.co/datasets/elerac/polanalyser/resolve/main/data/stokes/imx250mzr/stokes/';
+const POLANALYSER_GALLERY_FILES: readonly [string, string][] = [
+  ['polanalyser-avocado', 'avocado.exr'],
+  ['polanalyser-bean', 'bean.exr'],
+  ['polanalyser-camera', 'camera.exr'],
+  ['polanalyser-carps', 'carps.exr'],
+  ['polanalyser-dragon', 'dragon.exr'],
+  ['polanalyser-fruits', 'fruits.exr'],
+  ['polanalyser-lp000', 'lp000.exr'],
+  ['polanalyser-lp045', 'lp045.exr'],
+  ['polanalyser-lp090', 'lp090.exr'],
+  ['polanalyser-lp135', 'lp135.exr'],
+  ['polanalyser-orange', 'orange.exr'],
+  ['polanalyser-owl-spheres', 'owl_spheres.exr'],
+  ['polanalyser-plastic', 'plastic.exr'],
+  ['polanalyser-spheres1', 'spheres1.exr'],
+  ['polanalyser-spheres2', 'spheres2.exr'],
+  ['polanalyser-spoons', 'spoons.exr']
+];
+const POLANALYSER_GALLERY_CASES = POLANALYSER_GALLERY_FILES.map(([galleryId, filename]) => ({
+  galleryId,
+  filename,
+  url: `${POLANALYSER_STOKES_BASE_URL}${filename}`
+}));
 
 const rulerFitInsets = {
   top: 24,
@@ -248,7 +273,8 @@ describe('session controller shim', () => {
       galleryId: 'kaist-scene27-reflectance',
       filename: 'scene27_reflectance.exr',
       url: KAIST_SCENE27_REFLECTANCE_URL
-    }
+    },
+    ...POLANALYSER_GALLERY_CASES
   ])('loads $filename from its configured raw URL', async ({ galleryId, filename, url }) => {
     const encodedBytes = new Uint8Array([9, 8, 7]);
     const decodeBytes = vi.fn<(

@@ -31,7 +31,34 @@ import type {
 import type { ViewerPanePath } from '../viewer-pane-layout';
 import { presentDesktopError, type DesktopFileEntry, type PathFileProvider } from '../platform';
 
+interface GalleryImage {
+  id: string;
+  label: string;
+  filename: string;
+  url?: string;
+}
+
 const DESKTOP_CBOX_RGB_URL = 'https://raw.githubusercontent.com/elerac/openexr_viewer/main/public/cbox_rgb.exr';
+const POLANALYSER_STOKES_BASE_URL =
+  'https://huggingface.co/datasets/elerac/polanalyser/resolve/main/data/stokes/imx250mzr/stokes/';
+const POLANALYSER_STOKES_FILENAMES = [
+  'avocado.exr',
+  'bean.exr',
+  'camera.exr',
+  'carps.exr',
+  'dragon.exr',
+  'fruits.exr',
+  'lp000.exr',
+  'lp045.exr',
+  'lp090.exr',
+  'lp135.exr',
+  'orange.exr',
+  'owl_spheres.exr',
+  'plastic.exr',
+  'spheres1.exr',
+  'spheres2.exr',
+  'spoons.exr'
+] as const;
 const CBOX_RGB_GALLERY_IMAGE = import.meta.env.MODE === 'desktop'
   ? {
       id: 'cbox-rgb',
@@ -45,7 +72,14 @@ const CBOX_RGB_GALLERY_IMAGE = import.meta.env.MODE === 'desktop'
       filename: 'cbox_rgb.exr'
     };
 
-const GALLERY_IMAGES = [
+const POLANALYSER_GALLERY_IMAGES: GalleryImage[] = POLANALYSER_STOKES_FILENAMES.map((filename) => ({
+  id: `polanalyser-${filename.replace(/\.exr$/, '').replaceAll('_', '-')}`,
+  label: filename,
+  filename,
+  url: `${POLANALYSER_STOKES_BASE_URL}${filename}`
+}));
+
+const GALLERY_IMAGES: GalleryImage[] = [
   CBOX_RGB_GALLERY_IMAGE,
   {
     id: 'beachball-multipart-0001',
@@ -65,7 +99,7 @@ const GALLERY_IMAGES = [
     filename: 'scene27_reflectance.exr',
     url: 'https://huggingface.co/datasets/danaroth/kaist-hyperspectral/resolve/main/exr/scene27_reflectance.exr'
   }
-] as const;
+].concat(POLANALYSER_GALLERY_IMAGES);
 
 const LOAD_CATEGORY_OPEN_FILES = 'open-files';
 const LOAD_CATEGORY_FOLDER = 'folder';
@@ -1302,8 +1336,8 @@ export class SessionController implements Disposable {
   }
 }
 
-function getGalleryImageUrl(galleryImage: (typeof GALLERY_IMAGES)[number]): string {
-  return 'url' in galleryImage && typeof galleryImage.url === 'string'
+function getGalleryImageUrl(galleryImage: GalleryImage): string {
+  return typeof galleryImage.url === 'string'
     ? galleryImage.url
     : `${import.meta.env.BASE_URL}${galleryImage.filename}`;
 }

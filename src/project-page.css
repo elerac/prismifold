@@ -266,11 +266,22 @@ main {
   margin: 0 0 10px;
 }
 
+.gallery-caption-copy {
+  display: grid;
+  gap: 3px;
+}
+
 .gallery-item strong {
   color: var(--text-strong);
   font-size: 16px;
   line-height: 1.25;
   font-weight: 720;
+}
+
+.gallery-caption-copy span {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .gallery-item a {
