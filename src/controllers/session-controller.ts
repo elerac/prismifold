@@ -43,6 +43,12 @@ const POLANALYSER_STOKES_BASE_URL =
   'https://huggingface.co/datasets/elerac/polanalyser/resolve/main/data/stokes/imx250mzr/stokes/';
 const KAIST_HYPERSPECTRAL_BASE_URL =
   'https://huggingface.co/datasets/danaroth/kaist-hyperspectral/resolve/main/exr/';
+const POLY_HAVEN_HDRI_BASE_URL = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/';
+const POLY_HAVEN_GALLERY_FILES: readonly [string, string][] = [
+  ['polyhaven-artist-workshop-1k', 'artist_workshop_1k.exr'],
+  ['brown-photostudio-02-1k', 'brown_photostudio_02_1k.exr'],
+  ['polyhaven-symmetrical-garden-02-1k', 'symmetrical_garden_02_1k.exr']
+];
 const POLANALYSER_STOKES_FILENAMES = [
   'avocado.exr',
   'bean.exr',
@@ -106,6 +112,13 @@ const CBOX_RGB_GALLERY_IMAGE = import.meta.env.MODE === 'desktop'
       filename: 'cbox_rgb.exr'
     };
 
+const POLY_HAVEN_GALLERY_IMAGES: GalleryImage[] = POLY_HAVEN_GALLERY_FILES.map(([id, filename]) => ({
+  id,
+  label: filename,
+  filename,
+  url: `${POLY_HAVEN_HDRI_BASE_URL}${filename}`
+}));
+
 const POLANALYSER_GALLERY_IMAGES: GalleryImage[] = POLANALYSER_STOKES_FILENAMES.map((filename) => ({
   id: `polanalyser-${filename.replace(/\.exr$/, '').replaceAll('_', '-')}`,
   label: filename,
@@ -127,14 +140,8 @@ const GALLERY_IMAGES: GalleryImage[] = [
     label: 'multipart.0001.exr',
     filename: 'multipart.0001.exr',
     url: 'https://raw.githubusercontent.com/AcademySoftwareFoundation/openexr-images/main/Beachball/multipart.0001.exr'
-  },
-  {
-    id: 'brown-photostudio-02-1k',
-    label: 'brown_photostudio_02_1k.exr',
-    filename: 'brown_photostudio_02_1k.exr',
-    url: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/brown_photostudio_02_1k.exr'
   }
-].concat(KAIST_GALLERY_IMAGES, POLANALYSER_GALLERY_IMAGES);
+].concat(POLY_HAVEN_GALLERY_IMAGES, KAIST_GALLERY_IMAGES, POLANALYSER_GALLERY_IMAGES);
 
 const LOAD_CATEGORY_OPEN_FILES = 'open-files';
 const LOAD_CATEGORY_FOLDER = 'folder';

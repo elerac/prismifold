@@ -2478,6 +2478,13 @@ describe('view menu', () => {
   });
   const KAIST_GALLERY_IDS = KAIST_GALLERY_FILES.map(([galleryId]) => galleryId);
   const KAIST_GALLERY_LABELS = KAIST_GALLERY_FILES.map(([, label]) => label);
+  const POLY_HAVEN_GALLERY_FILES: readonly [string, string][] = [
+    ['polyhaven-artist-workshop-1k', 'artist_workshop_1k.exr'],
+    ['brown-photostudio-02-1k', 'brown_photostudio_02_1k.exr'],
+    ['polyhaven-symmetrical-garden-02-1k', 'symmetrical_garden_02_1k.exr']
+  ];
+  const POLY_HAVEN_GALLERY_IDS = POLY_HAVEN_GALLERY_FILES.map(([galleryId]) => galleryId);
+  const POLY_HAVEN_GALLERY_LABELS = POLY_HAVEN_GALLERY_FILES.map(([, label]) => label);
 
   it('dispatches gallery selections for every gallery menu item', () => {
     installUiFixture();
@@ -2500,14 +2507,14 @@ describe('view menu', () => {
     expect(galleryTopLevelLabels).toEqual([
       'cbox_rgb.exr',
       'multipart.0001.exr',
-      'brown_photostudio_02_1k.exr',
+      'Poly Haven',
       'KAIST Hyperspectral',
       'Polanalyser'
     ]);
     expect(galleryItems.map((item) => item.textContent?.trim())).toEqual([
       'cbox_rgb.exr',
       'multipart.0001.exr',
-      'brown_photostudio_02_1k.exr',
+      ...POLY_HAVEN_GALLERY_LABELS,
       ...KAIST_GALLERY_LABELS,
       'avocado.exr',
       'bean.exr',
@@ -2529,7 +2536,7 @@ describe('view menu', () => {
     expect(onGalleryImageSelected.mock.calls.map(([galleryId]) => galleryId)).toEqual([
       'cbox-rgb',
       'beachball-multipart-0001',
-      'brown-photostudio-02-1k',
+      ...POLY_HAVEN_GALLERY_IDS,
       ...KAIST_GALLERY_IDS,
       'polanalyser-avocado',
       'polanalyser-bean',
@@ -3675,6 +3682,12 @@ describe('view menu', () => {
 
     new ViewerUi(createUiCallbacks());
     const galleryButton = document.getElementById('gallery-menu-button') as HTMLButtonElement;
+    const polyHavenButton = document.getElementById('gallery-polyhaven-menu-button') as HTMLButtonElement;
+    const polyHavenRoot = polyHavenButton.closest('.app-menu-submenu') as HTMLElement;
+    const polyHavenMenu = document.getElementById('gallery-polyhaven-menu') as HTMLElement;
+    const artistWorkshopButton = document.getElementById(
+      'gallery-polyhaven-artist-workshop-1k-button'
+    ) as HTMLButtonElement;
     const kaistButton = document.getElementById('gallery-kaist-menu-button') as HTMLButtonElement;
     const kaistRoot = kaistButton.closest('.app-menu-submenu') as HTMLElement;
     const kaistMenu = document.getElementById('gallery-kaist-menu') as HTMLElement;
@@ -3686,10 +3699,29 @@ describe('view menu', () => {
 
     galleryButton.click();
     expectTopMenuOpen('gallery-menu-button', 'gallery-menu');
+    expect(polyHavenMenu.classList.contains('hidden')).toBe(true);
+    expect(polyHavenButton.getAttribute('aria-expanded')).toBe('false');
     expect(kaistMenu.classList.contains('hidden')).toBe(true);
     expect(kaistButton.getAttribute('aria-expanded')).toBe('false');
     expect(polanalyserMenu.classList.contains('hidden')).toBe(true);
     expect(polanalyserButton.getAttribute('aria-expanded')).toBe('false');
+
+    polyHavenRoot.dispatchEvent(new Event('pointerenter'));
+    expect(polyHavenMenu.classList.contains('hidden')).toBe(false);
+    expect(polyHavenButton.getAttribute('aria-expanded')).toBe('true');
+
+    polyHavenRoot.dispatchEvent(new MouseEvent('pointerleave', { relatedTarget: document.body }));
+    expect(polyHavenMenu.classList.contains('hidden')).toBe(true);
+    expect(polyHavenButton.getAttribute('aria-expanded')).toBe('false');
+
+    polyHavenButton.focus();
+    polyHavenButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(polyHavenMenu.classList.contains('hidden')).toBe(false);
+    expect(document.activeElement).toBe(artistWorkshopButton);
+
+    artistWorkshopButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(polyHavenMenu.classList.contains('hidden')).toBe(true);
+    expect(document.activeElement).toBe(polyHavenButton);
 
     kaistRoot.dispatchEvent(new Event('pointerenter'));
     expect(kaistMenu.classList.contains('hidden')).toBe(false);
@@ -3958,7 +3990,7 @@ describe('view menu', () => {
     expect(galleryItems.map((item) => item.dataset.galleryId)).toEqual([
       'cbox-rgb',
       'beachball-multipart-0001',
-      'brown-photostudio-02-1k',
+      ...POLY_HAVEN_GALLERY_IDS,
       ...KAIST_GALLERY_IDS,
       'polanalyser-avocado',
       'polanalyser-bean',
