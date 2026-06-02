@@ -30,4 +30,35 @@ describe('desktop asset scripts', () => {
     expect(verifyScript).toContain("resolve(rootDir, 'dist-desktop')");
     expect(verifyScript).not.toContain("resolve(rootDir, 'dist')");
   });
+
+  it('allows desktop gallery downloads from Hugging Face and HF storage redirects', async () => {
+    const tauriConfig = JSON.parse(await readFile(resolve(rootDir, 'src-tauri/tauri.conf.json'), 'utf8')) as {
+      app?: {
+        security?: {
+          csp?: string;
+          devCsp?: string;
+        };
+      };
+    };
+    const csp = tauriConfig.app?.security?.csp;
+    const devCsp = tauriConfig.app?.security?.devCsp;
+
+    expect(typeof csp).toBe('string');
+    expect(typeof devCsp).toBe('string');
+    for (const policy of [csp, devCsp]) {
+      const connectSrc = extractCspDirective(policy ?? '', 'connect-src');
+
+      expect(connectSrc).toContain('https://huggingface.co');
+      expect(connectSrc).toContain('https://*.hf.co');
+    }
+  });
 });
+
+function extractCspDirective(policy: string, directiveName: string): string[] {
+  const directive = policy
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${directiveName} `));
+
+  return directive?.split(/\s+/).slice(1) ?? [];
+}
