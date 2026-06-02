@@ -72,7 +72,6 @@ jobs:
         env:
           APPLE_SIGNING_IDENTITY: ${{ matrix.apple_signing_identity }}
         with:
-          tauriScript: npm run tauri --
           args: ${{ matrix.tauri_args }}
           includeUpdaterJson: false
 
