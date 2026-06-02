@@ -27,8 +27,12 @@
 
 !macro PRISMIFOLD_EXR_REGISTER_APP_HANDLER
   WriteRegStr SHCTX "Software\Classes\.exr\OpenWithProgids" "${PRISMIFOLD_EXR_PROGID}" ""
+  WriteRegStr SHCTX "Software\Classes\.exr" "PerceivedType" "image"
+  WriteRegStr SHCTX "Software\Classes\.exr" "TypeOverlay" ""
   WriteRegStr SHCTX "Software\Classes\${PRISMIFOLD_EXR_PROGID}" "" "${PRISMIFOLD_EXR_FILE_TYPE_NAME}"
-  WriteRegStr SHCTX "Software\Classes\${PRISMIFOLD_EXR_PROGID}\DefaultIcon" "" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\",0"
+  DeleteRegKey SHCTX "Software\Classes\${PRISMIFOLD_EXR_PROGID}\DefaultIcon"
+  WriteRegDWORD SHCTX "Software\Classes\${PRISMIFOLD_EXR_PROGID}" "Treatment" 0x00000002
+  WriteRegStr SHCTX "Software\Classes\${PRISMIFOLD_EXR_PROGID}" "TypeOverlay" ""
   WriteRegStr SHCTX "Software\Classes\${PRISMIFOLD_EXR_PROGID}\shell" "" "open"
   WriteRegStr SHCTX "Software\Classes\${PRISMIFOLD_EXR_PROGID}\shell\open" "" "Open with ${PRODUCTNAME}"
   WriteRegStr SHCTX "Software\Classes\${PRISMIFOLD_EXR_PROGID}\shell\open\command" "" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%1$\""
@@ -41,13 +45,15 @@
   WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\App Paths\${MAINBINARYNAME}.exe" "" "$INSTDIR\${MAINBINARYNAME}.exe"
   WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\App Paths\${MAINBINARYNAME}.exe" "Path" "$INSTDIR"
   WriteRegStr SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe" "FriendlyAppName" "${PRODUCTNAME}"
-  WriteRegStr SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe\DefaultIcon" "" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\",0"
+  DeleteRegKey SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe\DefaultIcon"
   WriteRegStr SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe\SupportedTypes" ".exr" ""
   WriteRegStr SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe\shell\open\command" "" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%1$\""
 !macroend
 
 !macro PRISMIFOLD_EXR_UNREGISTER_APP_HANDLER
   DeleteRegValue SHCTX "Software\Classes\.exr\OpenWithProgids" "${PRISMIFOLD_EXR_PROGID}"
+  DeleteRegValue SHCTX "Software\Classes\.exr" "PerceivedType"
+  DeleteRegValue SHCTX "Software\Classes\.exr" "TypeOverlay"
   DeleteRegKey /ifempty SHCTX "Software\Classes\.exr\OpenWithProgids"
   DeleteRegKey SHCTX "Software\Classes\${PRISMIFOLD_EXR_PROGID}"
   DeleteRegValue SHCTX "Software\RegisteredApplications" "${PRODUCTNAME}"

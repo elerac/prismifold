@@ -10,11 +10,14 @@
         <RegistryKey Root="HKLM" Key="Software\Classes\.exr\OpenWithProgids">
           <RegistryValue Name="$(var.ExrProgId)" Type="string" Value="" />
         </RegistryKey>
+        <RegistryKey Root="HKLM" Key="Software\Classes\.exr">
+          <RegistryValue Name="PerceivedType" Type="string" Value="image" />
+          <RegistryValue Name="TypeOverlay" Type="string" Value="" />
+        </RegistryKey>
         <RegistryKey Root="HKLM" Key="Software\Classes\$(var.ExrProgId)">
           <RegistryValue Type="string" Value="OpenEXR Image" />
-          <RegistryKey Key="DefaultIcon">
-            <RegistryValue Type="string" Value="&quot;[INSTALLDIR]Prismifold.exe&quot;,0" />
-          </RegistryKey>
+          <RegistryValue Name="Treatment" Type="integer" Value="2" />
+          <RegistryValue Name="TypeOverlay" Type="string" Value="" />
           <RegistryKey Key="shell">
             <RegistryValue Type="string" Value="open" />
             <RegistryKey Key="open">
@@ -41,9 +44,6 @@
         </RegistryKey>
         <RegistryKey Root="HKLM" Key="Software\Classes\Applications\Prismifold.exe">
           <RegistryValue Name="FriendlyAppName" Type="string" Value="Prismifold" />
-          <RegistryKey Key="DefaultIcon">
-            <RegistryValue Type="string" Value="&quot;[INSTALLDIR]Prismifold.exe&quot;,0" />
-          </RegistryKey>
           <RegistryKey Key="SupportedTypes">
             <RegistryValue Name=".exr" Type="string" Value="" />
           </RegistryKey>
@@ -64,6 +64,8 @@
         <RegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved">
           <RegistryValue Name="$(var.ExrThumbnailProviderClsid)" Type="string" Value="Prismifold EXR Thumbnail Provider" />
         </RegistryKey>
+        <RemoveRegistryKey Root="HKLM" Key="Software\Classes\$(var.ExrProgId)\DefaultIcon" Action="removeOnInstall" />
+        <RemoveRegistryKey Root="HKLM" Key="Software\Classes\Applications\Prismifold.exe\DefaultIcon" Action="removeOnInstall" />
         <RemoveRegistryKey Root="HKLM" Key="Software\Classes\Prismifold.exr" Action="removeOnInstall" />
       </Component>
     </DirectoryRef>
