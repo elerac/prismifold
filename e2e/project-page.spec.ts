@@ -54,7 +54,7 @@ test('serves the project page with app and desktop download calls to action @smo
   await expect(page.getByRole('heading', { name: 'Prismifold', level: 1 })).toBeVisible();
   await expect(page.getByText('A reader for folded light.', { exact: true })).toHaveCount(0);
   await expect(page.getByText(
-    'Prismifold is an OpenEXR image viewer for computational imaging, rendering, and vision workflows. It unfolds polarization, spectral, panoramas, depth, AoVs and exact pixel values from images with more than color.',
+    'Prismifold is an OpenEXR image viewer for computational imaging, rendering, and vision workflows. It reveals the rich structure of images that contain more than color, including polarization, spectral, panoramas, depth, and AOVs.',
     { exact: true }
   )).toBeVisible();
   await expect(page.getByText(
