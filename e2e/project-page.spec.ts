@@ -22,6 +22,11 @@ const MACOS_DESKTOP_URL =
 const VSCODE_MARKETPLACE_URL = 'https://marketplace.visualstudio.com/items?itemName=elerac.prismifold-vscode';
 const OPENEXR_IO_SKILL_URL = 'skills/openexr-io/SKILL.md';
 const EXPECTED_BOOTSTRAP_ABORT = 'Viewer application has not finished initializing.';
+const PROJECT_PAGE_TITLE = 'Prismifold | OpenEXR Image Viewer';
+const PROJECT_PAGE_DESCRIPTION =
+  'Prismifold is an OpenEXR image viewer for computational imaging, rendering, and vision workflows, with spectral, polarization, panorama, depth, and AOV inspection.';
+const PROJECT_PAGE_URL = 'https://elerac.github.io/prismifold/';
+const PROJECT_PAGE_IMAGE_URL = 'https://elerac.github.io/prismifold/project-page/app-preview.jpg';
 
 function watchUnexpectedErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -69,6 +74,8 @@ async function expectGalleryCardLaunch(
   const screenshot = item.getByRole('img', { name: image.accessibleName });
   await expect(screenshot).toBeVisible();
   await expect(screenshot).toHaveAttribute('src', image.src);
+  await expect(screenshot).toHaveAttribute('loading', 'lazy');
+  await expect(screenshot).toHaveAttribute('decoding', 'async');
   await expect.poll(async () => (
     await screenshot.evaluate((node) => (
       node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0 && node.naturalHeight > 0
@@ -102,6 +109,72 @@ async function expectGalleryCardLaunch(
 test('serves the project page with app, desktop, and VS Code download calls to action @smoke', async ({ page }) => {
   const unexpectedErrors = watchUnexpectedErrors(page);
   await page.goto('/');
+
+  await expect(page).toHaveTitle(PROJECT_PAGE_TITLE);
+  await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', PROJECT_PAGE_DESCRIPTION);
+  await expect(page.locator('head meta[name="robots"]')).toHaveAttribute('content', 'index,follow');
+  await expect(page.locator('head meta[name="theme-color"]')).toHaveAttribute('content', '#0b0f14');
+  await expect(page.locator('head meta[name="application-name"]')).toHaveAttribute('content', 'Prismifold');
+  await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute('href', PROJECT_PAGE_URL);
+  await expect(page.locator('head link[rel="icon"]')).toHaveAttribute('href', 'project-page/app-icon.png');
+  await expect(page.locator('head link[rel="apple-touch-icon"]')).toHaveAttribute(
+    'href',
+    'project-page/app-icon.png'
+  );
+  await expect(page.locator('head meta[property="og:type"]')).toHaveAttribute('content', 'website');
+  await expect(page.locator('head meta[property="og:site_name"]')).toHaveAttribute('content', 'Prismifold');
+  await expect(page.locator('head meta[property="og:title"]')).toHaveAttribute('content', PROJECT_PAGE_TITLE);
+  await expect(page.locator('head meta[property="og:description"]')).toHaveAttribute(
+    'content',
+    PROJECT_PAGE_DESCRIPTION
+  );
+  await expect(page.locator('head meta[property="og:url"]')).toHaveAttribute('content', PROJECT_PAGE_URL);
+  await expect(page.locator('head meta[property="og:image"]')).toHaveAttribute('content', PROJECT_PAGE_IMAGE_URL);
+  await expect(page.locator('head meta[property="og:image:width"]')).toHaveAttribute('content', '1440');
+  await expect(page.locator('head meta[property="og:image:height"]')).toHaveAttribute('content', '900');
+  await expect(page.locator('head meta[property="og:image:alt"]')).toHaveAttribute(
+    'content',
+    'Prismifold interface showing an EXR image, inspector panels, and channel thumbnails'
+  );
+  await expect(page.locator('head meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+  await expect(page.locator('head meta[name="twitter:title"]')).toHaveAttribute('content', PROJECT_PAGE_TITLE);
+  await expect(page.locator('head meta[name="twitter:description"]')).toHaveAttribute(
+    'content',
+    PROJECT_PAGE_DESCRIPTION
+  );
+  await expect(page.locator('head meta[name="twitter:image"]')).toHaveAttribute('content', PROJECT_PAGE_IMAGE_URL);
+  await expect(page.locator('head meta[name="twitter:image:alt"]')).toHaveAttribute(
+    'content',
+    'Prismifold interface showing an EXR image, inspector panels, and channel thumbnails'
+  );
+  const structuredDataText = await page.locator('head script[type="application/ld+json"]').textContent();
+  expect(JSON.parse(structuredDataText ?? '{}')).toMatchObject({
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Prismifold',
+    applicationCategory: 'MultimediaApplication',
+    operatingSystem: 'Web, Windows, macOS',
+    url: PROJECT_PAGE_URL,
+    image: PROJECT_PAGE_IMAGE_URL,
+    description: PROJECT_PAGE_DESCRIPTION,
+    downloadUrl: 'https://github.com/elerac/prismifold/releases/latest',
+    softwareVersion: '0.1.0',
+    license: 'https://github.com/elerac/prismifold/blob/main/LICENSE',
+    sameAs: [
+      'https://github.com/elerac/prismifold',
+      'https://marketplace.visualstudio.com/items?itemName=elerac.prismifold-vscode'
+    ],
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD'
+    }
+  });
+  const sitemapResponse = await page.request.get('/sitemap.xml');
+  expect(sitemapResponse.ok()).toBe(true);
+  const sitemapXml = await sitemapResponse.text();
+  expect(sitemapXml).toContain(`<loc>${PROJECT_PAGE_URL}</loc>`);
+  expect(sitemapXml).not.toContain('/app/');
 
   const brandIcon = page.locator('.brand-mark');
   await expect(brandIcon).toHaveAttribute('src', 'project-page/app-icon.png');
@@ -137,6 +210,8 @@ test('serves the project page with app, desktop, and VS Code download calls to a
 
   const preview = page.getByRole('img', { name: /Prismifold interface/ });
   await expect(preview).toBeVisible();
+  await expect(preview).toHaveAttribute('decoding', 'async');
+  await expect(preview).toHaveAttribute('fetchpriority', 'high');
   await expect.poll(async () => (
     await preview.evaluate((image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0)
   )).toBe(true);
@@ -496,6 +571,7 @@ test('opens the viewer app from the project page hero @smoke', async ({ page }) 
 
   await expect(page).toHaveURL(/\/$/);
   await expect(appPage).toHaveURL(/\/app\/$/);
+  await expect(appPage.locator('head meta[name="robots"]')).toHaveAttribute('content', 'noindex,follow');
   await expectViewerAppReady(appPage);
   expect([...unexpectedErrors, ...appUnexpectedErrors]).toEqual([]);
 });

@@ -5,10 +5,65 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Prismifold is a multichannel image viewer for computational imaging, rendering, and vision workflows."
+      content="Prismifold is an OpenEXR image viewer for computational imaging, rendering, and vision workflows, with spectral, polarization, panorama, depth, and AOV inspection."
     />
+    <meta name="robots" content="index,follow" />
+    <meta name="theme-color" content="#0b0f14" />
+    <meta name="application-name" content="Prismifold" />
+    <link rel="canonical" href="https://elerac.github.io/prismifold/" />
     <link rel="icon" type="image/png" href="project-page/app-icon.png" />
-    <title>Prismifold</title>
+    <link rel="apple-touch-icon" href="project-page/app-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Prismifold" />
+    <meta property="og:title" content="Prismifold | OpenEXR Image Viewer" />
+    <meta
+      property="og:description"
+      content="Prismifold is an OpenEXR image viewer for computational imaging, rendering, and vision workflows, with spectral, polarization, panorama, depth, and AOV inspection."
+    />
+    <meta property="og:url" content="https://elerac.github.io/prismifold/" />
+    <meta property="og:image" content="https://elerac.github.io/prismifold/project-page/app-preview.jpg" />
+    <meta property="og:image:width" content="1440" />
+    <meta property="og:image:height" content="900" />
+    <meta
+      property="og:image:alt"
+      content="Prismifold interface showing an EXR image, inspector panels, and channel thumbnails"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Prismifold | OpenEXR Image Viewer" />
+    <meta
+      name="twitter:description"
+      content="Prismifold is an OpenEXR image viewer for computational imaging, rendering, and vision workflows, with spectral, polarization, panorama, depth, and AOV inspection."
+    />
+    <meta name="twitter:image" content="https://elerac.github.io/prismifold/project-page/app-preview.jpg" />
+    <meta
+      name="twitter:image:alt"
+      content="Prismifold interface showing an EXR image, inspector panels, and channel thumbnails"
+    />
+    <title>Prismifold | OpenEXR Image Viewer</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Prismifold",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web, Windows, macOS",
+        "url": "https://elerac.github.io/prismifold/",
+        "image": "https://elerac.github.io/prismifold/project-page/app-preview.jpg",
+        "description": "Prismifold is an OpenEXR image viewer for computational imaging, rendering, and vision workflows, with spectral, polarization, panorama, depth, and AOV inspection.",
+        "downloadUrl": "https://github.com/elerac/prismifold/releases/latest",
+        "softwareVersion": "0.1.0",
+        "license": "https://github.com/elerac/prismifold/blob/main/LICENSE",
+        "sameAs": [
+          "https://github.com/elerac/prismifold",
+          "https://marketplace.visualstudio.com/items?itemName=elerac.prismifold-vscode"
+        ],
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
     <script src="embed/prismifold.js"></script>
     <script type="module" src="/src/project-page.ts"></script>
   </head>
@@ -76,6 +131,8 @@
               alt="Prismifold interface showing an EXR image, opened files, inspector panels, and channel thumbnails"
               width="1440"
               height="900"
+              decoding="async"
+              fetchpriority="high"
             />
           </figure>
         </div>
@@ -243,6 +300,8 @@
                   alt="Prismifold zoomed into an RGB OpenEXR image with a locked pixel probe and pixel rulers at x 195 y 169"
                   width="1440"
                   height="900"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             </figure>
@@ -278,6 +337,8 @@
                   alt="Prismifold screenshot export mode with two selected screenshot regions and R1 active"
                   width="2048"
                   height="1024"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             </figure>
@@ -316,6 +377,8 @@
                   alt="Prismifold visualizing a Stokes vector image with computed AoLP and an automatically applied dedicated colormap"
                   width="1440"
                   height="900"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             </figure>
@@ -355,6 +418,8 @@
                   alt="Prismifold visualizing hyperspectral EXR data with a locked pixel probe, Display collapsed, and 31 spectral channel thumbnails expanded"
                   width="1440"
                   height="900"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             </figure>
@@ -394,6 +459,8 @@
                   alt="Prismifold depth map view with focal length 960 and a locked pixel probe at x 406 y 300"
                   width="1440"
                   height="900"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             </figure>
@@ -432,6 +499,8 @@
                   alt="Prismifold panorama view with yaw 5.37 pitch -34 and fov 180"
                   width="1440"
                   height="900"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             </figure>
