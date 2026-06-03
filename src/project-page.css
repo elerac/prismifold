@@ -250,7 +250,7 @@ main {
   width: 100%;
   height: auto;
   aspect-ratio: 16 / 10;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .downloads-section {
@@ -710,6 +710,23 @@ main {
   .gallery-item figcaption {
     padding-top: 0;
   }
+
+  .gallery-item:not(.gallery-item--embed-demo) figcaption {
+    display: contents;
+  }
+
+  .gallery-item:not(.gallery-item--embed-demo) .gallery-caption-copy {
+    order: 1;
+  }
+
+  .gallery-item:not(.gallery-item--embed-demo) .gallery-screenshot-frame {
+    order: 2;
+  }
+
+  .gallery-item:not(.gallery-item--embed-demo) .gallery-actions {
+    order: 3;
+    margin-top: 0;
+  }
 }
 
 @media (max-width: 620px) {
@@ -759,10 +776,6 @@ main {
     width: 100%;
   }
 
-  .app-preview img {
-    aspect-ratio: 4 / 3;
-  }
-
   .features-section,
   .downloads-section,
   .gallery-section,
@@ -805,6 +818,10 @@ main {
   .gallery-item figcaption {
     display: grid;
     justify-items: start;
+  }
+
+  .gallery-item:not(.gallery-item--embed-demo) figcaption {
+    display: contents;
   }
 
   .site-footer {

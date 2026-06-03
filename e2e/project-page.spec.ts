@@ -313,6 +313,8 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     hasText: /Full-Stokes vector\s+images that include the circular/
   }).filter({
     hasText: 'S3'
+  }).filter({
+    hasText: /CoP[\s\S]*ToP/
   })).toHaveCount(1);
   await expect(page.getByText(/Navigate HDRI data in equirectangular format with panorama mode and a wide fov/)).toBeVisible();
   await expect(page.getByText('Panorama view', { exact: true })).toBeVisible();
@@ -377,12 +379,16 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     const galleryGrid = document.querySelector('.gallery-grid');
     const firstItem = document.querySelector('.gallery-item');
     const caption = firstItem?.querySelector('figcaption');
+    const copy = firstItem?.querySelector('.gallery-caption-copy');
+    const actions = firstItem?.querySelector('.gallery-actions');
     const frame = firstItem?.querySelector('.exr-embed-frame');
     if (
       !(galleryInner instanceof HTMLElement) ||
       !(galleryGrid instanceof HTMLElement) ||
       !(firstItem instanceof HTMLElement) ||
       !(caption instanceof HTMLElement) ||
+      !(copy instanceof HTMLElement) ||
+      !(actions instanceof HTMLElement) ||
       !(frame instanceof HTMLElement)
     ) {
       return false;
@@ -390,11 +396,15 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     const innerRect = galleryInner.getBoundingClientRect();
     const gridRect = galleryGrid.getBoundingClientRect();
     const captionRect = caption.getBoundingClientRect();
+    const copyRect = copy.getBoundingClientRect();
+    const actionsRect = actions.getBoundingClientRect();
     const frameRect = frame.getBoundingClientRect();
     return (
       Math.abs(gridRect.width - innerRect.width) < 1 &&
       captionRect.right < frameRect.left &&
       Math.abs(captionRect.top - frameRect.top) < 12 &&
+      actionsRect.top > copyRect.bottom &&
+      actionsRect.right < frameRect.left &&
       frameRect.width > 760
     );
   });
@@ -487,7 +497,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   });
 
   await expectGalleryCardLaunch(page, 'Hyperspectral visualization', {
-    accessibleName: /hyperspectral EXR data with a locked pixel probe.*31 spectral channel thumbnails expanded/,
+    accessibleName: /hyperspectral EXR data with a locked pixel probe.*spectral channel thumbnails expanded/,
     src: 'project-page/kaist-hyperspectral-inspection.png'
   }, {
     src: KAIST_SCENE27_REFLECTANCE_URL,
@@ -524,6 +534,44 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#gallery').scrollIntoViewIfNeeded();
+  const mobileGalleryOrder = await page.evaluate(() => {
+    const firstItem = document.querySelector('.gallery-item:not(.gallery-item--embed-demo)');
+    const copy = firstItem?.querySelector('.gallery-caption-copy');
+    const frame = firstItem?.querySelector('.gallery-screenshot-frame');
+    const actions = firstItem?.querySelector('.gallery-actions');
+    if (
+      !(firstItem instanceof HTMLElement) ||
+      !(copy instanceof HTMLElement) ||
+      !(frame instanceof HTMLElement) ||
+      !(actions instanceof HTMLElement)
+    ) {
+      return false;
+    }
+    const itemRect = firstItem.getBoundingClientRect();
+    const copyRect = copy.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    const actionsRect = actions.getBoundingClientRect();
+    return (
+      Math.abs(copyRect.left - itemRect.left) < 1 &&
+      Math.abs(frameRect.left - itemRect.left) < 1 &&
+      Math.abs(actionsRect.left - itemRect.left) < 1 &&
+      copyRect.bottom <= frameRect.top &&
+      frameRect.bottom <= actionsRect.top
+    );
+  });
+  expect(mobileGalleryOrder).toBe(true);
+  await expect.poll(async () => (
+    await preview.evaluate((image) => {
+      if (!(image instanceof HTMLImageElement) || image.naturalWidth === 0 || image.naturalHeight === 0) {
+        return false;
+      }
+      const rect = image.getBoundingClientRect();
+      const naturalRatio = image.naturalWidth / image.naturalHeight;
+      const renderedRatio = rect.width / rect.height;
+      return getComputedStyle(image).objectFit === 'contain' && Math.abs(renderedRatio - naturalRatio) < 0.01;
+    })
+  )).toBe(true);
   await expectNoHorizontalOverflow(page);
   expect(unexpectedErrors).toEqual([]);
 });

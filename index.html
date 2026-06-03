@@ -220,7 +220,7 @@
               <h3 id="visualize-title">Visualize</h3>
               <ul class="feature-list">
                 <li>Browse RGB, alpha, AOV, spectral, polarization, and grouped channels.</li>
-                <li>Apply colormaps, exposure, gamma, range, and zero-center controls.</li>
+                <li>Apply colormaps, exposure, gamma, and range controls.</li>
                 <li>Switch between image, panorama, and depth viewing modes.</li>
               </ul>
             </section>
@@ -235,7 +235,7 @@
               <ul class="feature-list">
                 <li>Save PNG images with the current display settings applied.</li>
                 <li>Export screenshots, batches, and reproduction metadata.</li>
-                <li>Generate standalone PNG gradients for registered colormaps.</li>
+                <li>Generate standalone gradient colorbars for registered colormaps.</li>
               </ul>
             </section>
 
@@ -348,10 +348,11 @@
                   <strong>Stokes vector visualization</strong>
                   <span>
                     A source EXR with <code>S0</code>, <code>S1</code>, and <code>S2</code>
-                    can be visualized as computed <code>S1/S0</code>, <code>S2/S0</code>,
-                    <code>AoLP</code>, and <code>DoLP</code> images, with a dedicated colormap
+                    can be visualized as computed <code>AoLP</code> and <code>DoLP</code>
+                    images, with a dedicated colormap
                     applied automatically. Full-Stokes vector images that include the circular
-                    <code>S3</code> component are supported too.
+                    <code>S3</code> component also expose <code>CoP</code> and <code>ToP</code>
+                    visualizations.
                   </span>
                 </div>
                 <div class="gallery-actions">
@@ -389,7 +390,7 @@
                   <span>
                     Hyperspectral channels are automatically computed into RGB for visualization,
                     while still supporting per-wavelength inspection with a spectral plot and
-                    expanded 31-channel thumbnails.
+                    expanded spectral channel thumbnails.
                     <br />
                     Source:
                     <a class="gallery-source-link" href="https://vclab.kaist.ac.kr/siggraphasia2017p1/kaistdataset.html">KAIST Hyperspectral Image Dataset</a>.
@@ -415,7 +416,7 @@
                 <img
                   class="gallery-screenshot"
                   src="project-page/kaist-hyperspectral-inspection.png"
-                  alt="Prismifold visualizing hyperspectral EXR data with a locked pixel probe, Display collapsed, and 31 spectral channel thumbnails expanded"
+                  alt="Prismifold visualizing hyperspectral EXR data with a locked pixel probe, Display collapsed, and spectral channel thumbnails expanded"
                   width="1440"
                   height="900"
                   loading="lazy"
