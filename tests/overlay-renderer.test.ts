@@ -141,8 +141,8 @@ describe('overlay renderer', () => {
     ]);
   });
 
-  it('clears previously rendered value labels when the image is cleared', () => {
-    const { renderer, context } = createOverlayHarness();
+  it('clears the full backing store when the image is cleared or disposed', () => {
+    const { canvas, renderer, context } = createOverlayHarness();
     const layer = createDisplayLayer(2);
 
     renderer.resize(128, 64);
@@ -157,15 +157,27 @@ describe('overlay renderer', () => {
 
     expect(context.fillText).toHaveBeenCalled();
     context.clearRect.mockClear();
+    canvas.width = 256;
+    canvas.height = 128;
 
     renderer.clearImage();
 
     expect(context.clearRect).toHaveBeenCalledTimes(1);
-    expect(context.clearRect).toHaveBeenCalledWith(0, 0, 128, 64);
+    expect(context.clearRect).toHaveBeenCalledWith(0, 0, 256, 128);
+
+    context.clearRect.mockClear();
+    canvas.width = 512;
+    canvas.height = 256;
+
+    renderer.dispose();
+
+    expect(context.clearRect).toHaveBeenCalledTimes(1);
+    expect(context.clearRect).toHaveBeenCalledWith(0, 0, 512, 256);
   });
 });
 
 function createOverlayHarness(): {
+  canvas: HTMLCanvasElement;
   renderer: OverlayRenderer;
   context: CanvasRenderingContext2D & {
     alphaHistory: number[];
@@ -220,6 +232,7 @@ function createOverlayHarness(): {
 
   const canvas = document.createElement('canvas');
   return {
+    canvas,
     renderer: new OverlayRenderer(canvas),
     context
   };

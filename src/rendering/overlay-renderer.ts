@@ -78,7 +78,7 @@ export class OverlayRenderer implements Disposable {
 
     this.imageSize = null;
     this.displayEvaluator = null;
-    this.overlayContext.clearRect(0, 0, this.viewport.width, this.viewport.height);
+    this.clearCanvas();
   }
 
   render(state: ViewerState): void {
@@ -103,7 +103,7 @@ export class OverlayRenderer implements Disposable {
       return;
     }
 
-    this.overlayContext.clearRect(0, 0, this.viewport.width, this.viewport.height);
+    this.clearCanvas();
   }
 
   renderPaneValues(state: ViewerState, pane: ViewerPaneRenderInfo): void {
@@ -195,7 +195,11 @@ export class OverlayRenderer implements Disposable {
     this.disposed = true;
     this.imageSize = null;
     this.displayEvaluator = null;
-    this.overlayContext.clearRect(0, 0, this.viewport.width, this.viewport.height);
+    this.clearCanvas();
+  }
+
+  private clearCanvas(): void {
+    this.overlayContext.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
   }
 }
 

@@ -1,5 +1,11 @@
 import { expect, test, type Page } from './helpers/test';
-import { expectViewerAppReady, gotoViewerApp, openGalleryCbox, waitForE2ERenderIdle } from './helpers/app';
+import {
+  expectViewerAppReady,
+  gotoViewerApp,
+  openGalleryCbox,
+  waitForE2ERenderIdle,
+  waitForE2ESessionCount
+} from './helpers/app';
 import { dragBy } from './helpers/viewer';
 
 async function readPanelShellVisualState(page: Page): Promise<Array<{
@@ -286,29 +292,36 @@ function normalizePolledOpacity(value: string, expected: number): number {
   return Number(numericValue.toFixed(4));
 }
 
-async function expectOverlayCanvasTransparent(page: Page): Promise<void> {
-  await expect.poll(async () => await hasOverlayCanvasPixels(page), { timeout: 7000 }).toBe(false);
+async function expectOverlayCanvasesTransparent(page: Page): Promise<void> {
+  await expect.poll(async () => await readOpaqueOverlayCanvasIds(page), { timeout: 7000 }).toEqual([]);
 }
 
-async function hasOverlayCanvasPixels(page: Page): Promise<boolean> {
+async function readOpaqueOverlayCanvasIds(page: Page): Promise<string[]> {
   return await page.evaluate(() => {
-    const canvas = document.getElementById('overlay-canvas');
-    if (!(canvas instanceof HTMLCanvasElement) || canvas.width <= 0 || canvas.height <= 0) {
-      return false;
-    }
+    const opaqueCanvasIds: string[] = [];
+    for (const canvasId of ['overlay-canvas', 'probe-overlay-canvas']) {
+      const canvas = document.getElementById(canvasId);
+      if (!(canvas instanceof HTMLCanvasElement)) {
+        throw new Error(`Missing overlay canvas: ${canvasId}`);
+      }
+      if (canvas.width <= 0 || canvas.height <= 0) {
+        continue;
+      }
 
-    const context = canvas.getContext('2d');
-    if (!context) {
-      throw new Error('Unable to read overlay canvas.');
-    }
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error(`Unable to read overlay canvas: ${canvasId}`);
+      }
 
-    const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
-    for (let index = 3; index < data.length; index += 4) {
-      if ((data[index] ?? 0) > 0) {
-        return true;
+      const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      for (let index = 3; index < data.length; index += 4) {
+        if ((data[index] ?? 0) > 0) {
+          opaqueCanvasIds.push(canvasId);
+          break;
+        }
       }
     }
-    return false;
+    return opaqueCanvasIds;
   });
 }
 
@@ -941,12 +954,13 @@ test('persists Spectrum lattice as animated idle and frozen active chrome @smoke
   }).toBe('spectrum-lattice');
 
   await page.getByRole('button', { name: 'Close cbox_rgb.exr', exact: true }).click();
+  await waitForE2ESessionCount(page, 0);
   await expect(page.locator('#opened-images-select option')).toHaveCount(0);
   await waitForE2ERenderIdle(page);
   await expect(appShell).toHaveClass(/is-spectrum-lattice-idle/);
   await expect(mainLayout).toHaveClass(/is-spectrum-lattice-idle/);
   await expect(viewer).toHaveClass(/is-spectrum-lattice-idle/);
-  await expectOverlayCanvasTransparent(page);
+  await expectOverlayCanvasesTransparent(page);
   await expectViewerBackgroundLayerOpacity(page, { checker: 0, spectrumGrid: 1 });
 });
 

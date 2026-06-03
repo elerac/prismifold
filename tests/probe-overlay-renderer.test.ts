@@ -133,9 +133,42 @@ describe('probe overlay renderer', () => {
     expect(context.fillRect).toHaveBeenCalled();
     expect(context.strokeRect).toHaveBeenCalledTimes(10);
   });
+
+  it('clears the full backing store when the image is cleared or disposed', () => {
+    const { canvas, renderer, context } = createProbeOverlayHarness();
+
+    renderer.resize(128, 64);
+    renderer.setImagePresent(true);
+    renderer.render(createViewerState({
+      zoom: 32,
+      panX: 1,
+      panY: 0.5,
+      hoveredPixel: { ix: 0, iy: 0 }
+    }));
+
+    expect(context.strokeRect).toHaveBeenCalled();
+    context.clearRect.mockClear();
+    canvas.width = 256;
+    canvas.height = 128;
+
+    renderer.clearImage();
+
+    expect(context.clearRect).toHaveBeenCalledTimes(1);
+    expect(context.clearRect).toHaveBeenCalledWith(0, 0, 256, 128);
+
+    context.clearRect.mockClear();
+    canvas.width = 512;
+    canvas.height = 256;
+
+    renderer.dispose();
+
+    expect(context.clearRect).toHaveBeenCalledTimes(1);
+    expect(context.clearRect).toHaveBeenCalledWith(0, 0, 512, 256);
+  });
 });
 
 function createProbeOverlayHarness(): {
+  canvas: HTMLCanvasElement;
   renderer: ProbeOverlayRenderer;
   context: CanvasRenderingContext2D & {
     clearRect: ReturnType<typeof vi.fn>;
@@ -163,8 +196,10 @@ function createProbeOverlayHarness(): {
     return null;
   });
 
+  const canvas = document.createElement('canvas');
   return {
-    renderer: new ProbeOverlayRenderer(document.createElement('canvas')),
+    canvas,
+    renderer: new ProbeOverlayRenderer(canvas),
     context
   };
 }

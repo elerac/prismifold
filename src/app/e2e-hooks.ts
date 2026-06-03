@@ -99,7 +99,7 @@ export function installE2EHooks(core: ViewerAppCore): () => void {
       return state;
     },
     waitForSessionCount: (count, timeoutMs) => waitFor((state) => (
-      state.sessionCount >= count &&
+      state.sessionCount === count &&
       !state.isLoading &&
       state.pendingOpenedImageCount === 0
     ), timeoutMs),

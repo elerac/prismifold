@@ -99,7 +99,7 @@ export class ProbeOverlayRenderer implements Disposable {
     this.depthChannelName = null;
     this.depthRange = null;
     this.depthProjectionCache.clear();
-    this.overlayContext.clearRect(0, 0, this.viewport.width, this.viewport.height);
+    this.clearCanvas();
   }
 
   render(state: ViewerState): void {
@@ -124,7 +124,7 @@ export class ProbeOverlayRenderer implements Disposable {
       return;
     }
 
-    this.overlayContext.clearRect(0, 0, this.viewport.width, this.viewport.height);
+    this.clearCanvas();
   }
 
   renderPane(state: ViewerState, pane: ViewerPaneRenderInfo): void {
@@ -181,7 +181,7 @@ export class ProbeOverlayRenderer implements Disposable {
 
     this.disposed = true;
     this.hasImage = false;
-    this.overlayContext.clearRect(0, 0, this.viewport.width, this.viewport.height);
+    this.clearCanvas();
   }
 
   private drawImageProbeMarker(state: ViewerState, pixel: ImagePixel, viewport: ViewportInfo): void {
@@ -283,6 +283,10 @@ export class ProbeOverlayRenderer implements Disposable {
     ctx.lineWidth = 1;
     ctx.fillRect(x - half, y - half, size, size);
     ctx.strokeRect(x - half, y - half, size, size);
+  }
+
+  private clearCanvas(): void {
+    this.overlayContext.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
   }
 }
 
