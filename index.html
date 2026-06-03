@@ -30,6 +30,7 @@
           <a href="#downloads">Downloads</a>
           <a href="#features">Features</a>
           <a href="#gallery">Gallery</a>
+          <a href="#openexr-io">Guidance</a>
           <a href="https://github.com/elerac/prismifold">GitHub</a>
         </nav>
       </header>
@@ -462,6 +463,44 @@
               </div>
             </figure>
           </div>
+        </div>
+      </section>
+
+      <section id="openexr-io" class="guidance-section" aria-labelledby="openexr-io-title">
+        <div class="section-inner guidance-layout">
+          <div class="section-heading guidance-heading">
+            <h2 id="openexr-io-title">OpenEXR I/O guidance</h2>
+            <p>
+              This viewer groups OpenEXR channels by exact names inside each decoded layer. Use
+              conventional names and complete sets so the viewer can infer color, spectral series,
+              and Stokes-derived polarization views without custom rules.
+            </p>
+            <ul class="guidance-list">
+              <li><code>R/G/B</code> or <code>R/G/B/A</code> for color and alpha.</li>
+              <li>
+                Spectral channels should end in <code>nm</code>, such as <code>400nm</code>,
+                <code>500nm</code>, or <code>reflectance.500nm</code>, so wavelength series can be
+                sorted and grouped.
+              </li>
+              <li>
+                Stokes data should use complete matching <code>S0/S1/S2</code> sets, with optional
+                <code>S3</code>; suffixes and wavelengths should match across components.
+              </li>
+            </ul>
+          </div>
+
+          <a
+            class="button button-primary guidance-link"
+            href="skills/openexr-io/SKILL.md"
+            aria-label="Open OpenEXR I/O guidance">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 3h8l4 4v14H6z" />
+              <path d="M14 3v5h5" />
+              <path d="M9 12h6" />
+              <path d="M9 16h6" />
+            </svg>
+            <span>Open SKILL.md</span>
+          </a>
         </div>
       </section>
     </main>

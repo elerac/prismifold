@@ -20,6 +20,7 @@ const WINDOWS_DESKTOP_URL =
 const MACOS_DESKTOP_URL =
   'https://github.com/elerac/prismifold/releases/latest/download/Prismifold-macos-arm64.dmg';
 const VSCODE_MARKETPLACE_URL = 'https://marketplace.visualstudio.com/items?itemName=elerac.prismifold-vscode';
+const OPENEXR_IO_SKILL_URL = 'skills/openexr-io/SKILL.md';
 const EXPECTED_BOOTSTRAP_ABORT = 'Viewer application has not finished initializing.';
 
 function watchUnexpectedErrors(page: Page): string[] {
@@ -132,6 +133,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     '#downloads'
   );
   await expect(page.getByRole('link', { name: 'Gallery', exact: true })).toHaveAttribute('href', '#gallery');
+  await expect(page.getByRole('link', { name: 'Guidance', exact: true })).toHaveAttribute('href', '#openexr-io');
 
   const preview = page.getByRole('img', { name: /Prismifold interface/ });
   await expect(preview).toBeVisible();
@@ -257,17 +259,38 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   await expect(page.getByText(MIDDLEBURY_SCENES2021_URL, { exact: true })).toHaveCount(0);
   await expect(page.getByText(KAIST_DATASET_URL, { exact: true })).toHaveCount(0);
   await expect(page.getByText(POLYHAVEN_BROWN_PHOTOSTUDIO_PAGE_URL, { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'OpenEXR I/O guidance', level: 2 })).toBeVisible();
+  await expect(page.getByText(
+    'This viewer groups OpenEXR channels by exact names inside each decoded layer. Use conventional names and complete sets so the viewer can infer color, spectral series, and Stokes-derived polarization views without custom rules.',
+    { exact: true }
+  )).toBeVisible();
+  await expect(page.getByText('R/G/B or R/G/B/A for color and alpha.', { exact: true })).toBeVisible();
+  await expect(page.getByText(
+    'Spectral channels should end in nm, such as 400nm, 500nm, or reflectance.500nm, so wavelength series can be sorted and grouped.',
+    { exact: true }
+  )).toBeVisible();
+  await expect(page.getByText(
+    'Stokes data should use complete matching S0/S1/S2 sets, with optional S3; suffixes and wavelengths should match across components.',
+    { exact: true }
+  )).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open OpenEXR I/O guidance', exact: true })).toHaveAttribute(
+    'href',
+    OPENEXR_IO_SKILL_URL
+  );
+  await expect(page.getByText('Open SKILL.md', { exact: true })).toBeVisible();
 
   const sectionOrder = await page.evaluate(() => {
     const downloads = document.querySelector('#downloads');
     const features = document.querySelector('#features');
     const gallery = document.querySelector('#gallery');
-    if (!downloads || !features || !gallery) {
+    const skill = document.querySelector('#openexr-io');
+    if (!downloads || !features || !gallery || !skill) {
       return false;
     }
     return (
       Boolean(downloads.compareDocumentPosition(features) & Node.DOCUMENT_POSITION_FOLLOWING) &&
-      Boolean(features.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING)
+      Boolean(features.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+      Boolean(gallery.compareDocumentPosition(skill) & Node.DOCUMENT_POSITION_FOLLOWING)
     );
   });
   expect(sectionOrder).toBe(true);

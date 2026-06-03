@@ -360,6 +360,57 @@ main {
   border-top: 1px solid var(--border);
 }
 
+.guidance-section {
+  padding: 54px 0 56px;
+  background: var(--page-bg);
+  border-top: 1px solid var(--border);
+}
+
+.guidance-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 760px);
+  gap: 18px;
+  align-items: start;
+}
+
+.section-heading.guidance-heading {
+  max-width: 760px;
+  margin-bottom: 0;
+}
+
+.guidance-link {
+  align-self: start;
+  justify-self: start;
+  margin-top: 2px;
+}
+
+.guidance-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 4px 0 0;
+  list-style: none;
+}
+
+.guidance-list li {
+  position: relative;
+  padding-left: 15px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.guidance-list li::before {
+  position: absolute;
+  top: 0.72em;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  content: "";
+  background: var(--accent);
+  border-radius: 50%;
+}
+
 .section-heading {
   display: grid;
   gap: 10px;
@@ -639,6 +690,14 @@ main {
     gap: 22px;
   }
 
+  .guidance-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .guidance-link {
+    justify-self: start;
+  }
+
   .feature-catalog {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -706,7 +765,8 @@ main {
 
   .features-section,
   .downloads-section,
-  .gallery-section {
+  .gallery-section,
+  .guidance-section {
     padding: 44px 0 48px;
   }
 
