@@ -1,37 +1,55 @@
 ---
 name: openexr-io
-description: OpenEXR image I/O guidance for choosing channel names, viewer-compatible grouping patterns, and Python read/write snippets using OpenImageIO. Use when creating, inspecting, converting, validating, or documenting .exr files for this viewer or for OpenEXR interoperability.
+description: OpenEXR image I/O guidance for choosing channel names, channel-recognition grouping patterns, and Python read/write snippets using OpenImageIO. Use when creating, inspecting, converting, validating, or documenting .exr files for predictable channel grouping or OpenEXR interoperability.
 ---
 
 # OpenEXR I/O
 
 ## Core Guidance
 
-Prefer simple, default-compatible OpenEXR files before relying on custom viewer rules.
+Prefer simple, conventional OpenEXR files before relying on custom recognition rules.
 
 - Include `R/G/B` or `R/G/B/A` when the image has natural color channels. This is recommended for interoperability, not required for specialized data-only files.
-- Use `zip` or `piz` for strict lossless output. Avoid `pxr24`, `b44`, `b44a`, `dwaa`, and `dwab` when exact sample values must round-trip.
-- Prefer the channel names below. Custom channel-recognition regexes exist in the viewer, but generated files should not depend on user customization.
+- Use `zip` or `piz` for strict lossless output.
+- Prefer the channel names below. Treat custom channel-recognition regexes as an escape hatch; generated files should not depend on user customization.
 
 ## Channel Names
 
-Use exact names and complete groups. Grouping is per decoded layer, so do not rely on an EXR part or layer name to complete a channel set.
+Use exact suffixes and complete groups. Prefixes such as `hoge` and `fuga` are placeholders; replace them with any stable name that belongs to the data.
 
 - Main color: `R`, `G`, `B`, optional `A`.
-- Layer-style color: `layer.R`, `layer.G`, `layer.B`, optional `layer.A`.
-- Alpha companions: bare `A`, or matching `layer.A` for `layer.R/G/B` and `depth.A` for `depth.Z`.
-- Depth: prefer `Z` or `depth.Z`; use positive finite values for depth projection.
-- Generic vectors: `vector.X`, `vector.Y`, `vector.Z`.
+- Named color group: `hoge.R`, `hoge.G`, `hoge.B`, optional `hoge.A`.
+- Alpha companions: bare `A`, or matching-prefix names such as `hoge.A` for `hoge.R/G/B` and `fuga.A` for `fuga.Z`.
+- Depth: prefer `Z`; depth-like names ending in `.Z`, such as `hogeDepth.Z`, are recognized by default. Use positive finite values for depth projection.
+- XYZ component groups: `hoge.X`, `hoge.Y`, `hoge.Z`.
 - Normal maps: `N.X/Y/Z`, `normal.X/Y/Z`, or names ending in `_normal.X/Y/Z`. Normal-map recognition takes precedence over generic XYZ grouping.
-- UV or motion vectors: `motion.U`, `motion.V`, optional `motion.A`.
-- Mueller matrices: complete `M00` through `M33`; RGB Mueller uses `M00.R/G/B` through `M33.R/G/B`.
+- UV component groups: `fuga.U`, `fuga.V`, optional `fuga.A`.
+- Mueller matrices: complete `M00` through `M33`; suffixed scalar Mueller can use `M00.hoge` through `M33.hoge`; RGB Mueller uses `M00.R/G/B` through `M33.R/G/B`.
+
+## Regex Recommendations
+
+- RGB group patterns should include `base`, `r`, `g`, `b`, and `a` captures, and match names like `R/G/B/A` and `hoge.R/G/B/A`.
+- Spectral-series patterns should include `wavelength`, with optional `series`, and match names like `400nm`, `hoge.400nm`, and `hoge400nm`.
+- Scalar Stokes patterns should include one or more of `s0`, `s1`, `s2`, `s3`, with optional `suffix`.
+- RGB Stokes patterns should include one or more of `s0`, `s1`, `s2`, `s3`, plus one or more of `r`, `g`, `b`.
+- Spectral Stokes patterns should include one or more of `s0`, `s1`, `s2`, `s3`, plus `wavelength`.
+- Mueller scalar patterns should include `element`, with optional `suffix`; Mueller RGB patterns should include `element` plus one or more of `r`, `g`, `b`.
+- Alpha-companion patterns should include `a` or `alpha`, with optional `base`, and match names like `A`, `Alpha`, `hoge.A`, and `hoge.Alpha`.
+
+Example regex patterns:
+
+```text
+component.rgb: ^(?<base>.+)_(?:(?<r>[rR]ed)|(?<g>[gG]reen)|(?<b>[bB]lue)|(?<a>[aA]lpha))$
+spectral.series: ^(?:(?<series>hoge|fuga)\.)?(?<wavelength>\d+(?:[.,]\d+)?)[nN][mM]$
+stokes.scalar: ^(?:(?<s0>[sS]0)|(?<s1>[sS]1)|(?<s2>[sS]2)|(?<s3>[sS]3))(?:\.(?<suffix>hoge|fuga))?$
+```
 
 ## Spectral Channels
 
-Use wavelength channel names ending in `nm`. The viewer sorts spectral samples by numeric wavelength and groups a series when it has at least two unique wavelengths.
+Use wavelength channel names ending in `nm`. Use at least two unique wavelengths so spectral samples can be sorted numerically and grouped as a series.
 
 - Bare series: `400nm`, `500nm`, `600nm` forms one spectral series.
-- Named series: `reflectance.400nm`, `reflectance.500nm`, `reflectance.600nm` becomes a separate grouped series keyed by `reflectance`.
+- Named series: `hoge.400nm`, `hoge.500nm`, `hoge.600nm` becomes a separate grouped series keyed by `hoge`.
 - Decimal wavelengths are accepted with a point or comma, such as `532.5nm` or `532,5nm`.
 - Keep units in the channel name. Do not write wavelength names without the `nm` suffix if you expect automatic spectral grouping.
 
@@ -40,7 +58,7 @@ Use wavelength channel names ending in `nm`. The viewer sorts spectral samples b
 Use `S0`, `S1`, `S2`, and optionally `S3`. Keep Stokes components in complete, matching sets.
 
 - Scalar Stokes: use `S0`, `S1`, and `S2` as the minimum complete linear Stokes set; add `S3` when circular or full Stokes data is available.
-- Suffixed scalar Stokes: use matching suffixes for related scalar sets, such as `S0.Y`, `S1.Y`, `S2.Y`, and optional `S3.Y`.
+- Suffixed scalar Stokes: use matching suffixes for related scalar sets, such as `S0.hoge`, `S1.hoge`, `S2.hoge`, and optional `S3.hoge`.
 - RGB Stokes: use complete RGB component sets, such as `S0.R/G/B`, `S1.R/G/B`, and `S2.R/G/B`; add `S3.R/G/B` when full RGB Stokes data is available.
 - Spectral Stokes: use one complete `S0/S1/S2` set per wavelength, such as `S0.500nm`, `S1.500nm`, and `S2.500nm`; use at least two wavelengths for a spectral Stokes series. Add `S3.<wavelength>nm` for every wavelength when full spectral Stokes data is available.
 
@@ -50,7 +68,7 @@ Use OpenEXR compression names as lowercase OIIO strings.
 
 - `zip`: lossless zlib compression in 16-scanline blocks. Use as a dependable default for many generated images.
 - `piz`: lossless wavelet-based compression. Prefer for photographic, grainy, or high-frequency images when size matters.
-- `zips`: lossless zlib compression one scanline at a time. Use only when scanline-local access is more important than compression ratio.
+- `zips`: lossless zlib compression one scanline at a time. Use when scanline-local access matters.
 
 ## Basic OpenImageIO Python
 
@@ -63,21 +81,19 @@ import numpy as np
 import OpenImageIO as oiio
 
 
-def read_exr(path: Path) -> tuple[oiio.ImageSpec, list[str], np.ndarray]:
+def imread_exr(path: Path) -> np.ndarray:
     image_input = oiio.ImageInput.open(str(path))
     if image_input is None:
         raise RuntimeError(f"Failed to open {path}")
 
     try:
-        spec = image_input.spec()
-        channel_names = list(spec.channelnames)
         pixels = image_input.read_image(format=oiio.FLOAT)
         if pixels is None:
             raise RuntimeError(f"Failed to read {path}: {image_input.geterror()}")
     finally:
         image_input.close()
 
-    return spec, channel_names, np.asarray(pixels, dtype=np.float32)
+    return np.asarray(pixels, dtype=np.float32)
 ```
 
 Write named channels with lossless compression:
@@ -89,7 +105,7 @@ import numpy as np
 import OpenImageIO as oiio
 
 
-def write_exr(path: Path, pixels: np.ndarray, channel_names: list[str], compression: str = "zip") -> None:
+def imwrite_exr(path: Path, pixels: np.ndarray, channel_names: list[str], compression: str = "zip") -> None:
     pixels = np.asarray(pixels, dtype=np.float32)
     if pixels.ndim != 3:
         raise ValueError(f"Expected HxWxC pixels, got {pixels.shape}")
