@@ -311,9 +311,9 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     MIDDLEBURY_SCENES2021_URL
   );
   await expect(page.locator('.gallery-item').filter({
-    hasText: /Hyperspectral channels are automatically computed into RGB for visualization/
+    hasText: /Spectral channels are automatically computed into RGB for visualization/
   })).toHaveCount(1);
-  await expect(page.getByText('Hyperspectral visualization', { exact: true })).toBeVisible();
+  await expect(page.getByText('Spectral visualization', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'KAIST Hyperspectral Image Dataset', exact: true })).toHaveAttribute(
     'href',
     KAIST_DATASET_URL
@@ -432,7 +432,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     'Source value inspection',
     'Screenshot export',
     'Stokes vector visualization',
-    'Hyperspectral visualization',
+    'Spectral visualization',
     'Depth map view',
     'Panorama view',
     'HTML embed'
@@ -508,7 +508,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     state: null
   });
 
-  await expectGalleryCardLaunch(page, 'Hyperspectral visualization', {
+  await expectGalleryCardLaunch(page, 'Spectral visualization', {
     accessibleName: /hyperspectral EXR data with a locked pixel probe.*spectral channel thumbnails expanded/,
     src: 'project-page/kaist-hyperspectral-inspection.png'
   }, {
