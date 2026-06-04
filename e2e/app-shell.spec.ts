@@ -274,7 +274,7 @@ test('boots an empty app shell with menu actions gated until an image opens @smo
   await expect(autoExposureButton).toHaveAttribute('aria-pressed', 'false');
   await expect(invalidValueWarningButton).toBeVisible();
   await expect(invalidValueWarningButton).toHaveAttribute('aria-label', 'Warn invalid values');
-  await expect(invalidValueWarningButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(invalidValueWarningButton).toHaveAttribute('aria-pressed', 'false');
   await expectViewerCheckerBackground(viewer);
 
   await autoFitButton.click();
@@ -282,9 +282,9 @@ test('boots an empty app shell with menu actions gated until an image opens @smo
   await autoFitButton.click();
   await expect(autoFitButton).toHaveAttribute('aria-pressed', 'false');
   await invalidValueWarningButton.click();
-  await expect(invalidValueWarningButton).toHaveAttribute('aria-pressed', 'false');
-  await invalidValueWarningButton.click();
   await expect(invalidValueWarningButton).toHaveAttribute('aria-pressed', 'true');
+  await invalidValueWarningButton.click();
+  await expect(invalidValueWarningButton).toHaveAttribute('aria-pressed', 'false');
 
   await fileMenuButton.click();
   await expect(fileMenu).toBeVisible();

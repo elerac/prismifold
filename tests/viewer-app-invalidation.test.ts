@@ -131,14 +131,14 @@ describe('viewer app lanes', () => {
     const state = createActiveState();
     const nextState = {
       ...state,
-      invalidValueWarningEnabled: false
+      invalidValueWarningEnabled: true
     };
     const selectUiSnapshot = createViewerUiSnapshotSelector();
     const snapshot = selectUiSnapshot(nextState);
     const uiFlags = createUiFlags(state, nextState);
     const renderFlags = createRenderFlags(state, nextState);
 
-    expect(snapshot.invalidValueWarningEnabled).toBe(false);
+    expect(snapshot.invalidValueWarningEnabled).toBe(true);
     expect(hasUiFlag(uiFlags, ViewerUiInvalidationFlags.InvalidValueWarning)).toBe(true);
     expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.RenderImage)).toBe(true);
     expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.ResourcePrepare)).toBe(false);

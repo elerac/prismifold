@@ -931,19 +931,19 @@ describe('top bar and display controls', () => {
     const ui = new ViewerUi(createUiCallbacks({ onInvalidValueWarningChange }));
     const button = document.getElementById('app-invalid-value-warning-button') as HTMLButtonElement;
 
-    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.getAttribute('aria-pressed')).toBe('false');
     expect(button.closest('#app-menu-bar')).not.toBeNull();
     expect(document.getElementById('invalid-value-warning-control')).toBeNull();
     expect(document.getElementById('invalid-value-warning-checkbox')).toBeNull();
 
     button.click();
 
-    expect(button.getAttribute('aria-pressed')).toBe('false');
-    expect(onInvalidValueWarningChange).toHaveBeenLastCalledWith(false);
-
-    ui.setInvalidValueWarningEnabled(true);
-
     expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(onInvalidValueWarningChange).toHaveBeenLastCalledWith(true);
+
+    ui.setInvalidValueWarningEnabled(false);
+
+    expect(button.getAttribute('aria-pressed')).toBe('false');
   });
 
   it('persists and dispatches the auto exposure percentile setting', () => {
@@ -2465,7 +2465,7 @@ describe('panel split sizing', () => {
     stokesMaskCheckbox.checked = true;
     spectralGroupingCheckbox.checked = false;
     invalidValueWarningButton.click();
-    expect(invalidValueWarningButton.getAttribute('aria-pressed')).toBe('false');
+    expect(invalidValueWarningButton.getAttribute('aria-pressed')).toBe('true');
     onInvalidValueWarningChange.mockClear();
     autoExposurePercentileInput.value = '97.5';
     autoExposurePercentileInput.dispatchEvent(new Event('change', { bubbles: true }));
@@ -2476,7 +2476,7 @@ describe('panel split sizing', () => {
     expect(onResetSettings).toHaveBeenCalledTimes(1);
     expect(onMaskInvalidStokesVectorsChange).toHaveBeenCalledWith(false);
     expect(onChannelRecognitionSettingsChange).toHaveBeenCalledWith(createDefaultChannelRecognitionSettings());
-    expect(onInvalidValueWarningChange).toHaveBeenCalledWith(true);
+    expect(onInvalidValueWarningChange).toHaveBeenCalledWith(false);
     expect(themeSelect.value).toBe('default');
     expect(viewerBackgroundSelect.value).toBe('checker');
     expect(spectrumMotionSelect.value).toBe(SPECTRUM_LATTICE_MOTION_ANIMATE);
@@ -2485,7 +2485,7 @@ describe('panel split sizing', () => {
     expect(stokesAolpSelect.value).toBe('1');
     expect(stokesMaskCheckbox.checked).toBe(false);
     expect(spectralGroupingCheckbox.checked).toBe(true);
-    expect(invalidValueWarningButton.getAttribute('aria-pressed')).toBe('true');
+    expect(invalidValueWarningButton.getAttribute('aria-pressed')).toBe('false');
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
     expect(window.localStorage.getItem(VIEWER_BACKGROUND_STORAGE_KEY)).toBeNull();
@@ -2699,7 +2699,7 @@ describe('view menu', () => {
     expect(autoExposureButton.dataset.tooltip).toBe('Auto exposure');
     expect(autoExposureButton.title).toBe('Auto exposure');
     expect(invalidValueWarningButton.getAttribute('aria-label')).toBe('Warn invalid values');
-    expect(invalidValueWarningButton.getAttribute('aria-pressed')).toBe('true');
+    expect(invalidValueWarningButton.getAttribute('aria-pressed')).toBe('false');
     expect(invalidValueWarningButton.dataset.tooltip).toBe('Warn invalid values');
     expect(invalidValueWarningButton.title).toBe('Warn invalid values');
     expect(invalidValueWarningButton.querySelectorAll('.app-menu-icon')).toHaveLength(1);
