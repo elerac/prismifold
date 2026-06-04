@@ -283,9 +283,8 @@ export class ViewerInteraction {
   }
 
   private readonly onWheel = (event: WheelEvent): void => {
-    event.preventDefault();
-
     if (this.getScreenshotSelection().active) {
+      event.preventDefault();
       return;
     }
 
@@ -293,6 +292,8 @@ export class ViewerInteraction {
     if (!imageSize) {
       return;
     }
+
+    event.preventDefault();
 
     const panePoint = this.resolveActivePanePoint(event);
     if (!panePoint.inside) {
@@ -381,14 +382,15 @@ export class ViewerInteraction {
       return;
     }
 
-    const panePoint = this.resolvePanePoint(event, { activate: true });
-    const point = panePoint.point;
-    this.dragPane = panePoint.pane;
-    this.lastPointerInElement = point;
     const imageSize = this.callbacks.getImageSize();
     if (!imageSize) {
       return;
     }
+
+    const panePoint = this.resolvePanePoint(event, { activate: true });
+    const point = panePoint.point;
+    this.dragPane = panePoint.pane;
+    this.lastPointerInElement = point;
 
     const state = this.callbacks.getState();
     const viewport = panePoint.pane.viewport;
@@ -589,17 +591,18 @@ export class ViewerInteraction {
       return;
     }
 
+    const imageSize = this.callbacks.getImageSize();
+    if (!imageSize) {
+      this.clearDrag(event.pointerId);
+      return;
+    }
+
     const panePoint = this.resolvePanePoint(event, {
       activate: !this.dragging,
       preferDragPane: this.dragging
     });
     const point = panePoint.point;
     this.lastPointerInElement = point;
-    const imageSize = this.callbacks.getImageSize();
-    if (!imageSize) {
-      this.clearDrag(event.pointerId);
-      return;
-    }
 
     if (this.dragging && this.dragMode === 'roi' && this.roiAnchorPixel) {
       const state = this.callbacks.getState();

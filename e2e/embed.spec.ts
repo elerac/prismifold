@@ -48,6 +48,64 @@ test('defers embed URL loads when autoLoad is false', async ({ page }) => {
   });
 });
 
+test('lets the parent page scroll over an unloaded deferred embed', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 480 });
+  await page.goto('/');
+  await page.setContent(`
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 1800px;
+        overflow: auto;
+      }
+
+      .spacer {
+        height: 220px;
+      }
+
+      iframe {
+        display: block;
+        width: 520px;
+        height: 280px;
+        border: 0;
+      }
+    </style>
+    <div class="spacer"></div>
+    <iframe
+      id="deferred-embed"
+      title="Deferred Prismifold embed"
+      src="/app/?ui=embed&src=%2Fcbox_rgb.exr&autoLoad=false"
+    ></iframe>
+    <div class="spacer"></div>
+  `);
+
+  const embed = page.locator('#deferred-embed');
+  const frame = page.frameLocator('#deferred-embed');
+  const loadButton = frame.getByRole('button', { name: 'Click to load image', exact: true });
+  const openFullButton = frame.getByRole('button', { name: 'Open full viewer', exact: true });
+
+  await expect(frame.locator('#gl-canvas')).toBeVisible();
+  await expect(openFullButton).toBeDisabled();
+  await expect(loadButton).toBeVisible();
+
+  const box = await embed.boundingBox();
+  if (!box) {
+    throw new Error('Deferred embed iframe was not visible.');
+  }
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 260);
+
+  await expect.poll(async () => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+  await loadButton.click();
+  await expect(loadButton).toBeHidden();
+  await expect(openFullButton).toBeEnabled({
+    timeout: 30000
+  });
+});
+
 test('shows compact channel selection in the embed bottom panel', async ({ page }) => {
   await page.setViewportSize({ width: 640, height: 360 });
   await gotoEmbed(page, '/app/?ui=embed&src=%2Fcbox_rgb.exr&bottomPanel=channels');

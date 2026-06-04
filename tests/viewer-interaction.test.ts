@@ -91,6 +91,40 @@ describe('viewer interaction roi gestures', () => {
     expect(harness.onToggleLockPixel).toHaveBeenCalledWith({ ix: 5, iy: 5 });
   });
 
+  it('does not cancel scrolling or activate viewer gestures when no image is loaded', () => {
+    const harness = createHarness({}, {
+      imageSize: null,
+      viewport: { width: 50, height: 100 },
+      panes: [
+        {
+          path: [0],
+          rect: { x: 0, y: 0, width: 50, height: 100 }
+        },
+        {
+          path: [1],
+          rect: { x: 50, y: 0, width: 50, height: 100 }
+        }
+      ],
+      activePanePath: [0]
+    });
+
+    const wheelEvent = dispatchWheel(harness.element, { clientX: 75, clientY: 50, deltaY: 100 });
+    expect(wheelEvent.defaultPrevented).toBe(false);
+    expect(harness.onActivePaneChange).not.toHaveBeenCalled();
+    expect(harness.onHoverPixel).not.toHaveBeenCalled();
+    expect(harness.onViewChange).not.toHaveBeenCalled();
+
+    dispatchPointer(harness.element, 'pointerdown', { pointerId: 1, clientX: 75, clientY: 50 });
+    dispatchPointer(harness.element, 'pointermove', { pointerId: 1, clientX: 95, clientY: 50 });
+    dispatchPointer(harness.element, 'pointerup', { pointerId: 1, clientX: 95, clientY: 50 });
+
+    expect(harness.onActivePaneChange).not.toHaveBeenCalled();
+    expect(harness.onViewChange).not.toHaveBeenCalled();
+    expect(harness.onToggleLockPixel).not.toHaveBeenCalled();
+    expect(harness.onDraftRoi).not.toHaveBeenCalled();
+    expect(harness.onCommitRoi).not.toHaveBeenCalled();
+  });
+
   it('ignores secondary-button drags outside screenshot selection', () => {
     const harness = createHarness();
 
@@ -1510,10 +1544,12 @@ function dispatchPointer(
 function dispatchWheel(
   element: HTMLElement,
   init: Partial<WheelEventInit> & { clientX: number; clientY: number }
-): void {
-  element.dispatchEvent(new WheelEvent('wheel', {
+): WheelEvent {
+  const event = new WheelEvent('wheel', {
     bubbles: true,
     cancelable: true,
     ...init
-  }));
+  });
+  element.dispatchEvent(event);
+  return event;
 }
