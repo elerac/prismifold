@@ -447,6 +447,13 @@ output {
   gap: 2px;
 }
 
+.app-menu-actions-separator {
+  width: 1px;
+  height: 18px;
+  margin: 0 5px;
+  background: var(--panel-border);
+}
+
 .app-menu-icon-button {
   width: var(--control-height-icon);
   height: var(--control-height-icon);

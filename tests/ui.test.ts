@@ -2667,6 +2667,7 @@ describe('view menu', () => {
     const invalidValueWarningButton = document.getElementById(
       'app-invalid-value-warning-button'
     ) as HTMLButtonElement;
+    const actionsSeparator = document.querySelector('.app-menu-actions-separator') as HTMLDivElement;
     const screenshotButton = document.getElementById('app-screenshot-button') as HTMLButtonElement;
     const metadataButton = document.getElementById('app-metadata-button') as HTMLButtonElement;
     const fullscreenButton = document.getElementById('app-fullscreen-button') as HTMLButtonElement;
@@ -2676,10 +2677,11 @@ describe('view menu', () => {
     expect(metadataButton.closest('#app-menu-bar')).not.toBeNull();
     expect(settingsButton.closest('#app-menu-bar')).not.toBeNull();
     expect(actions).not.toBeNull();
-    expect(Array.from(actions.children).map((child) => child.id)).toEqual([
+    expect(Array.from(actions.children).map((child) => child.id || child.className)).toEqual([
       'app-auto-fit-image-button',
       'app-auto-exposure-button',
       'app-invalid-value-warning-button',
+      'app-menu-actions-separator',
       'app-screenshot-button',
       'app-metadata-button',
       'app-fullscreen-button',
@@ -2687,7 +2689,11 @@ describe('view menu', () => {
     ]);
     expect(autoExposureButton.previousElementSibling).toBe(autoFitButton);
     expect(invalidValueWarningButton.previousElementSibling).toBe(autoExposureButton);
-    expect(screenshotButton.previousElementSibling).toBe(invalidValueWarningButton);
+    expect(actionsSeparator.previousElementSibling).toBe(invalidValueWarningButton);
+    expect(actionsSeparator.nextElementSibling).toBe(screenshotButton);
+    expect(actionsSeparator.getAttribute('role')).toBe('separator');
+    expect(actionsSeparator.getAttribute('aria-orientation')).toBe('vertical');
+    expect(screenshotButton.previousElementSibling).toBe(actionsSeparator);
     expect(metadataButton.previousElementSibling).toBe(screenshotButton);
     expect(fullscreenButton.previousElementSibling).toBe(metadataButton);
     expect(settingsButton.previousElementSibling).toBe(fullscreenButton);
