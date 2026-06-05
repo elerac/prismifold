@@ -27,6 +27,8 @@ import type { ViewerState } from '../../types';
 import type { ViewerPaneRenderInfo } from '../../viewer-pane-layout';
 import {
   COLORMAP_TEXTURE_UNIT,
+  DEPTH_POSITION_Y_TEXTURE_UNIT,
+  DEPTH_POSITION_Z_TEXTURE_UNIT,
   DEPTH_TEXTURE_UNIT,
   DEFAULT_RENDER_PASS_OPTIONS
 } from './constants';
@@ -144,10 +146,11 @@ export function renderDepthPass(
 ): void {
   const gl = state.gl;
   const sourceSize = state.depthSourceSize ?? state.imageSize;
-  const depthRange = state.activeDepthRange;
+  const depthSource = state.activeDepthSource;
+  const depthGeometry = state.activeDepthGeometry;
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  if (!sourceSize || !depthRange || sourceSize.width <= 0 || sourceSize.height <= 0 || !state.activeDepthChannel) {
+  if (!sourceSize || !depthSource || !depthGeometry || sourceSize.width <= 0 || sourceSize.height <= 0) {
     return;
   }
 
@@ -162,7 +165,11 @@ export function renderDepthPass(
   gl.activeTexture(gl.TEXTURE0 + COLORMAP_TEXTURE_UNIT);
   gl.bindTexture(gl.TEXTURE_2D, state.colormapTexture);
   gl.activeTexture(gl.TEXTURE0 + DEPTH_TEXTURE_UNIT);
-  gl.bindTexture(gl.TEXTURE_2D, state.activeDepthTexture ?? state.zeroTexture);
+  gl.bindTexture(gl.TEXTURE_2D, state.activeDepthTextures?.x ?? state.zeroTexture);
+  gl.activeTexture(gl.TEXTURE0 + DEPTH_POSITION_Y_TEXTURE_UNIT);
+  gl.bindTexture(gl.TEXTURE_2D, state.activeDepthTextures?.y ?? state.zeroTexture);
+  gl.activeTexture(gl.TEXTURE0 + DEPTH_POSITION_Z_TEXTURE_UNIT);
+  gl.bindTexture(gl.TEXTURE_2D, state.activeDepthTextures?.z ?? state.zeroTexture);
 
   setCommonUniforms(state, program.uniforms, viewerState, {
     ...options,
@@ -170,6 +177,7 @@ export function renderDepthPass(
     imageHeight: sourceSize.height,
     backgroundMode: 'none'
   });
+  gl.uniform1i(program.uniforms.depthSourceKind, depthSource.kind === 'xyzPosition' ? 1 : 0);
   gl.uniform1f(
     program.uniforms.depthFocalLengthPx,
     resolveDepthFocalLengthPx(sourceSize.width, sourceSize.height, viewerState.depthFocalLengthPx)
@@ -185,7 +193,25 @@ export function renderDepthPass(
   );
   gl.uniform2i(program.uniforms.depthGridSize, sampling.gridWidth, sampling.gridHeight);
   gl.uniform1i(program.uniforms.depthSampleStep, sampling.step);
-  gl.uniform2f(program.uniforms.depthRange, depthRange.min, depthRange.max);
+  if (depthGeometry.kind === 'xyzPosition') {
+    gl.uniform2f(program.uniforms.depthRange, 0, 1);
+    gl.uniform3f(
+      program.uniforms.depthPositionBoundsMin,
+      depthGeometry.bounds.minX,
+      depthGeometry.bounds.minY,
+      depthGeometry.bounds.minZ
+    );
+    gl.uniform3f(
+      program.uniforms.depthPositionBoundsMax,
+      depthGeometry.bounds.maxX,
+      depthGeometry.bounds.maxY,
+      depthGeometry.bounds.maxZ
+    );
+  } else {
+    gl.uniform2f(program.uniforms.depthRange, depthGeometry.range.min, depthGeometry.range.max);
+    gl.uniform3f(program.uniforms.depthPositionBoundsMin, 0, 0, 0);
+    gl.uniform3f(program.uniforms.depthPositionBoundsMax, 1, 1, 1);
+  }
 
   gl.enable(gl.DEPTH_TEST);
   try {

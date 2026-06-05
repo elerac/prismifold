@@ -59,6 +59,22 @@ describe('display revision keys', () => {
     })).toBe('4:spectralRgb:hoge:spectralRgbGrouping:true');
   });
 
+  it('includes serialized depth source ids in depth texture revision keys', () => {
+    expect(buildDisplayTextureRevisionKey({
+      activeLayer: 0,
+      displaySelection: createChannelRgbSelection('R', 'G', 'B'),
+      viewerMode: 'depth',
+      depthChannel: 'Z'
+    })).toBe('0:channelRgb:R:G:B::depth:Z');
+
+    expect(buildDisplayTextureRevisionKey({
+      activeLayer: 0,
+      displaySelection: createChannelRgbSelection('R', 'G', 'B'),
+      viewerMode: 'depth',
+      depthChannel: '__position:P'
+    })).toBe('0:channelRgb:R:G:B::depth:__position:P');
+  });
+
   it('builds luminance revision keys that ignore alpha-only channel changes', () => {
     expect(buildDisplayLuminanceRevisionKey({
       activeLayer: 0,

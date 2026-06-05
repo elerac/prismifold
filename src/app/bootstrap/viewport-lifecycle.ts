@@ -1,6 +1,6 @@
 import {
   DepthProbeProjectionCache,
-  resolveDepthChannelForLayer
+  resolveDepthSourceForLayer
 } from '../../depth';
 import {
   computeFitView,
@@ -85,7 +85,7 @@ export function createViewerInteraction({
         return null;
       }
 
-      const depthChannel = resolveDepthChannelForLayer(
+      const depthSource = resolveDepthSourceForLayer(
         activeLayer.channelNames,
         state.depthChannel,
         {
@@ -98,7 +98,7 @@ export function createViewerInteraction({
         layer: activeLayer,
         width: activeSession.decoded.width,
         height: activeSession.decoded.height,
-        channelName: depthChannel,
+        source: depthSource,
         viewport,
         depthFocalLengthPx: state.depthFocalLengthPx,
         depthYawDeg: state.depthYawDeg,

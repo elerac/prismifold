@@ -3,11 +3,14 @@ precision highp float;
 precision highp int;
 
 uniform sampler2D uDepthTexture;
+uniform sampler2D uDepthPositionYTexture;
+uniform sampler2D uDepthPositionZTexture;
 uniform vec2 uViewport;
 uniform vec2 uOutputSize;
 uniform vec2 uScreenOrigin;
 uniform vec2 uDepthOutputOrigin;
 uniform vec2 uImageSize;
+uniform int uDepthSourceKind;
 uniform float uDepthFocalLengthPx;
 uniform float uDepthYawDeg;
 uniform float uDepthPitchDeg;
@@ -16,11 +19,15 @@ uniform float uDepthPointSizePx;
 uniform ivec2 uDepthGridSize;
 uniform int uDepthSampleStep;
 uniform vec2 uDepthRange;
+uniform vec3 uDepthPositionBoundsMin;
+uniform vec3 uDepthPositionBoundsMax;
 
 out vec2 vDepthPixel;
 flat out int vDepthValid;
 
 const float PI = 3.1415926535897932384626433832795;
+const int DEPTH_SOURCE_SCALAR = 0;
+const int DEPTH_SOURCE_XYZ_POSITION = 1;
 
 bool isFiniteValue(float value) {
   return !(isnan(value) || isinf(value));
@@ -78,28 +85,46 @@ void main() {
     return;
   }
 
-  float depth = texelFetch(uDepthTexture, pixel, 0).r;
-  if (!isFiniteValue(depth) || depth <= 0.0) {
-    rejectVertex();
-    return;
+  vec3 point;
+  if (uDepthSourceKind == DEPTH_SOURCE_XYZ_POSITION) {
+    point = vec3(
+      texelFetch(uDepthTexture, pixel, 0).r,
+      texelFetch(uDepthPositionYTexture, pixel, 0).r,
+      texelFetch(uDepthPositionZTexture, pixel, 0).r
+    );
+    if (!isFiniteValue(point.x) || !isFiniteValue(point.y) || !isFiniteValue(point.z)) {
+      rejectVertex();
+      return;
+    }
+
+    vec3 center = (uDepthPositionBoundsMin + uDepthPositionBoundsMax) * 0.5;
+    vec3 span = max(uDepthPositionBoundsMax - uDepthPositionBoundsMin, vec3(0.0));
+    float sceneScale = max(max(span.x, span.y), max(span.z, 1.0e-6));
+    point = (point - center) / sceneScale;
+  } else {
+    float depth = texelFetch(uDepthTexture, pixel, 0).r;
+    if (!isFiniteValue(depth) || depth <= 0.0) {
+      rejectVertex();
+      return;
+    }
+
+    float focalLengthPx = max(uDepthFocalLengthPx, 1.0);
+    vec2 pixelCenter = vec2(float(pixel.x) + 0.5, float(pixel.y) + 0.5);
+    point = vec3(
+      (pixelCenter.x - uImageSize.x * 0.5) * depth / focalLengthPx,
+      (uImageSize.y * 0.5 - pixelCenter.y) * depth / focalLengthPx,
+      depth
+    );
+
+    float minDepth = uDepthRange.x;
+    float maxDepth = max(uDepthRange.y, minDepth + 1.0e-6);
+    float centerDepth = (minDepth + maxDepth) * 0.5;
+    float depthSpan = max(maxDepth - minDepth, 1.0e-6);
+    float xSpan = uImageSize.x * maxDepth / focalLengthPx;
+    float ySpan = uImageSize.y * maxDepth / focalLengthPx;
+    float sceneScale = max(max(xSpan, ySpan), depthSpan);
+    point = vec3(point.x, point.y, point.z - centerDepth) / max(sceneScale, 1.0e-6);
   }
-
-  float focalLengthPx = max(uDepthFocalLengthPx, 1.0);
-  vec2 pixelCenter = vec2(float(pixel.x) + 0.5, float(pixel.y) + 0.5);
-  vec3 point = vec3(
-    (pixelCenter.x - uImageSize.x * 0.5) * depth / focalLengthPx,
-    (uImageSize.y * 0.5 - pixelCenter.y) * depth / focalLengthPx,
-    depth
-  );
-
-  float minDepth = uDepthRange.x;
-  float maxDepth = max(uDepthRange.y, minDepth + 1.0e-6);
-  float centerDepth = (minDepth + maxDepth) * 0.5;
-  float depthSpan = max(maxDepth - minDepth, 1.0e-6);
-  float xSpan = uImageSize.x * maxDepth / focalLengthPx;
-  float ySpan = uImageSize.y * maxDepth / focalLengthPx;
-  float sceneScale = max(max(xSpan, ySpan), depthSpan);
-  point = vec3(point.x, point.y, point.z - centerDepth) / max(sceneScale, 1.0e-6);
 
   float yawRad = uDepthYawDeg * PI / 180.0;
   float pitchRad = uDepthPitchDeg * PI / 180.0;

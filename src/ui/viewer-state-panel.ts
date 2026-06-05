@@ -43,6 +43,7 @@ export class ViewerStatePanel implements Disposable {
     },
     depth: {
       channel: null,
+      sourceKind: null,
       channelOptions: [],
       focalLengthPx: null,
       resolvedFocalLengthPx: null,
@@ -110,7 +111,8 @@ export class ViewerStatePanel implements Disposable {
     this.elements.viewerStateHfovInput.disabled = !panoramaFieldsActive;
     const normalizedDepth = normalizeDepthReadout(readout.depth);
     this.elements.viewerStateDepthChannelSelect.disabled = !depthFieldsActive || normalizedDepth.channelOptions.length === 0;
-    this.elements.viewerStateDepthFocalInput.disabled = !depthFieldsActive;
+    const depthFocalInputActive = depthFieldsActive && normalizedDepth.sourceKind !== 'xyzPosition';
+    this.elements.viewerStateDepthFocalInput.disabled = !depthFocalInputActive;
     this.elements.viewerStateDepthYawInput.disabled = !depthFieldsActive;
     this.elements.viewerStateDepthPitchInput.disabled = !depthFieldsActive;
     this.elements.viewerStateDepthZoomInput.disabled = !depthFieldsActive;
@@ -127,7 +129,9 @@ export class ViewerStatePanel implements Disposable {
     const focalDisplayValue = formatDepthFocalInputValue(depth);
     this.elements.viewerStateDepthFocalInput.value = focalDisplayValue;
     this.elements.viewerStateDepthFocalInput.placeholder = '';
-    this.elements.viewerStateDepthFocalInput.title = focalDisplayValue;
+    this.elements.viewerStateDepthFocalInput.title = depth.sourceKind === 'xyzPosition'
+      ? 'Focal length applies to scalar depth sources.'
+      : focalDisplayValue;
     const view = normalizeViewReadout(readout.view);
     this.elements.viewerStateDepthYawInput.value = formatViewerStateNumber(view.depthYawDeg, 'depthYawDeg');
     this.elements.viewerStateDepthPitchInput.value = formatViewerStateNumber(view.depthPitchDeg, 'depthPitchDeg');
@@ -373,6 +377,7 @@ function normalizeDepthReadout(
 ): NonNullable<ViewerStateReadoutModel['depth']> {
   return {
     channel: depth?.channel ?? null,
+    sourceKind: depth?.sourceKind ?? null,
     channelOptions: [...(depth?.channelOptions ?? [])],
     focalLengthPx: depth?.focalLengthPx ?? null,
     resolvedFocalLengthPx: depth?.resolvedFocalLengthPx ?? null,

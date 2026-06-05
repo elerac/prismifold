@@ -7,6 +7,7 @@ import {
   parseComponentChannelNameWithRules,
   parseMuellerMatrixChannelNameWithRules,
   parseNormalMapChannelNameWithRules,
+  parsePositionMapChannelNameWithRules,
   parseRgbStokesChannelNameWithRules,
   parseScalarStokesChannelNameWithRules,
   parseSpectralChannelNameWithRules,
@@ -40,6 +41,10 @@ describe('channel recognition name rules', () => {
     expect(parseDepthMapChannelNameWithRules('depth.Z', compiled)).toEqual({ channelName: 'depth.Z' });
     expect(parseDepthMapChannelNameWithRules('cameraDepth.Z', compiled)).toEqual({ channelName: 'cameraDepth.Z' });
     expect(parseDepthMapChannelNameWithRules('beauty.Z', compiled)).toBeNull();
+    expect(parsePositionMapChannelNameWithRules('P.X', compiled)).toEqual({ base: 'P', component: 'x' });
+    expect(parsePositionMapChannelNameWithRules('Position.Y', compiled)).toEqual({ base: 'Position', component: 'y' });
+    expect(parsePositionMapChannelNameWithRules('position.Z', compiled)).toEqual({ base: 'position', component: 'z' });
+    expect(parsePositionMapChannelNameWithRules('beauty.Z', compiled)).toBeNull();
     expect(parseComponentChannelNameWithRules('flow.U', 'uv', compiled)).toEqual({ base: 'flow', slot: 'u' });
     expect(parseSpectralChannelNameWithRules('FUGA500nm', compiled)).toMatchObject({
       wavelength: 500,
@@ -131,6 +136,24 @@ describe('channel recognition name rules', () => {
     expect(parseDepthMapChannelNameWithRules('Z', compiled)).toBeNull();
   });
 
+  it('recognizes custom position-map aliases after applying custom regexes', () => {
+    const rules = createDefaultChannelRecognitionNameRules();
+    rules['position.map'] = {
+      pattern: '^(?<base>worldPosition)_(?:(?<x>px)|(?<y>py)|(?<z>pz))$'
+    };
+    const compiled = compileChannelRecognitionNameRules(rules);
+
+    expect(parsePositionMapChannelNameWithRules('worldPosition_px', compiled)).toEqual({
+      base: 'worldPosition',
+      component: 'x'
+    });
+    expect(parsePositionMapChannelNameWithRules('worldPosition_py', compiled)).toEqual({
+      base: 'worldPosition',
+      component: 'y'
+    });
+    expect(parsePositionMapChannelNameWithRules('P.X', compiled)).toBeNull();
+  });
+
   it('validates regex syntax and required named captures without losing input', () => {
     expect(validateChannelRecognitionNameRule('spectral.series', {
       pattern: '^(?<series>.+)$'
@@ -158,6 +181,18 @@ describe('channel recognition name rules', () => {
       {
         id: 'depth.map',
         message: 'Add a named capture for (?<z>...) or (?<depth>...).'
+      }
+    ]);
+    expect(validateChannelRecognitionNameRule('position.map', {
+      pattern: '^(?<base>.+)_(?<x>px)$'
+    })).toEqual([
+      {
+        id: 'position.map',
+        message: 'Add a named capture for (?<y>...).'
+      },
+      {
+        id: 'position.map',
+        message: 'Add a named capture for (?<z>...).'
       }
     ]);
 
@@ -197,6 +232,7 @@ describe('channel recognition name rules', () => {
 
     const legacyRules = { ...rules } as Record<string, unknown>;
     delete legacyRules['depth.map'];
+    delete legacyRules['position.map'];
     store.set(CHANNEL_RECOGNITION_NAME_RULES_STORAGE_KEY, JSON.stringify(legacyRules));
     expect(readStoredChannelRecognitionNameRules()).toEqual(rules);
 

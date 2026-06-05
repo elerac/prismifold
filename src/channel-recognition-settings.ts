@@ -4,6 +4,7 @@ export type ChannelRecognitionSettingId =
   | 'component.uv'
   | 'normal.map'
   | 'depth.map'
+  | 'position.map'
   | 'spectral.series'
   | 'stokes.scalar'
   | 'stokes.rgb'
@@ -29,6 +30,7 @@ export const CHANNEL_RECOGNITION_SETTING_DESCRIPTORS: readonly ChannelRecognitio
   { id: 'component.xyz', label: 'XYZ component groups', defaultEnabled: true, mutable: true },
   { id: 'normal.map', label: 'Normal maps', defaultEnabled: true, mutable: true },
   { id: 'depth.map', label: 'Depth maps', defaultEnabled: true, mutable: true },
+  { id: 'position.map', label: 'Position maps', defaultEnabled: true, mutable: true },
   { id: 'component.uv', label: 'UV component groups', defaultEnabled: true, mutable: true },
   { id: 'spectral.series', label: 'Spectral RGB series', defaultEnabled: true, mutable: true },
   { id: 'stokes.scalar', label: 'Scalar Stokes', defaultEnabled: true, mutable: true },

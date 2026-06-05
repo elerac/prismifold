@@ -32,9 +32,14 @@ import {
   type MuellerMatrixElement
 } from '../../mueller';
 import type { ResidentChannelUpload } from '../../display-cache';
+import type { DepthSource, DepthSourceGeometry } from '../../depth';
 import type { ChannelRecognitionNameRules } from '../../channel-recognition-name-rules';
 import type { DecodedLayer } from '../../types';
-import { DEPTH_TEXTURE_UNIT } from './constants';
+import {
+  DEPTH_POSITION_Y_TEXTURE_UNIT,
+  DEPTH_POSITION_Z_TEXTURE_UNIT,
+  DEPTH_TEXTURE_UNIT
+} from './constants';
 import type { GlImageRendererState, LayerSourceTextures } from './types';
 
 export function createZeroTexture(gl: WebGL2RenderingContext): WebGLTexture {
@@ -440,20 +445,34 @@ export function setDepthSourceBinding(
   layerIndex: number,
   width: number,
   height: number,
-  channelName: string | null,
-  depthRange: { min: number; max: number } | null
+  source: DepthSource | null,
+  geometry: DepthSourceGeometry | null
 ): void {
   state.depthSourceSize = { width, height };
-  state.activeDepthChannel = channelName;
-  state.activeDepthRange = depthRange;
+  state.activeDepthSource = source;
+  state.activeDepthGeometry = geometry;
 
   const layerTextures = state.layerTexturesBySession.get(sessionId)?.get(layerIndex) ?? null;
-  const texture = channelName
-    ? layerTextures?.textureByChannel.get(channelName) ?? state.zeroTexture
+  const textureX = source
+    ? layerTextures?.textureByChannel.get(source.kind === 'xyzPosition' ? source.xChannel : source.channelName) ?? state.zeroTexture
     : state.zeroTexture;
-  state.activeDepthTexture = texture;
+  const textureY = source?.kind === 'xyzPosition'
+    ? layerTextures?.textureByChannel.get(source.yChannel) ?? state.zeroTexture
+    : state.zeroTexture;
+  const textureZ = source?.kind === 'xyzPosition'
+    ? layerTextures?.textureByChannel.get(source.zChannel) ?? state.zeroTexture
+    : state.zeroTexture;
+  state.activeDepthTextures = {
+    x: textureX,
+    y: textureY,
+    z: textureZ
+  };
   state.gl.activeTexture(state.gl.TEXTURE0 + DEPTH_TEXTURE_UNIT);
-  state.gl.bindTexture(state.gl.TEXTURE_2D, texture);
+  state.gl.bindTexture(state.gl.TEXTURE_2D, textureX);
+  state.gl.activeTexture(state.gl.TEXTURE0 + DEPTH_POSITION_Y_TEXTURE_UNIT);
+  state.gl.bindTexture(state.gl.TEXTURE_2D, textureY);
+  state.gl.activeTexture(state.gl.TEXTURE0 + DEPTH_POSITION_Z_TEXTURE_UNIT);
+  state.gl.bindTexture(state.gl.TEXTURE_2D, textureZ);
 }
 
 export function discardSessionTextures(state: GlImageRendererState, sessionId: string): void {
@@ -527,10 +546,14 @@ export function discardChannelSourceTexture(
     return;
   }
 
-  if (state.activeDepthTexture === texture) {
-    state.activeDepthChannel = null;
-    state.activeDepthTexture = null;
-    state.activeDepthRange = null;
+  if (
+    state.activeDepthTextures?.x === texture ||
+    state.activeDepthTextures?.y === texture ||
+    state.activeDepthTextures?.z === texture
+  ) {
+    state.activeDepthSource = null;
+    state.activeDepthTextures = null;
+    state.activeDepthGeometry = null;
     state.depthSourceSize = null;
   }
 

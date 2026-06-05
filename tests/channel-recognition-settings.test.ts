@@ -23,6 +23,7 @@ describe('channel recognition settings', () => {
       'component.uv': true,
       'normal.map': true,
       'depth.map': true,
+      'position.map': true,
       'spectral.series': true,
       'stokes.scalar': true,
       'stokes.rgb': true,
@@ -42,6 +43,7 @@ describe('channel recognition settings', () => {
       'component.rgb': false,
       'normal.map': true,
       'depth.map': true,
+      'position.map': true,
       'fallback.singleChannel': true
     });
   });

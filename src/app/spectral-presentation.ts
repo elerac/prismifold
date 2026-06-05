@@ -1,7 +1,7 @@
 import { buildZeroCenteredColormapRange, cloneDisplayLuminanceRange } from '../colormap-range';
 import {
   isValidDepthProbePixel,
-  resolveDepthChannelForLayer
+  resolveDepthSourceForLayer
 } from '../depth';
 import { isSpectralRgbSelection, isStokesSelection } from '../display-model';
 import { samplePixelValues } from '../sampling/probe';
@@ -129,7 +129,7 @@ function isSpectralProbePixelActive(
     return false;
   }
 
-  const depthChannel = resolveDepthChannelForLayer(
+  const depthSource = resolveDepthSourceForLayer(
     activeLayer.channelNames,
     args.sessionState.depthChannel,
     {
@@ -143,7 +143,7 @@ function isSpectralProbePixelActive(
     layer: activeLayer,
     width: activeSession.decoded.width,
     height: activeSession.decoded.height,
-    channelName: depthChannel
+    source: depthSource
   });
 }
 

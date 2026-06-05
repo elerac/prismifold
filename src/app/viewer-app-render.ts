@@ -9,9 +9,11 @@ import { sameDisplayLuminanceRange } from '../colormap-range';
 import {
   DEFAULT_DEPTH_POINT_SIZE_PX,
   DEFAULT_DEPTH_ZOOM,
-  getDepthChannelOptions,
+  getDepthSourceOptions,
   resolveDepthChannelForLayer,
-  resolveDepthFocalLengthPx
+  resolveDepthSourceForLayer,
+  resolveDepthFocalLengthPx,
+  serializeDepthSource
 } from '../depth';
 import { sameDisplaySelection } from '../display-model';
 import { resolveDisplayImageSize } from '../display-size';
@@ -826,6 +828,18 @@ function buildViewerStateReadout(
     channelRecognitionNameRules: state.channelRecognitionNameRules,
     invalidValueWarningEnabled: state.invalidValueWarningEnabled
   });
+  const activeLayer = activeSession?.decoded.layers[renderState.activeLayer] ?? null;
+  const depthSource = activeLayer
+    ? resolveDepthSourceForLayer(
+        activeLayer.channelNames,
+        renderState.depthChannel,
+        {
+          allowArbitraryZSuffix: renderState.viewerMode === 'depth',
+          channelRecognitionSettings: state.channelRecognitionSettings,
+          channelRecognitionNameRules: state.channelRecognitionNameRules
+        }
+      )
+    : null;
   return {
     hasActiveImage: Boolean(activeSession),
     viewerMode: renderState.viewerMode,
@@ -841,25 +855,16 @@ function buildViewerStateReadout(
       depthZoom: renderState.depthZoom
     },
     depth: {
-      channel: activeSession
-        ? resolveDepthChannelForLayer(
-            activeSession.decoded.layers[renderState.activeLayer]?.channelNames ?? [],
-            renderState.depthChannel,
-            {
-              allowArbitraryZSuffix: renderState.viewerMode === 'depth',
-              channelRecognitionSettings: state.channelRecognitionSettings,
-              channelRecognitionNameRules: state.channelRecognitionNameRules
-            }
-          )
-        : null,
+      channel: depthSource ? serializeDepthSource(depthSource) : null,
+      sourceKind: depthSource?.kind ?? null,
       channelOptions: activeSession
-        ? getDepthChannelOptions(activeSession.decoded.layers[renderState.activeLayer]?.channelNames ?? [], {
+        ? getDepthSourceOptions(activeLayer?.channelNames ?? [], {
             channelRecognitionSettings: state.channelRecognitionSettings,
             channelRecognitionNameRules: state.channelRecognitionNameRules
           })
         : [],
       focalLengthPx: renderState.depthFocalLengthPx,
-      resolvedFocalLengthPx: activeSession
+      resolvedFocalLengthPx: activeSession && depthSource?.kind !== 'xyzPosition'
         ? resolveDepthFocalLengthPx(
             activeSession.decoded.width,
             activeSession.decoded.height,

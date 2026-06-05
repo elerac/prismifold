@@ -1,17 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
   clampDepthYaw,
+  computeFinitePositionBounds,
   computePositiveFiniteDepthRange,
   DepthProbeProjectionCache,
   getDepthChannelOptions,
+  getDepthSourceOptions,
   hasDepthChannelCandidate,
   isDepthSampledPixel,
   pickDepthPixelAtScreenPoint,
   projectDepthPixelToScreen,
   projectDepthPixelToPoint,
+  projectPositionPointToScreen,
   resolveDepthChannelForLayer,
+  resolveDepthSourceForLayer,
   resolveDepthFocalLengthPx,
-  resolveDepthPointSampling
+  resolveDepthPointSampling,
+  serializeDepthSource
 } from '../src/depth';
 import { createDefaultChannelRecognitionSettings } from '../src/channel-recognition-settings';
 import { createDefaultChannelRecognitionNameRules } from '../src/channel-recognition-name-rules';
@@ -26,6 +31,65 @@ describe('depth utilities', () => {
 
   it('preserves a valid current depth channel', () => {
     expect(resolveDepthChannelForLayer(['Z', 'depth.Z'], 'depth.Z')).toBe('depth.Z');
+  });
+
+  it('offers recognized position triplets as depth sources', () => {
+    const options = getDepthSourceOptions([
+      'R',
+      'G',
+      'B',
+      'P.X',
+      'P.Y',
+      'P.Z',
+      'Position.X',
+      'Position.Y',
+      'Position.Z',
+      'position.X',
+      'position.Y',
+      'position.Z',
+      'Z'
+    ]);
+
+    expect(options.map((option) => option.value).slice(0, 3)).toEqual([
+      '__position:P',
+      '__position:Position',
+      '__position:position'
+    ]);
+    expect(options).toContainEqual({ value: 'Z', label: 'Z' });
+  });
+
+  it('prefers position triplets before scalar depth when no current source is valid', () => {
+    const source = resolveDepthSourceForLayer([
+      'Z',
+      'P.X',
+      'P.Y',
+      'P.Z',
+      'Position.X',
+      'Position.Y',
+      'Position.Z'
+    ], null, {
+      allowArbitraryZSuffix: true
+    });
+
+    expect(source).toEqual({
+      kind: 'xyzPosition',
+      base: 'P',
+      xChannel: 'P.X',
+      yChannel: 'P.Y',
+      zChannel: 'P.Z'
+    });
+    expect(resolveDepthChannelForLayer(['Z', 'P.X', 'P.Y', 'P.Z'], null, {
+      allowArbitraryZSuffix: true
+    })).toBe('__position:P');
+  });
+
+  it('preserves a valid current scalar or position depth source', () => {
+    expect(resolveDepthChannelForLayer(['Z', 'P.X', 'P.Y', 'P.Z'], 'Z', {
+      allowArbitraryZSuffix: true
+    })).toBe('Z');
+    expect(resolveDepthChannelForLayer(['Z', 'P.X', 'P.Y', 'P.Z'], '__position:P', {
+      allowArbitraryZSuffix: true
+    })).toBe('__position:P');
   });
 
   it('clamps depth yaw to the front-facing range', () => {
@@ -59,6 +123,33 @@ describe('depth utilities', () => {
     expect(hasDepthChannelCandidate(['Z'], { channelRecognitionSettings })).toBe(false);
   });
 
+  it('gates position depth sources through position recognition settings', () => {
+    const channelRecognitionSettings = {
+      ...createDefaultChannelRecognitionSettings(),
+      'position.map': false
+    };
+
+    expect(resolveDepthChannelForLayer(['P.X', 'P.Y', 'P.Z'], null, {
+      allowArbitraryZSuffix: true,
+      channelRecognitionSettings
+    })).toBe('P.Z');
+    expect(getDepthSourceOptions(['P.X', 'P.Y', 'P.Z'], {
+      channelRecognitionSettings
+    }).map((option) => option.value)).toEqual(['P.Z']);
+  });
+
+  it('keeps position depth sources independent from generic XYZ component recognition settings', () => {
+    const channelRecognitionSettings = {
+      ...createDefaultChannelRecognitionSettings(),
+      'component.xyz': false
+    };
+
+    expect(resolveDepthChannelForLayer(['P.X', 'P.Y', 'P.Z'], null, {
+      allowArbitraryZSuffix: true,
+      channelRecognitionSettings
+    })).toBe('__position:P');
+  });
+
   it('uses custom depth name rules before arbitrary .Z fallback', () => {
     const channelRecognitionNameRules = createDefaultChannelRecognitionNameRules();
     channelRecognitionNameRules['depth.map'] = {
@@ -75,6 +166,33 @@ describe('depth utilities', () => {
     expect(getDepthChannelOptions(['worldDepth', 'beauty.Z'], {
       channelRecognitionNameRules
     }).map((option) => option.value)).toEqual(['worldDepth', 'beauty.Z']);
+  });
+
+  it('uses custom position name rules for depth source triplets', () => {
+    const channelRecognitionNameRules = createDefaultChannelRecognitionNameRules();
+    channelRecognitionNameRules['position.map'] = {
+      pattern: '^(?<base>worldPosition)\\.(?:(?<x>px)|(?<y>py)|(?<z>pz))$'
+    };
+
+    expect(resolveDepthChannelForLayer([
+      'Z',
+      'worldPosition.px',
+      'worldPosition.py',
+      'worldPosition.pz'
+    ], null, {
+      channelRecognitionNameRules
+    })).toBe('__position:worldPosition');
+    expect(getDepthSourceOptions([
+      'worldPosition.px',
+      'worldPosition.py',
+      'worldPosition.pz',
+      'Z'
+    ], {
+      channelRecognitionNameRules
+    })).toContainEqual({
+      value: '__position:worldPosition',
+      label: 'worldPosition.px/worldPosition.py/worldPosition.pz'
+    });
   });
 
   it('projects pixel centers with auto and manual focal length', () => {
@@ -106,6 +224,47 @@ describe('depth utilities', () => {
       depthPointSizePx: 2
     })).toBeNull();
     expect(computePositiveFiniteDepthRange(layer, 2, 3, 'Z')).toEqual({ min: 1, max: 5 });
+  });
+
+  it('computes finite position bounds and projects position points', () => {
+    const layer = createLayerFromChannels({
+      'P.X': [-1, 1, Number.NaN, 4],
+      'P.Y': [-2, 2, 0, Number.POSITIVE_INFINITY],
+      'P.Z': [-3, 3, 0, 6]
+    });
+    const source = resolveDepthSourceForLayer(layer.channelNames, null);
+
+    expect(source?.kind).toBe('xyzPosition');
+    expect(source ? serializeDepthSource(source) : null).toBe('__position:P');
+    if (!source || source.kind !== 'xyzPosition') {
+      throw new Error('Expected position depth source.');
+    }
+
+    const bounds = computeFinitePositionBounds(layer, 2, 2, source);
+    expect(bounds).toEqual({
+      minX: -1,
+      maxX: 1,
+      minY: -2,
+      maxY: 2,
+      minZ: -3,
+      maxZ: 3
+    });
+    expect(projectPositionPointToScreen(0, 0, { x: -1, y: -2, z: -3 }, {
+      width: 2,
+      height: 2,
+      viewport: { width: 100, height: 100 },
+      bounds: bounds!,
+      depthFocalLengthPx: null,
+      depthYawDeg: 0,
+      depthPitchDeg: 0,
+      depthZoom: 1,
+      depthPointSizePx: 2
+    })).toMatchObject({
+      pixel: { ix: 0, iy: 0 },
+      screenX: expect.any(Number),
+      screenY: expect.any(Number),
+      depth: -3
+    });
   });
 
   it('limits point sampling to the configured budget', () => {
@@ -143,6 +302,45 @@ describe('depth utilities', () => {
       depthPitchDeg: 0,
       depthZoom: 1,
       depthPointSizePx: 2
+    })).toEqual({ ix: 0, iy: 0 });
+  });
+
+  it('picks projected position pixels using finite XYZ bounds', () => {
+    const layer = createLayerFromChannels({
+      'P.X': [0, 2],
+      'P.Y': [0, 0],
+      'P.Z': [0, 0]
+    });
+    const source = {
+      kind: 'xyzPosition' as const,
+      base: 'P',
+      xChannel: 'P.X',
+      yChannel: 'P.Y',
+      zChannel: 'P.Z'
+    };
+
+    expect(pickDepthPixelAtScreenPoint({ x: 0, y: 50 }, {
+      layer,
+      width: 2,
+      height: 1,
+      source,
+      viewport: { width: 100, height: 100 },
+      geometry: {
+        kind: 'xyzPosition',
+        bounds: {
+          minX: 0,
+          maxX: 2,
+          minY: 0,
+          maxY: 0,
+          minZ: 0,
+          maxZ: 0
+        }
+      },
+      depthFocalLengthPx: null,
+      depthYawDeg: 0,
+      depthPitchDeg: 0,
+      depthZoom: 1,
+      depthPointSizePx: 8
     })).toEqual({ ix: 0, iy: 0 });
   });
 

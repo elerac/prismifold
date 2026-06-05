@@ -1,14 +1,15 @@
 import {
   DepthProbeProjectionCache,
   normalizeDepthPointSize,
-  resolveDepthChannelForLayer
+  resolveDepthSourceForLayer,
+  type DepthSource,
+  type DepthSourceGeometry
 } from '../depth';
 import { imageToScreen } from '../interaction/image-geometry';
 import type { Disposable } from '../lifecycle';
 import { resolveActiveProbePixel } from '../probe';
 import type {
   DecodedLayer,
-  DisplayLuminanceRange,
   ImagePixel,
   ImageRoi,
   ViewerState,
@@ -25,8 +26,8 @@ export class ProbeOverlayRenderer implements Disposable {
   private sourceWidth = 0;
   private sourceHeight = 0;
   private sourceLayer: DecodedLayer | null = null;
-  private depthChannelName: string | null = null;
-  private depthRange: DisplayLuminanceRange | null = null;
+  private depthSource: DepthSource | null = null;
+  private depthGeometry: DepthSourceGeometry | null = null;
   private hasImage = false;
   private disposed = false;
 
@@ -76,15 +77,15 @@ export class ProbeOverlayRenderer implements Disposable {
   }
 
   setDepthSourceContext(
-    channelName: string | null,
-    depthRange: DisplayLuminanceRange | null
+    source: DepthSource | null,
+    geometry: DepthSourceGeometry | null
   ): void {
     if (this.disposed) {
       return;
     }
 
-    this.depthChannelName = channelName;
-    this.depthRange = depthRange;
+    this.depthSource = source;
+    this.depthGeometry = geometry;
   }
 
   clearImage(): void {
@@ -96,8 +97,8 @@ export class ProbeOverlayRenderer implements Disposable {
     this.sourceWidth = 0;
     this.sourceHeight = 0;
     this.sourceLayer = null;
-    this.depthChannelName = null;
-    this.depthRange = null;
+    this.depthSource = null;
+    this.depthGeometry = null;
     this.depthProjectionCache.clear();
     this.clearCanvas();
   }
@@ -194,20 +195,20 @@ export class ProbeOverlayRenderer implements Disposable {
   }
 
   private drawDepthProbeMarker(state: ViewerState, pixel: ImagePixel, viewport: ViewportInfo): void {
-    if (!this.sourceLayer || !this.depthRange) {
+    if (!this.sourceLayer) {
       return;
     }
 
-    const depthChannel = resolveDepthChannelForLayer(
+    const depthSource = this.depthSource ?? resolveDepthSourceForLayer(
       this.sourceLayer.channelNames,
-      this.depthChannelName ?? state.depthChannel,
+      state.depthChannel,
       {
         allowArbitraryZSuffix: true,
         channelRecognitionSettings: state.channelRecognitionSettings,
         channelRecognitionNameRules: state.channelRecognitionNameRules
       }
     );
-    if (!depthChannel) {
+    if (!depthSource) {
       return;
     }
 
@@ -215,9 +216,9 @@ export class ProbeOverlayRenderer implements Disposable {
       layer: this.sourceLayer,
       width: this.sourceWidth,
       height: this.sourceHeight,
-      channelName: depthChannel,
+      source: depthSource,
       viewport,
-      depthRange: this.depthRange,
+      geometry: this.depthGeometry,
       depthFocalLengthPx: state.depthFocalLengthPx,
       depthYawDeg: state.depthYawDeg,
       depthPitchDeg: state.depthPitchDeg,

@@ -1,5 +1,6 @@
 import { createEmptyDisplaySourceBinding, type DisplaySourceBinding } from '../../display/bindings';
 import type { ResidentChannelUpload } from '../../display-cache';
+import type { DepthSource, DepthSourceGeometry } from '../../depth';
 import type { ExportImagePixels } from '../../export/export-pixels';
 import type { ChannelRecognitionNameRules } from '../../channel-recognition-name-rules';
 import type { Disposable } from '../../lifecycle';
@@ -108,14 +109,14 @@ export class GlImageRenderer implements Disposable {
     layerIndex: number,
     width: number,
     height: number,
-    channelName: string | null,
-    depthRange: { min: number; max: number } | null
+    source: DepthSource | null,
+    geometry: DepthSourceGeometry | null
   ): void {
     if (this.state.disposed) {
       return;
     }
 
-    setDepthSourceBinding(this.state, sessionId, layerIndex, width, height, channelName, depthRange);
+    setDepthSourceBinding(this.state, sessionId, layerIndex, width, height, source, geometry);
   }
 
   setColormapTexture(entryCount: number, rgba8: Uint8Array): void {
@@ -181,9 +182,9 @@ export class GlImageRenderer implements Disposable {
 
     this.state.imageSize = null;
     this.state.depthSourceSize = null;
-    this.state.activeDepthChannel = null;
-    this.state.activeDepthTexture = null;
-    this.state.activeDepthRange = null;
+    this.state.activeDepthSource = null;
+    this.state.activeDepthTextures = null;
+    this.state.activeDepthGeometry = null;
     this.state.activeBinding = createEmptyDisplaySourceBinding();
     this.clearFramebuffer();
   }
@@ -235,9 +236,9 @@ export class GlImageRenderer implements Disposable {
     this.state.layerTexturesBySession.clear();
     this.state.imageSize = null;
     this.state.depthSourceSize = null;
-    this.state.activeDepthChannel = null;
-    this.state.activeDepthTexture = null;
-    this.state.activeDepthRange = null;
+    this.state.activeDepthSource = null;
+    this.state.activeDepthTextures = null;
+    this.state.activeDepthGeometry = null;
     this.state.colormapEntryCount = 0;
     this.state.activeBinding = createEmptyDisplaySourceBinding();
     deleteExportSurface(this.state.gl, this.state.exportSourceSurface);

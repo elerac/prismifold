@@ -1,4 +1,5 @@
 import type { DisplaySourceBinding } from '../../display/bindings';
+import type { DepthSource, DepthSourceGeometry } from '../../depth';
 import type { ExportImagePixels } from '../../export/export-pixels';
 import type { DecodedLayer, ImageRect, ViewerState, ViewportInfo, ViewportRect } from '../../types';
 
@@ -45,6 +46,7 @@ export interface PanoramaUniforms extends CommonUniforms {
 
 export interface DepthUniforms extends CommonUniforms {
   depthOutputOrigin: WebGLUniformLocation;
+  depthSourceKind: WebGLUniformLocation;
   depthFocalLengthPx: WebGLUniformLocation;
   depthYawDeg: WebGLUniformLocation;
   depthPitchDeg: WebGLUniformLocation;
@@ -53,6 +55,8 @@ export interface DepthUniforms extends CommonUniforms {
   depthGridSize: WebGLUniformLocation;
   depthSampleStep: WebGLUniformLocation;
   depthRange: WebGLUniformLocation;
+  depthPositionBoundsMin: WebGLUniformLocation;
+  depthPositionBoundsMax: WebGLUniformLocation;
 }
 
 export interface ProgramBundle<TUniforms extends CommonUniforms> {
@@ -131,9 +135,13 @@ export interface GlImageRendererState {
   viewportOrigin: { left: number; top: number };
   imageSize: { width: number; height: number } | null;
   depthSourceSize: { width: number; height: number } | null;
-  activeDepthChannel: string | null;
-  activeDepthTexture: WebGLTexture | null;
-  activeDepthRange: { min: number; max: number } | null;
+  activeDepthSource: DepthSource | null;
+  activeDepthTextures: {
+    x: WebGLTexture;
+    y: WebGLTexture;
+    z: WebGLTexture;
+  } | null;
+  activeDepthGeometry: DepthSourceGeometry | null;
   colormapTextureSize: { width: number; height: number };
   colormapEntryCount: number;
   invalidValueWarningPhase: number;

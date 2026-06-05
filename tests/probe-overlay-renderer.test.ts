@@ -70,10 +70,53 @@ describe('probe overlay renderer', () => {
     renderer.resize(128, 64);
     renderer.setImagePresent(true);
     renderer.setSourceContext(1, 1, layer);
-    renderer.setDepthSourceContext('Z', { min: 2, max: 2 });
+    renderer.setDepthSourceContext(
+      { kind: 'scalarDepth', channelName: 'Z' },
+      { kind: 'scalarDepth', range: { min: 2, max: 2 } }
+    );
     renderer.render(createViewerState({
       viewerMode: 'depth',
       depthChannel: 'Z',
+      hoveredPixel: { ix: 0, iy: 0 }
+    }));
+
+    expect(context.strokeRect).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the probe marker in depth mode using position projection', () => {
+    const { renderer, context } = createProbeOverlayHarness();
+    const layer = createLayerFromChannels({
+      'P.X': [0],
+      'P.Y': [0],
+      'P.Z': [0]
+    });
+
+    renderer.resize(128, 64);
+    renderer.setImagePresent(true);
+    renderer.setSourceContext(1, 1, layer);
+    renderer.setDepthSourceContext(
+      {
+        kind: 'xyzPosition',
+        base: 'P',
+        xChannel: 'P.X',
+        yChannel: 'P.Y',
+        zChannel: 'P.Z'
+      },
+      {
+        kind: 'xyzPosition',
+        bounds: {
+          minX: 0,
+          maxX: 0,
+          minY: 0,
+          maxY: 0,
+          minZ: 0,
+          maxZ: 0
+        }
+      }
+    );
+    renderer.render(createViewerState({
+      viewerMode: 'depth',
+      depthChannel: '__position:P',
       hoveredPixel: { ix: 0, iy: 0 }
     }));
 
@@ -89,10 +132,53 @@ describe('probe overlay renderer', () => {
     renderer.resize(128, 64);
     renderer.setImagePresent(true);
     renderer.setSourceContext(1, 1, layer);
-    renderer.setDepthSourceContext('Z', { min: 1, max: 1 });
+    renderer.setDepthSourceContext(
+      { kind: 'scalarDepth', channelName: 'Z' },
+      { kind: 'scalarDepth', range: { min: 1, max: 1 } }
+    );
     renderer.render(createViewerState({
       viewerMode: 'depth',
       depthChannel: 'Z',
+      hoveredPixel: { ix: 0, iy: 0 }
+    }));
+
+    expect(context.strokeRect).not.toHaveBeenCalled();
+  });
+
+  it('does not render a depth probe marker for invalid position samples', () => {
+    const { renderer, context } = createProbeOverlayHarness();
+    const layer = createLayerFromChannels({
+      'P.X': [0],
+      'P.Y': [Number.NaN],
+      'P.Z': [0]
+    });
+
+    renderer.resize(128, 64);
+    renderer.setImagePresent(true);
+    renderer.setSourceContext(1, 1, layer);
+    renderer.setDepthSourceContext(
+      {
+        kind: 'xyzPosition',
+        base: 'P',
+        xChannel: 'P.X',
+        yChannel: 'P.Y',
+        zChannel: 'P.Z'
+      },
+      {
+        kind: 'xyzPosition',
+        bounds: {
+          minX: 0,
+          maxX: 0,
+          minY: 0,
+          maxY: 0,
+          minZ: 0,
+          maxZ: 0
+        }
+      }
+    );
+    renderer.render(createViewerState({
+      viewerMode: 'depth',
+      depthChannel: '__position:P',
       hoveredPixel: { ix: 0, iy: 0 }
     }));
 

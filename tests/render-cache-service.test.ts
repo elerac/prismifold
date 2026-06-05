@@ -128,6 +128,7 @@ function createRendererMock() {
       }))
     ),
     setDisplaySelectionBindings: vi.fn(),
+    setDepthSourceBinding: vi.fn(),
     discardChannelSourceTexture: vi.fn(),
     discardChannelMaterializedBuffer: vi.fn(),
     discardLayerSourceTextures: vi.fn(),
@@ -300,6 +301,74 @@ describe('render cache service', () => {
       ['R', 'G', 'B']
     );
     expect(renderer.setDisplaySelectionBindings).toHaveBeenCalledTimes(3);
+  });
+
+  it('uploads XYZ position source channels for depth mode', () => {
+    const decoded = createDecodedImage(2, 1, {
+      R: 1,
+      G: 0.5,
+      B: 0,
+      'P.X': 0,
+      'P.Y': 0,
+      'P.Z': 0
+    });
+    const layer = decoded.layers[0]!;
+    layer.channelStorage = createLayerFromChannels({
+      R: [1, 1],
+      G: [0.5, 0.5],
+      B: [0, 0],
+      'P.X': [-1, 1],
+      'P.Y': [0, 0],
+      'P.Z': [2, 4]
+    }).channelStorage;
+    const session = createSession('session-1', decoded);
+    const state = {
+      ...session.state,
+      viewerMode: 'depth' as const,
+      depthChannel: '__position:P'
+    };
+    const ui = createUiMock();
+    const renderer = createRendererMock();
+    const service = new RenderCacheService({
+      ui,
+      renderer
+    });
+
+    const result = service.prepareActiveSession(session, state);
+
+    expect(result.textureDirty).toBe(true);
+    expect(renderer.ensureLayerChannelsResident).toHaveBeenCalledWith(
+      'session-1',
+      0,
+      2,
+      1,
+      layer,
+      ['R', 'G', 'B', 'P.X', 'P.Y', 'P.Z']
+    );
+    expect(renderer.setDepthSourceBinding).toHaveBeenCalledWith(
+      'session-1',
+      0,
+      2,
+      1,
+      {
+        kind: 'xyzPosition',
+        base: 'P',
+        xChannel: 'P.X',
+        yChannel: 'P.Y',
+        zChannel: 'P.Z'
+      },
+      {
+        kind: 'xyzPosition',
+        bounds: {
+          minX: -1,
+          maxX: 1,
+          minY: 0,
+          maxY: 0,
+          minZ: 2,
+          maxZ: 4
+        }
+      }
+    );
   });
 
   it('uploads derived spectral Stokes RGB source textures for grouped Stokes selections', () => {

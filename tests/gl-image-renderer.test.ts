@@ -358,7 +358,14 @@ describe('gl image renderer', () => {
       2,
       buildDisplaySourceBinding(layer, state.displaySelection)
     );
-    renderer.setDepthSourceBinding('session-1', 0, 2, 2, 'Z', { min: 1, max: 4 });
+    renderer.setDepthSourceBinding(
+      'session-1',
+      0,
+      2,
+      2,
+      { kind: 'scalarDepth', channelName: 'Z' },
+      { kind: 'scalarDepth', range: { min: 1, max: 4 } }
+    );
     renderer.resize(320, 180);
 
     renderer.render(state);
@@ -377,6 +384,74 @@ describe('gl image renderer', () => {
     expect(lastUniform2iValue(gl, 'uDepthGridSize')).toEqual([2, 2]);
     expect(lastUniform1iValue(gl, 'uDepthSampleStep')).toBe(1);
     expect(lastUniform2fValue(gl, 'uDepthRange')).toEqual([1, 4]);
+    expect(lastUniform1iValue(gl, 'uDepthSourceKind')).toBe(0);
+  });
+
+  it('renders XYZ position sources through the point-cloud pass', () => {
+    const { renderer, gl } = createHarness();
+    const layer = createInterleavedLayerFromChannels({
+      R: [1, 0, 0, 1],
+      G: [0, 1, 0, 1],
+      B: [0, 0, 1, 1],
+      'P.X': [-1, 1, -1, 1],
+      'P.Y': [-2, -2, 2, 2],
+      'P.Z': [3, 3, 5, 5]
+    });
+    const state = {
+      ...createInitialState(),
+      viewerMode: 'depth' as const,
+      depthChannel: '__position:P',
+      depthYawDeg: 10,
+      depthPitchDeg: 20,
+      depthZoom: 1.5,
+      depthFocalLengthPx: null,
+      depthPointSizePx: 4,
+      displaySelection: createChannelRgbSelection('R', 'G', 'B'),
+      hoveredPixel: null,
+      draftRoi: null,
+      roiInteraction: createEmptyRoiInteractionState()
+    };
+
+    renderer.ensureLayerChannelsResident('session-1', 0, 2, 2, layer, ['R', 'G', 'B', 'P.X', 'P.Y', 'P.Z']);
+    renderer.setDisplaySelectionBindings(
+      'session-1',
+      0,
+      2,
+      2,
+      buildDisplaySourceBinding(layer, state.displaySelection)
+    );
+    renderer.setDepthSourceBinding(
+      'session-1',
+      0,
+      2,
+      2,
+      {
+        kind: 'xyzPosition',
+        base: 'P',
+        xChannel: 'P.X',
+        yChannel: 'P.Y',
+        zChannel: 'P.Z'
+      },
+      {
+        kind: 'xyzPosition',
+        bounds: {
+          minX: -1,
+          maxX: 1,
+          minY: -2,
+          maxY: 2,
+          minZ: 3,
+          maxZ: 5
+        }
+      }
+    );
+    renderer.resize(320, 180);
+
+    renderer.render(state);
+
+    expect(gl.drawArrays).toHaveBeenLastCalledWith(gl.POINTS, 0, 4);
+    expect(lastUniform1iValue(gl, 'uDepthSourceKind')).toBe(1);
+    expect(lastUniform3fValue(gl, 'uDepthPositionBoundsMin')).toEqual([-1, -2, 3]);
+    expect(lastUniform3fValue(gl, 'uDepthPositionBoundsMax')).toEqual([1, 2, 5]);
   });
 
   it('reuses export framebuffers and textures when the export size is unchanged', () => {
@@ -834,7 +909,14 @@ describe('gl image renderer', () => {
       2,
       buildDisplaySourceBinding(layer, state.displaySelection)
     );
-    renderer.setDepthSourceBinding('session-1', 0, 2, 2, 'Z', { min: 1, max: 4 });
+    renderer.setDepthSourceBinding(
+      'session-1',
+      0,
+      2,
+      2,
+      { kind: 'scalarDepth', channelName: 'Z' },
+      { kind: 'scalarDepth', range: { min: 1, max: 4 } }
+    );
     gl.readPixels.mockImplementation((_x, _y, width, height, _format, _type, data: Uint8ClampedArray) => {
       expect(width).toBe(40);
       expect(height).toBe(20);

@@ -132,6 +132,15 @@ describe('channel recognition', () => {
     expect(selectionKey(findCandidate(['U', 'V'], 'groupUV:'))).toBe('channelRgb:U:V::');
   });
 
+  it('recognizes P and Position XYZ component groups', () => {
+    expect(selectionKey(findCandidate(['P.X', 'P.Y', 'P.Z'], 'groupXYZ:P')))
+      .toBe('channelRgb:P.X:P.Y:P.Z:');
+    expect(selectionKey(findCandidate(['Position.X', 'Position.Y', 'Position.Z'], 'groupXYZ:Position')))
+      .toBe('channelRgb:Position.X:Position.Y:Position.Z:');
+    expect(selectionKey(findCandidate(['position.X', 'position.Y', 'position.Z'], 'groupXYZ:position')))
+      .toBe('channelRgb:position.X:position.Y:position.Z:');
+  });
+
   it('recognizes normal maps and suppresses duplicate XYZ groups while enabled', () => {
     const channelNames = [
       'R',

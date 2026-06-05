@@ -199,6 +199,19 @@ describe('viewer app core', () => {
     expect(core.getState().sessionState.depthChannel).toBeNull();
   });
 
+  it('activates depth mode for position-only sources', () => {
+    const core = new ViewerAppCore();
+    core.dispatch({
+      type: 'sessionLoaded',
+      session: createSession('session-1', createDecodedImage(['R', 'G', 'B', 'P.X', 'P.Y', 'P.Z']))
+    });
+
+    core.dispatch({ type: 'viewerModeSet', viewerMode: 'depth' });
+
+    expect(core.getState().sessionState.viewerMode).toBe('depth');
+    expect(core.getState().sessionState.depthChannel).toBe('__position:P');
+  });
+
   it('splits, activates, and resets viewer panes without changing view state', () => {
     const core = new ViewerAppCore();
     const initialView = {

@@ -1742,6 +1742,48 @@ describe('viewer state inspector', () => {
     expect(onDepthSettingsChange).not.toHaveBeenCalled();
   });
 
+  it('disables depth focal input for position depth sources', () => {
+    installUiFixture();
+
+    const onDepthSettingsChange = vi.fn();
+    const ui = new ViewerUi(createUiCallbacks({ onDepthSettingsChange }));
+    ui.setViewerStateReadout({
+      hasActiveImage: true,
+      viewerMode: 'depth',
+      view: {
+        zoom: 2,
+        panX: 10,
+        panY: 12.5,
+        panoramaYawDeg: 30,
+        panoramaPitchDeg: 5,
+        panoramaHfovDeg: 80,
+        depthYawDeg: 0,
+        depthPitchDeg: 0,
+        depthZoom: 1
+      },
+      depth: {
+        channel: '__position:P',
+        sourceKind: 'xyzPosition',
+        channelOptions: [{ value: '__position:P', label: 'P.X/P.Y/P.Z' }],
+        focalLengthPx: null,
+        resolvedFocalLengthPx: null,
+        pointSizePx: 2
+      }
+    });
+
+    const sourceSelect = document.getElementById('viewer-state-depth-channel-select') as HTMLSelectElement;
+    const focalInput = document.getElementById('viewer-state-depth-focal-input') as HTMLInputElement;
+
+    expect(sourceSelect.value).toBe('__position:P');
+    expect(focalInput.disabled).toBe(true);
+    expect(focalInput.title).toBe('Focal length applies to scalar depth sources.');
+
+    focalInput.value = '2048';
+    focalInput.dispatchEvent(new Event('blur'));
+
+    expect(onDepthSettingsChange).not.toHaveBeenCalled();
+  });
+
   it('renders depth view fields and clamps typed orbit values to the front-facing range', () => {
     installUiFixture();
 
@@ -4009,6 +4051,7 @@ describe('view menu', () => {
     const xyzRecognition = getRecognitionCheckbox('component.xyz');
     const normalMapRecognition = getRecognitionCheckbox('normal.map');
     const depthMapRecognition = getRecognitionCheckbox('depth.map');
+    const positionMapRecognition = getRecognitionCheckbox('position.map');
     const uvRecognition = getRecognitionCheckbox('component.uv');
     const spectralGroupingCheckbox = getRecognitionCheckbox('spectral.series');
     const scalarStokesRecognition = getRecognitionCheckbox('stokes.scalar');
@@ -4063,6 +4106,7 @@ describe('view menu', () => {
       xyzRecognition,
       normalMapRecognition,
       depthMapRecognition,
+      positionMapRecognition,
       uvRecognition,
       spectralGroupingCheckbox,
       scalarStokesRecognition,

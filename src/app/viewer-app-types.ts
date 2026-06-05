@@ -97,6 +97,7 @@ export interface ViewerStateReadoutModel {
   > & Partial<Pick<ViewerViewState, 'depthYawDeg' | 'depthPitchDeg' | 'depthZoom'>>;
   depth?: {
     channel: string | null;
+    sourceKind?: 'scalarDepth' | 'xyzPosition' | null;
     channelOptions: Array<{ value: string; label: string }>;
     focalLengthPx: number | null;
     resolvedFocalLengthPx: number | null;

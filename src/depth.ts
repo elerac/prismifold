@@ -9,6 +9,7 @@ import {
 import {
   compileChannelRecognitionNameRules,
   parseDepthMapChannelNameWithRules,
+  parsePositionMapChannelNameWithRules,
   type ChannelRecognitionNameRules,
   type CompiledChannelRecognitionNameRules
 } from './channel-recognition-name-rules';
@@ -37,6 +38,42 @@ export interface DepthChannelOption {
   value: string;
   label: string;
 }
+
+export type DepthSourceKind = 'scalarDepth' | 'xyzPosition';
+
+export interface ScalarDepthSource {
+  kind: 'scalarDepth';
+  channelName: string;
+}
+
+export interface XyzPositionDepthSource {
+  kind: 'xyzPosition';
+  base: string;
+  xChannel: string;
+  yChannel: string;
+  zChannel: string;
+}
+
+export type DepthSource = ScalarDepthSource | XyzPositionDepthSource;
+
+export interface DepthPositionBounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+}
+
+export type DepthSourceGeometry =
+  | {
+      kind: 'scalarDepth';
+      range: DisplayLuminanceRange;
+    }
+  | {
+      kind: 'xyzPosition';
+      bounds: DepthPositionBounds;
+    };
 
 export interface ResolveDepthChannelOptions {
   allowArbitraryZSuffix?: boolean;
@@ -90,8 +127,10 @@ export interface DepthProbeProjectionArgs extends DepthProjectionView {
   layer: DecodedLayer;
   width: number;
   height: number;
-  channelName: string | null | undefined;
+  source?: DepthSource | null | undefined;
+  channelName?: string | null | undefined;
   viewport: ViewportInfo;
+  geometry?: DepthSourceGeometry | null;
   depthRange?: DisplayLuminanceRange | null;
   maxPoints?: number;
   hitRadiusPx?: number;
@@ -101,7 +140,8 @@ export interface DepthProbePixelValidationArgs {
   layer: DecodedLayer;
   width: number;
   height: number;
-  channelName: string | null | undefined;
+  source?: DepthSource | null | undefined;
+  channelName?: string | null | undefined;
   maxPoints?: number;
 }
 
@@ -125,9 +165,15 @@ interface DepthRangeCache {
   layer: DecodedLayer;
   width: number;
   height: number;
-  channelName: string;
-  range: DisplayLuminanceRange | null;
+  sourceKey: string;
+  geometry: DepthSourceGeometry | null;
 }
+
+const POSITION_DEPTH_SOURCE_PREFIX = '__position:';
+const POSITION_DEPTH_BASES = ['P', 'Position', 'position'] as const;
+const POSITION_DEPTH_BASE_PRIORITY = new Map<string, number>(
+  POSITION_DEPTH_BASES.map((base, index) => [base, index])
+);
 
 export function normalizeDepthYaw(yawDeg: number): number {
   if (!Number.isFinite(yawDeg)) {
@@ -179,12 +225,27 @@ export function getDepthChannelOptions(
   channelNames: readonly string[],
   config: DepthChannelOptionsConfig = { allowArbitraryZSuffix: true }
 ): DepthChannelOption[] {
+  return getDepthSourceOptions(channelNames, config);
+}
+
+export function getDepthSourceOptions(
+  channelNames: readonly string[],
+  config: DepthChannelOptionsConfig = { allowArbitraryZSuffix: true }
+): DepthChannelOption[] {
   if (!isDepthMapRecognitionEnabled(config.channelRecognitionSettings)) {
     return [];
   }
 
   const nameRules = compileChannelRecognitionNameRules(config.channelRecognitionNameRules);
-  return channelNames
+  const positionOptions = getPositionDepthSources(
+    channelNames,
+    config.channelRecognitionSettings,
+    nameRules
+  ).map((source) => ({
+    value: serializeDepthSource(source),
+    label: `${source.xChannel}/${source.yChannel}/${source.zChannel}`
+  }));
+  const scalarOptions = channelNames
     .filter((channelName) => (
       isRecognizedDepthChannel(channelName, nameRules) ||
       (config.allowArbitraryZSuffix !== false && isZSuffixChannel(channelName))
@@ -193,6 +254,7 @@ export function getDepthChannelOptions(
       value: channelName,
       label: channelName
     }));
+  return [...positionOptions, ...scalarOptions];
 }
 
 export function resolveDepthChannelForLayer(
@@ -200,6 +262,15 @@ export function resolveDepthChannelForLayer(
   current: string | null | undefined,
   options: ResolveDepthChannelOptions = {}
 ): string | null {
+  const source = resolveDepthSourceForLayer(channelNames, current, options);
+  return source ? serializeDepthSource(source) : null;
+}
+
+export function resolveDepthSourceForLayer(
+  channelNames: readonly string[],
+  current: string | null | undefined,
+  options: ResolveDepthChannelOptions = {}
+): DepthSource | null {
   if (!isDepthMapRecognitionEnabled(options.channelRecognitionSettings)) {
     return null;
   }
@@ -208,36 +279,70 @@ export function resolveDepthChannelForLayer(
   const nameRules = compileChannelRecognitionNameRules(options.channelRecognitionNameRules);
   const recognizedChannels = channelNames.filter((channelName) => isRecognizedDepthChannel(channelName, nameRules));
   const recognizedChannelSet = new Set(recognizedChannels);
+  const positionSources = getPositionDepthSources(channelNames, options.channelRecognitionSettings, nameRules);
+  const currentPositionSource = current
+    ? positionSources.find((source) => serializeDepthSource(source) === current)
+    : null;
+  if (currentPositionSource) {
+    return currentPositionSource;
+  }
+
   if (
     current &&
     available.has(current) &&
     (recognizedChannelSet.has(current) || (options.allowArbitraryZSuffix && isZSuffixChannel(current)))
   ) {
-    return current;
+    return {
+      kind: 'scalarDepth',
+      channelName: current
+    };
+  }
+
+  const preferredPositionSource = positionSources[0];
+  if (preferredPositionSource) {
+    return preferredPositionSource;
   }
 
   const exactZ = recognizedChannels.find((channelName) => channelName === 'Z');
   if (exactZ) {
-    return exactZ;
+    return {
+      kind: 'scalarDepth',
+      channelName: exactZ
+    };
   }
 
   const exactDepthZ = recognizedChannels.find((channelName) => channelName === 'depth.Z');
   if (exactDepthZ) {
-    return exactDepthZ;
+    return {
+      kind: 'scalarDepth',
+      channelName: exactDepthZ
+    };
   }
 
   const depthLikeZ = recognizedChannels.find(isDepthLikeZSuffixChannel);
   if (depthLikeZ) {
-    return depthLikeZ;
+    return {
+      kind: 'scalarDepth',
+      channelName: depthLikeZ
+    };
   }
 
   const customDepth = recognizedChannels[0];
   if (customDepth) {
-    return customDepth;
+    return {
+      kind: 'scalarDepth',
+      channelName: customDepth
+    };
   }
 
   if (options.allowArbitraryZSuffix) {
-    return channelNames.find(isZSuffixChannel) ?? null;
+    const arbitraryZ = channelNames.find(isZSuffixChannel);
+    return arbitraryZ
+      ? {
+          kind: 'scalarDepth',
+          channelName: arbitraryZ
+        }
+      : null;
   }
 
   return null;
@@ -283,23 +388,90 @@ export function isDepthSampledPixel(
   return sampling.step > 0 && x % sampling.step === 0 && y % sampling.step === 0;
 }
 
+export function serializeDepthSource(source: DepthSource): string {
+  return source.kind === 'xyzPosition'
+    ? `${POSITION_DEPTH_SOURCE_PREFIX}${source.base}`
+    : source.channelName;
+}
+
+export function parseDepthSourceValue(
+  value: string | null | undefined,
+  channelNames: readonly string[]
+): DepthSource | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value.startsWith(POSITION_DEPTH_SOURCE_PREFIX)) {
+    const base = value.slice(POSITION_DEPTH_SOURCE_PREFIX.length);
+    return getPositionDepthSources(channelNames).find((source) => source.base === base) ?? null;
+  }
+
+  return channelNames.includes(value)
+    ? {
+        kind: 'scalarDepth',
+        channelName: value
+      }
+    : null;
+}
+
+export function isXyzPositionDepthSourceValue(value: string | null | undefined): boolean {
+  return Boolean(value?.startsWith(POSITION_DEPTH_SOURCE_PREFIX));
+}
+
+export function getDepthSourceChannelNames(source: DepthSource | null | undefined): string[] {
+  if (!source) {
+    return [];
+  }
+
+  return source.kind === 'xyzPosition'
+    ? [source.xChannel, source.yChannel, source.zChannel]
+    : [source.channelName];
+}
+
+export function getDepthSourceGeometry(
+  layer: DecodedLayer,
+  width: number,
+  height: number,
+  source: DepthSource | null | undefined
+): DepthSourceGeometry | null {
+  if (!source) {
+    return null;
+  }
+
+  if (source.kind === 'xyzPosition') {
+    const bounds = computeFinitePositionBounds(layer, width, height, source);
+    return bounds ? { kind: 'xyzPosition', bounds } : null;
+  }
+
+  const range = computePositiveFiniteDepthRange(layer, width, height, source.channelName);
+  return range ? { kind: 'scalarDepth', range } : null;
+}
+
 export function isValidDepthProbePixel(
   pixel: ImagePixel,
   args: DepthProbePixelValidationArgs
 ): boolean {
-  if (!args.channelName || !isDepthSampledPixel(pixel, args.width, args.height, args.maxPoints)) {
+  const source = resolveDepthProbeSource(args);
+  if (!source || !isDepthSampledPixel(pixel, args.width, args.height, args.maxPoints)) {
     return false;
   }
 
   const sourceWidth = Math.max(0, Math.floor(args.width));
   const x = Math.floor(pixel.ix);
   const y = Math.floor(pixel.iy);
-  const view = getChannelReadView(args.layer, args.channelName);
+  const pixelIndex = y * sourceWidth + x;
+  if (source.kind === 'xyzPosition') {
+    const point = readPositionPoint(args.layer, source, pixelIndex);
+    return Boolean(point);
+  }
+
+  const view = getChannelReadView(args.layer, source.channelName);
   if (!view) {
     return false;
   }
 
-  const depth = readChannelValue(view, y * sourceWidth + x);
+  const depth = readChannelValue(view, pixelIndex);
   return Number.isFinite(depth) && depth > 0;
 }
 
@@ -374,25 +546,57 @@ export function projectDepthPixelToScreen(
     z: (point.z - centerDepth) / sceneScale
   };
 
-  const yawRad = -clampDepthYaw(options.depthYawDeg) * Math.PI / 180;
-  const pitchRad = -clampDepthPitch(options.depthPitchDeg) * Math.PI / 180;
-  const yawPoint = rotateYaw(normalizedPoint, yawRad);
-  const cameraPoint = rotatePitch(yawPoint, pitchRad);
-  const zoom = clampDepthZoom(options.depthZoom);
-  const aspect = Math.max(viewport.width / Math.max(viewport.height, 1), 1.0e-6);
-  const projectedX = cameraPoint.x / aspect * zoom * 2;
-  const projectedY = cameraPoint.y * zoom * 2;
-
-  return {
-    pixel: {
-      ix: Math.floor(x),
-      iy: Math.floor(y)
-    },
-    screenX: (projectedX * 0.5 + 0.5) * viewport.width,
-    screenY: (0.5 - projectedY * 0.5) * viewport.height,
-    ndcZ: clampFinite(cameraPoint.z * zoom, -1, 1, 1),
+  return projectNormalizedDepthPointToScreen(normalizedPoint, {
+    pixel: { ix: x, iy: y },
+    viewport,
+    depthYawDeg: options.depthYawDeg,
+    depthPitchDeg: options.depthPitchDeg,
+    depthZoom: options.depthZoom,
     depth
-  };
+  });
+}
+
+export function projectPositionPointToScreen(
+  x: number,
+  y: number,
+  point: DepthPoint,
+  options: Omit<ProjectDepthPixelToScreenOptions, 'depthRange'> & { bounds: DepthPositionBounds }
+): ProjectedDepthPixel | null {
+  const {
+    width,
+    height,
+    viewport,
+    bounds
+  } = options;
+  if (
+    viewport.width <= 0 ||
+    viewport.height <= 0 ||
+    x < 0 ||
+    y < 0 ||
+    x >= width ||
+    y >= height ||
+    !isFiniteDepthPoint(point) ||
+    !isUsablePositionBounds(bounds)
+  ) {
+    return null;
+  }
+
+  const centerX = (bounds.minX + bounds.maxX) * 0.5;
+  const centerY = (bounds.minY + bounds.maxY) * 0.5;
+  const centerZ = (bounds.minZ + bounds.maxZ) * 0.5;
+  const sceneScale = computePositionBoundsScale(bounds);
+  return projectNormalizedDepthPointToScreen({
+    x: (point.x - centerX) / sceneScale,
+    y: (point.y - centerY) / sceneScale,
+    z: (point.z - centerZ) / sceneScale
+  }, {
+    pixel: { ix: x, iy: y },
+    viewport,
+    depthYawDeg: options.depthYawDeg,
+    depthPitchDeg: options.depthPitchDeg,
+    depthZoom: options.depthZoom,
+    depth: point.z
+  });
 }
 
 export function pickDepthPixelAtScreenPoint(
@@ -476,8 +680,9 @@ export class DepthProbeProjectionCache {
   }
 
   projectPixel(pixel: ImagePixel, args: DepthProbeProjectionArgs): ProjectedDepthPixel | null {
-    const depthRange = this.resolveDepthRange(args);
-    if (!depthRange || !args.channelName) {
+    const source = resolveDepthProbeSource(args);
+    const geometry = this.resolveDepthGeometry(args, source);
+    if (!source || !geometry) {
       return null;
     }
 
@@ -491,32 +696,51 @@ export class DepthProbeProjectionCache {
       return null;
     }
 
-    const view = getChannelReadView(args.layer, args.channelName);
-    if (!view) {
-      return null;
-    }
-
-    const depth = readChannelValue(view, y * Math.floor(args.width) + x);
-    return projectDepthPixelToScreen(x, y, depth, {
+    const pixelIndex = y * Math.floor(args.width) + x;
+    const commonOptions = {
       width: args.width,
       height: args.height,
       viewport: args.viewport,
-      depthRange,
       depthFocalLengthPx: args.depthFocalLengthPx,
       depthYawDeg: args.depthYawDeg,
       depthPitchDeg: args.depthPitchDeg,
       depthZoom: args.depthZoom,
       depthPointSizePx: args.depthPointSizePx
+    };
+    if (source.kind === 'xyzPosition') {
+      const point = readPositionPoint(args.layer, source, pixelIndex);
+      return point && geometry.kind === 'xyzPosition'
+        ? projectPositionPointToScreen(x, y, point, {
+            ...commonOptions,
+            bounds: geometry.bounds
+          })
+        : null;
+    }
+
+    if (geometry.kind !== 'scalarDepth') {
+      return null;
+    }
+
+    const view = getChannelReadView(args.layer, source.channelName);
+    if (!view) {
+      return null;
+    }
+
+    const depth = readChannelValue(view, pixelIndex);
+    return projectDepthPixelToScreen(x, y, depth, {
+      ...commonOptions,
+      depthRange: geometry.range
     });
   }
 
   private getFrame(args: DepthProbeProjectionArgs): DepthProjectionFrame | null {
-    if (!args.channelName || args.width <= 0 || args.height <= 0 || args.viewport.width <= 0 || args.viewport.height <= 0) {
+    const source = resolveDepthProbeSource(args);
+    if (!source || args.width <= 0 || args.height <= 0 || args.viewport.width <= 0 || args.viewport.height <= 0) {
       return null;
     }
 
-    const depthRange = this.resolveDepthRange(args);
-    if (!depthRange) {
+    const geometry = this.resolveDepthGeometry(args, source);
+    if (!geometry) {
       return null;
     }
 
@@ -525,13 +749,18 @@ export class DepthProbeProjectionCache {
       return null;
     }
 
-    const key = buildDepthProjectionFrameKey(args, depthRange, sampling);
+    const key = buildDepthProjectionFrameKey(args, source, geometry, sampling);
     if (this.frame && this.frame.layer === args.layer && this.frame.key === key) {
       return this.frame;
     }
 
-    const view = getChannelReadView(args.layer, args.channelName);
-    if (!view) {
+    const scalarView = source.kind === 'scalarDepth'
+      ? getChannelReadView(args.layer, source.channelName)
+      : null;
+    const positionViews = source.kind === 'xyzPosition'
+      ? getPositionReadViews(args.layer, source)
+      : null;
+    if ((source.kind === 'scalarDepth' && !scalarView) || (source.kind === 'xyzPosition' && !positionViews)) {
       return null;
     }
 
@@ -548,16 +777,12 @@ export class DepthProbeProjectionCache {
     nextPoint.fill(-1);
     const sourceWidth = Math.max(0, Math.floor(args.width));
     const sourceHeight = Math.max(0, Math.floor(args.height));
-    const focalLengthPx = resolveDepthFocalLengthPx(args.width, args.height, args.depthFocalLengthPx);
-    const minDepth = depthRange.min;
-    const maxDepth = Math.max(depthRange.max, minDepth + 1.0e-6);
-    const centerDepth = (minDepth + maxDepth) * 0.5;
-    const depthSpan = Math.max(maxDepth - minDepth, 1.0e-6);
-    const xSpan = args.width * maxDepth / focalLengthPx;
-    const ySpan = args.height * maxDepth / focalLengthPx;
-    const sceneScale = Math.max(xSpan, ySpan, depthSpan, 1.0e-6);
-    const invFocalSceneScale = 1 / (focalLengthPx * sceneScale);
-    const invSceneScale = 1 / sceneScale;
+    const scalarProjection = geometry.kind === 'scalarDepth'
+      ? createScalarProjectionNormalization(args.width, args.height, args.depthFocalLengthPx, geometry.range)
+      : null;
+    const positionProjection = geometry.kind === 'xyzPosition'
+      ? createPositionProjectionNormalization(geometry.bounds)
+      : null;
     const yawRad = -clampDepthYaw(args.depthYawDeg) * Math.PI / 180;
     const pitchRad = -clampDepthPitch(args.depthPitchDeg) * Math.PI / 180;
     const yawCos = Math.cos(yawRad);
@@ -581,14 +806,35 @@ export class DepthProbeProjectionCache {
         continue;
       }
 
-      const depth = readChannelValue(view, y * sourceWidth + x);
-      if (!Number.isFinite(depth) || depth <= 0) {
-        continue;
+      const pixelIndex = y * sourceWidth + x;
+      let normalizedX = 0;
+      let normalizedY = 0;
+      let normalizedZ = 0;
+      if (source.kind === 'xyzPosition') {
+        if (!positionViews || !positionProjection) {
+          continue;
+        }
+        const px = readChannelValue(positionViews.x, pixelIndex);
+        const py = readChannelValue(positionViews.y, pixelIndex);
+        const pz = readChannelValue(positionViews.z, pixelIndex);
+        if (!Number.isFinite(px) || !Number.isFinite(py) || !Number.isFinite(pz)) {
+          continue;
+        }
+        normalizedX = (px - positionProjection.centerX) * positionProjection.invSceneScale;
+        normalizedY = (py - positionProjection.centerY) * positionProjection.invSceneScale;
+        normalizedZ = (pz - positionProjection.centerZ) * positionProjection.invSceneScale;
+      } else {
+        if (!scalarView || !scalarProjection) {
+          continue;
+        }
+        const depth = readChannelValue(scalarView, pixelIndex);
+        if (!Number.isFinite(depth) || depth <= 0) {
+          continue;
+        }
+        normalizedX = (x + 0.5 - args.width / 2) * depth * scalarProjection.invFocalSceneScale;
+        normalizedY = (args.height / 2 - (y + 0.5)) * depth * scalarProjection.invFocalSceneScale;
+        normalizedZ = (depth - scalarProjection.centerDepth) * scalarProjection.invSceneScale;
       }
-
-      const normalizedX = (x + 0.5 - args.width / 2) * depth * invFocalSceneScale;
-      const normalizedY = (args.height / 2 - (y + 0.5)) * depth * invFocalSceneScale;
-      const normalizedZ = (depth - centerDepth) * invSceneScale;
       const yawX = yawCos * normalizedX + yawSin * normalizedZ;
       const yawZ = -yawSin * normalizedX + yawCos * normalizedZ;
       const cameraY = pitchCos * normalizedY - pitchSin * yawZ;
@@ -646,34 +892,44 @@ export class DepthProbeProjectionCache {
     return this.frame;
   }
 
-  private resolveDepthRange(args: DepthProbeProjectionArgs): DisplayLuminanceRange | null {
-    if (args.depthRange) {
-      return isUsableDepthRange(args.depthRange) ? args.depthRange : null;
-    }
-
-    if (!args.channelName) {
+  private resolveDepthGeometry(
+    args: DepthProbeProjectionArgs,
+    source: DepthSource | null
+  ): DepthSourceGeometry | null {
+    if (!source) {
       return null;
     }
 
+    if (args.geometry) {
+      return isUsableDepthSourceGeometry(args.geometry) ? args.geometry : null;
+    }
+
+    if (args.depthRange && source.kind === 'scalarDepth') {
+      return isUsableDepthRange(args.depthRange)
+        ? { kind: 'scalarDepth', range: args.depthRange }
+        : null;
+    }
+
+    const sourceKey = serializeDepthSource(source);
     if (
       this.rangeCache &&
       this.rangeCache.layer === args.layer &&
       this.rangeCache.width === args.width &&
       this.rangeCache.height === args.height &&
-      this.rangeCache.channelName === args.channelName
+      this.rangeCache.sourceKey === sourceKey
     ) {
-      return this.rangeCache.range;
+      return this.rangeCache.geometry;
     }
 
-    const range = computePositiveFiniteDepthRange(args.layer, args.width, args.height, args.channelName);
+    const geometry = getDepthSourceGeometry(args.layer, args.width, args.height, source);
     this.rangeCache = {
       layer: args.layer,
       width: args.width,
       height: args.height,
-      channelName: args.channelName,
-      range
+      sourceKey,
+      geometry
     };
-    return range;
+    return geometry;
   }
 }
 
@@ -714,6 +970,63 @@ export function computePositiveFiniteDepthRange(
   return count > 0 ? { min, max } : null;
 }
 
+export function computeFinitePositionBounds(
+  layer: DecodedLayer,
+  width: number,
+  height: number,
+  source: XyzPositionDepthSource | null | undefined
+): DepthPositionBounds | null {
+  if (!source || width <= 0 || height <= 0) {
+    return null;
+  }
+
+  const views = getPositionReadViews(layer, source);
+  if (!views) {
+    return null;
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+  let count = 0;
+  const pixelCount = Math.max(0, Math.floor(width) * Math.floor(height));
+  for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
+    const x = readChannelValue(views.x, pixelIndex);
+    const y = readChannelValue(views.y, pixelIndex);
+    const z = readChannelValue(views.z, pixelIndex);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+      continue;
+    }
+
+    count += 1;
+    if (x < minX) {
+      minX = x;
+    }
+    if (x > maxX) {
+      maxX = x;
+    }
+    if (y < minY) {
+      minY = y;
+    }
+    if (y > maxY) {
+      maxY = y;
+    }
+    if (z < minZ) {
+      minZ = z;
+    }
+    if (z > maxZ) {
+      maxZ = z;
+    }
+  }
+
+  return count > 0
+    ? { minX, maxX, minY, maxY, minZ, maxZ }
+    : null;
+}
+
 export function hasDepthChannelCandidate(
   channelNames: readonly string[],
   config: ResolveDepthChannelOptions = {}
@@ -726,6 +1039,77 @@ export function hasDepthChannelCandidate(
 
 function isZSuffixChannel(channelName: string): boolean {
   return channelName.endsWith('.Z');
+}
+
+function getPositionDepthSources(
+  channelNames: readonly string[],
+  settings?: ChannelRecognitionSettings,
+  nameRules: CompiledChannelRecognitionNameRules = compileChannelRecognitionNameRules()
+): XyzPositionDepthSource[] {
+  if (!isPositionDepthSourceRecognitionEnabled(settings)) {
+    return [];
+  }
+
+  const groups = new Map<string, {
+    sourceOrder: number;
+    xChannel?: string;
+    yChannel?: string;
+    zChannel?: string;
+  }>();
+  for (let index = 0; index < channelNames.length; index += 1) {
+    const channelName = channelNames[index];
+    if (channelName === undefined) {
+      continue;
+    }
+
+    const parsed = parsePositionMapChannelNameWithRules(channelName, nameRules);
+    if (!parsed) {
+      continue;
+    }
+
+    let group = groups.get(parsed.base);
+    if (!group) {
+      group = { sourceOrder: index };
+      groups.set(parsed.base, group);
+    }
+
+    switch (parsed.component) {
+      case 'x':
+        group.xChannel ??= channelName;
+        break;
+      case 'y':
+        group.yChannel ??= channelName;
+        break;
+      case 'z':
+        group.zChannel ??= channelName;
+        break;
+    }
+  }
+
+  return [...groups.entries()]
+    .filter((entry): entry is [string, {
+      sourceOrder: number;
+      xChannel: string;
+      yChannel: string;
+      zChannel: string;
+    }] => {
+      const group = entry[1];
+      return Boolean(group.xChannel && group.yChannel && group.zChannel);
+    })
+    .sort(([aBase, aGroup], [bBase, bGroup]) => {
+      const aPriority = POSITION_DEPTH_BASE_PRIORITY.get(aBase) ?? Number.POSITIVE_INFINITY;
+      const bPriority = POSITION_DEPTH_BASE_PRIORITY.get(bBase) ?? Number.POSITIVE_INFINITY;
+      return aPriority === bPriority
+        ? aGroup.sourceOrder - bGroup.sourceOrder
+        : aPriority - bPriority;
+    })
+    .map(([base, group]) => ({
+      kind: 'xyzPosition' as const,
+      base,
+      xChannel: group.xChannel,
+      yChannel: group.yChannel,
+      zChannel: group.zChannel
+    }));
 }
 
 function isDepthLikeZSuffixChannel(channelName: string): boolean {
@@ -746,6 +1130,11 @@ function isRecognizedDepthChannel(
 
 function isDepthMapRecognitionEnabled(settings: ChannelRecognitionSettings | undefined): boolean {
   return normalizeChannelRecognitionSettings(settings)['depth.map'] !== false;
+}
+
+function isPositionDepthSourceRecognitionEnabled(settings: ChannelRecognitionSettings | undefined): boolean {
+  const normalized = normalizeChannelRecognitionSettings(settings);
+  return normalized['depth.map'] !== false && normalized['position.map'] !== false;
 }
 
 function clampFinite(value: number, min: number, max: number, fallback: number): number {
@@ -788,18 +1177,180 @@ function isUsableDepthRange(range: DisplayLuminanceRange): boolean {
   return Number.isFinite(range.min) && Number.isFinite(range.max);
 }
 
+function isUsablePositionBounds(bounds: DepthPositionBounds): boolean {
+  return Number.isFinite(bounds.minX) &&
+    Number.isFinite(bounds.maxX) &&
+    Number.isFinite(bounds.minY) &&
+    Number.isFinite(bounds.maxY) &&
+    Number.isFinite(bounds.minZ) &&
+    Number.isFinite(bounds.maxZ);
+}
+
+function isUsableDepthSourceGeometry(geometry: DepthSourceGeometry): boolean {
+  return geometry.kind === 'xyzPosition'
+    ? isUsablePositionBounds(geometry.bounds)
+    : isUsableDepthRange(geometry.range);
+}
+
+function isFiniteDepthPoint(point: DepthPoint): boolean {
+  return Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z);
+}
+
+function computePositionBoundsScale(bounds: DepthPositionBounds): number {
+  return Math.max(
+    bounds.maxX - bounds.minX,
+    bounds.maxY - bounds.minY,
+    bounds.maxZ - bounds.minZ,
+    1.0e-6
+  );
+}
+
+function projectNormalizedDepthPointToScreen(
+  point: DepthPoint,
+  options: Pick<DepthProjectionView, 'depthYawDeg' | 'depthPitchDeg' | 'depthZoom'> & {
+    pixel: ImagePixel;
+    viewport: ViewportInfo;
+    depth: number;
+  }
+): ProjectedDepthPixel | null {
+  if (!isFiniteDepthPoint(point) || options.viewport.width <= 0 || options.viewport.height <= 0) {
+    return null;
+  }
+
+  const yawRad = -clampDepthYaw(options.depthYawDeg) * Math.PI / 180;
+  const pitchRad = -clampDepthPitch(options.depthPitchDeg) * Math.PI / 180;
+  const yawPoint = rotateYaw(point, yawRad);
+  const cameraPoint = rotatePitch(yawPoint, pitchRad);
+  const zoom = clampDepthZoom(options.depthZoom);
+  const aspect = Math.max(options.viewport.width / Math.max(options.viewport.height, 1), 1.0e-6);
+  const projectedX = cameraPoint.x / aspect * zoom * 2;
+  const projectedY = cameraPoint.y * zoom * 2;
+
+  return {
+    pixel: {
+      ix: Math.floor(options.pixel.ix),
+      iy: Math.floor(options.pixel.iy)
+    },
+    screenX: (projectedX * 0.5 + 0.5) * options.viewport.width,
+    screenY: (0.5 - projectedY * 0.5) * options.viewport.height,
+    ndcZ: clampFinite(cameraPoint.z * zoom, -1, 1, 1),
+    depth: options.depth
+  };
+}
+
+function createScalarProjectionNormalization(
+  width: number,
+  height: number,
+  focalLengthPx: number | null | undefined,
+  depthRange: DisplayLuminanceRange
+): {
+  centerDepth: number;
+  invFocalSceneScale: number;
+  invSceneScale: number;
+} {
+  const resolvedFocalLengthPx = resolveDepthFocalLengthPx(width, height, focalLengthPx);
+  const minDepth = depthRange.min;
+  const maxDepth = Math.max(depthRange.max, minDepth + 1.0e-6);
+  const centerDepth = (minDepth + maxDepth) * 0.5;
+  const depthSpan = Math.max(maxDepth - minDepth, 1.0e-6);
+  const xSpan = width * maxDepth / resolvedFocalLengthPx;
+  const ySpan = height * maxDepth / resolvedFocalLengthPx;
+  const sceneScale = Math.max(xSpan, ySpan, depthSpan, 1.0e-6);
+  return {
+    centerDepth,
+    invFocalSceneScale: 1 / (resolvedFocalLengthPx * sceneScale),
+    invSceneScale: 1 / sceneScale
+  };
+}
+
+function createPositionProjectionNormalization(
+  bounds: DepthPositionBounds
+): {
+  centerX: number;
+  centerY: number;
+  centerZ: number;
+  invSceneScale: number;
+} {
+  return {
+    centerX: (bounds.minX + bounds.maxX) * 0.5,
+    centerY: (bounds.minY + bounds.maxY) * 0.5,
+    centerZ: (bounds.minZ + bounds.maxZ) * 0.5,
+    invSceneScale: 1 / computePositionBoundsScale(bounds)
+  };
+}
+
+function resolveDepthProbeSource(
+  args: Pick<DepthProbeProjectionArgs, 'source' | 'channelName'>
+): DepthSource | null {
+  if (args.source) {
+    return args.source;
+  }
+
+  return args.channelName
+    ? {
+        kind: 'scalarDepth',
+        channelName: args.channelName
+      }
+    : null;
+}
+
+function getPositionReadViews(
+  layer: DecodedLayer,
+  source: XyzPositionDepthSource
+): {
+  x: NonNullable<ReturnType<typeof getChannelReadView>>;
+  y: NonNullable<ReturnType<typeof getChannelReadView>>;
+  z: NonNullable<ReturnType<typeof getChannelReadView>>;
+} | null {
+  const x = getChannelReadView(layer, source.xChannel);
+  const y = getChannelReadView(layer, source.yChannel);
+  const z = getChannelReadView(layer, source.zChannel);
+  return x && y && z ? { x, y, z } : null;
+}
+
+function readPositionPoint(
+  layer: DecodedLayer,
+  source: XyzPositionDepthSource,
+  pixelIndex: number
+): DepthPoint | null {
+  const views = getPositionReadViews(layer, source);
+  if (!views) {
+    return null;
+  }
+
+  const point = {
+    x: readChannelValue(views.x, pixelIndex),
+    y: readChannelValue(views.y, pixelIndex),
+    z: readChannelValue(views.z, pixelIndex)
+  };
+  return isFiniteDepthPoint(point) ? point : null;
+}
+
 function buildDepthProjectionFrameKey(
   args: DepthProbeProjectionArgs,
-  depthRange: DisplayLuminanceRange,
+  source: DepthSource,
+  geometry: DepthSourceGeometry,
   sampling: DepthPointSampling
 ): string {
+  const geometryParts = geometry.kind === 'xyzPosition'
+    ? [
+        geometry.bounds.minX,
+        geometry.bounds.maxX,
+        geometry.bounds.minY,
+        geometry.bounds.maxY,
+        geometry.bounds.minZ,
+        geometry.bounds.maxZ
+      ]
+    : [
+        geometry.range.min,
+        geometry.range.max,
+        resolveDepthFocalLengthPx(args.width, args.height, args.depthFocalLengthPx)
+      ];
   return [
     Math.floor(args.width),
     Math.floor(args.height),
-    args.channelName ?? '',
-    depthRange.min,
-    depthRange.max,
-    resolveDepthFocalLengthPx(args.width, args.height, args.depthFocalLengthPx),
+    serializeDepthSource(source),
+    ...geometryParts,
     clampDepthYaw(args.depthYawDeg),
     clampDepthPitch(args.depthPitchDeg),
     clampDepthZoom(args.depthZoom),

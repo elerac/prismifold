@@ -14,6 +14,7 @@ export function createDepthProgram(gl: WebGL2RenderingContext): ProgramBundle<De
     uniforms: {
       ...getCommonUniforms(gl, program),
       depthOutputOrigin: getRequiredUniformLocation(gl, program, 'uDepthOutputOrigin'),
+      depthSourceKind: getRequiredUniformLocation(gl, program, 'uDepthSourceKind'),
       depthFocalLengthPx: getRequiredUniformLocation(gl, program, 'uDepthFocalLengthPx'),
       depthYawDeg: getRequiredUniformLocation(gl, program, 'uDepthYawDeg'),
       depthPitchDeg: getRequiredUniformLocation(gl, program, 'uDepthPitchDeg'),
@@ -21,7 +22,9 @@ export function createDepthProgram(gl: WebGL2RenderingContext): ProgramBundle<De
       depthPointSizePx: getRequiredUniformLocation(gl, program, 'uDepthPointSizePx'),
       depthGridSize: getRequiredUniformLocation(gl, program, 'uDepthGridSize'),
       depthSampleStep: getRequiredUniformLocation(gl, program, 'uDepthSampleStep'),
-      depthRange: getRequiredUniformLocation(gl, program, 'uDepthRange')
+      depthRange: getRequiredUniformLocation(gl, program, 'uDepthRange'),
+      depthPositionBoundsMin: getRequiredUniformLocation(gl, program, 'uDepthPositionBoundsMin'),
+      depthPositionBoundsMax: getRequiredUniformLocation(gl, program, 'uDepthPositionBoundsMax')
     }
   };
 }

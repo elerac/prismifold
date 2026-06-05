@@ -65,8 +65,11 @@ import {
 } from '../analysis/auto-exposure';
 import { cloneDisplaySelection, type DisplaySelection } from '../display-model';
 import {
-  computePositiveFiniteDepthRange,
-  resolveDepthChannelForLayer
+  getDepthSourceChannelNames,
+  getDepthSourceGeometry,
+  resolveDepthSourceForLayer,
+  type DepthSource,
+  type DepthSourceGeometry
 } from '../depth';
 import { getFiniteChannelRange } from '../channel-storage';
 import type {
@@ -170,8 +173,8 @@ interface RenderCacheRenderer {
     layerIndex: number,
     width: number,
     height: number,
-    channelName: string | null,
-    depthRange: DisplayLuminanceRange | null
+    source: DepthSource | null,
+    geometry: DepthSourceGeometry | null
   ) => void;
   discardChannelSourceTexture: (sessionId: string, layerIndex: number, channelName: string) => void;
   discardChannelMaterializedBuffer: (sessionId: string, layerIndex: number, channelName: string) => void;
@@ -416,8 +419,8 @@ export class RenderCacheService implements Disposable {
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
       channelRecognitionNameRules: state.channelRecognitionNameRules
     });
-    const depthChannel = state.viewerMode === 'depth'
-      ? resolveDepthChannelForLayer(layer.channelNames, state.depthChannel, {
+    const depthSource = state.viewerMode === 'depth'
+      ? resolveDepthSourceForLayer(layer.channelNames, state.depthChannel, {
           allowArbitraryZSuffix: true,
           channelRecognitionSettings: state.channelRecognitionSettings,
           channelRecognitionNameRules: state.channelRecognitionNameRules
@@ -429,7 +432,9 @@ export class RenderCacheService implements Disposable {
     });
     const requiredTextureChannelNames = [
       ...requiredChannelNames,
-      ...(depthChannel && layer.channelStorage.channelIndexByName[depthChannel] !== undefined ? [depthChannel] : [])
+      ...getDepthSourceChannelNames(depthSource).filter((channelName) => (
+        layer.channelStorage.channelIndexByName[channelName] !== undefined
+      ))
     ];
     if (this.boundChannelRecognitionNameRulesKey !== channelRecognitionNameRulesKey) {
       for (const channelName of requiredTextureChannelNames) {
@@ -501,8 +506,8 @@ export class RenderCacheService implements Disposable {
         state.activeLayer,
         session.decoded.width,
         session.decoded.height,
-        depthChannel,
-        computePositiveFiniteDepthRange(layer, session.decoded.width, session.decoded.height, depthChannel)
+        depthSource,
+        getDepthSourceGeometry(layer, session.decoded.width, session.decoded.height, depthSource)
       );
       this.setBoundTextureTracking(protectedBinding, textureRevisionKey, channelRecognitionNameRulesKey);
     }
@@ -1674,8 +1679,8 @@ export class RenderCacheService implements Disposable {
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
       channelRecognitionNameRules: state.channelRecognitionNameRules
     });
-    const depthChannel = state.viewerMode === 'depth'
-      ? resolveDepthChannelForLayer(layer.channelNames, state.depthChannel ?? null, {
+    const depthSource = state.viewerMode === 'depth'
+      ? resolveDepthSourceForLayer(layer.channelNames, state.depthChannel ?? null, {
           allowArbitraryZSuffix: true,
           channelRecognitionSettings: state.channelRecognitionSettings,
           channelRecognitionNameRules: state.channelRecognitionNameRules
@@ -1687,7 +1692,9 @@ export class RenderCacheService implements Disposable {
     });
     return [
       ...requiredChannelNames,
-      ...(depthChannel && layer.channelStorage.channelIndexByName[depthChannel] !== undefined ? [depthChannel] : [])
+      ...getDepthSourceChannelNames(depthSource).filter((channelName) => (
+        layer.channelStorage.channelIndexByName[channelName] !== undefined
+      ))
     ];
   }
 

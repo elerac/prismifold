@@ -4,6 +4,7 @@ export type ChannelRecognitionNameRuleId =
   | 'component.uv'
   | 'normal.map'
   | 'depth.map'
+  | 'position.map'
   | 'spectral.series'
   | 'stokes.scalar'
   | 'stokes.rgb'
@@ -15,6 +16,7 @@ export type ChannelRecognitionNameRuleId =
 export type ComponentNameRuleKind = 'rgb' | 'xyz' | 'uv';
 export type ComponentNameRuleSlot = 'r' | 'g' | 'b' | 'x' | 'y' | 'z' | 'u' | 'v' | 'a';
 export type NormalMapNameRuleComponent = 'x' | 'y' | 'z';
+export type PositionMapNameRuleComponent = 'x' | 'y' | 'z';
 export type StokesNameRuleComponent = 'S0' | 'S1' | 'S2' | 'S3';
 export type RgbNameRuleComponent = 'R' | 'G' | 'B';
 
@@ -66,6 +68,11 @@ export interface ParsedNormalMapChannelName {
 
 export interface ParsedDepthMapChannelName {
   channelName: string;
+}
+
+export interface ParsedPositionMapChannelName {
+  base: string;
+  component: PositionMapNameRuleComponent;
 }
 
 export interface ParsedSpectralChannelName {
@@ -136,6 +143,12 @@ export const CHANNEL_RECOGNITION_NAME_RULE_DESCRIPTORS: readonly ChannelRecognit
     requiredCaptures: ['z|depth']
   },
   {
+    id: 'position.map',
+    label: 'Position maps',
+    hint: 'Use named captures base, x, y, and z. Default matches P, Position, and position XYZ triplets.',
+    requiredCaptures: ['base', 'x', 'y', 'z']
+  },
+  {
     id: 'spectral.series',
     label: 'Spectral RGB series',
     hint: 'Use wavelength and optional series captures. Wavelength values may use decimal commas or points.',
@@ -196,6 +209,9 @@ const DEFAULT_CHANNEL_RECOGNITION_NAME_RULES: ChannelRecognitionNameRules = {
   },
   'depth.map': {
     pattern: '^(?:(?<z>Z)|(?<depth>.*[dD][eE][pP][tT][hH].*\\.Z))$'
+  },
+  'position.map': {
+    pattern: '^(?<base>P|Position|position)\\.(?:(?<x>X)|(?<y>Y)|(?<z>Z))$'
   },
   'spectral.series': {
     pattern: '^(?![sS]4\\.)(?![sS][0-3]\\.\\d+\\.\\d+(?:[eE][-+]?\\d+)?[nN][mM]$)(?![tT]\\.\\d+\\.\\d+(?:[eE][-+]?\\d+)?[nN][mM]$)(?:(?<series>[sS][0-3]|[tT]|(?!(?:[sS][0-4]|[tT])\\.)[A-Za-z_][A-Za-z0-9_.-]*?)\\.|[A-Za-z_][A-Za-z0-9_-]*?(?=\\d))?(?<wavelength>\\d+(?:[.,]\\d+)?(?:[eE][-+]?\\d+)?)[nN][mM]$'
@@ -439,6 +455,21 @@ export function parseDepthMapChannelNameWithRules(
   }
 
   return { channelName };
+}
+
+export function parsePositionMapChannelNameWithRules(
+  channelName: string,
+  compiled = compileChannelRecognitionNameRules()
+): ParsedPositionMapChannelName | null {
+  const match = execNamedRule(compiled.rules['position.map'], channelName);
+  if (!match?.groups.base) {
+    return null;
+  }
+
+  const component = findCapturedSlot(match.groups, ['x', 'y', 'z'] as const);
+  return component
+    ? { base: match.groups.base, component }
+    : null;
 }
 
 export function parseSpectralChannelNameWithRules(

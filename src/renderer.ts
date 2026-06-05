@@ -6,6 +6,7 @@ import { RulerOverlayRenderer } from './rendering/ruler-overlay-renderer';
 import type { ExportImagePixels } from './export/export-pixels';
 import type { Disposable } from './lifecycle';
 import type { DisplaySourceBinding } from './display/bindings';
+import type { DepthSource, DepthSourceGeometry } from './depth';
 import type { ResidentChannelUpload } from './display-cache';
 import type { ChannelRecognitionNameRules } from './channel-recognition-name-rules';
 import type { DecodedLayer, ViewerRenderState, ViewerState, ViewportInfo } from './types';
@@ -125,8 +126,8 @@ export class WebGlExrRenderer implements Disposable {
     layerIndex: number,
     width: number,
     height: number,
-    channelName: string | null,
-    depthRange: { min: number; max: number } | null
+    source: DepthSource | null,
+    geometry: DepthSourceGeometry | null
   ): void {
     if (this.disposed) {
       return;
@@ -137,10 +138,10 @@ export class WebGlExrRenderer implements Disposable {
       layerIndex,
       width,
       height,
-      channelName,
-      depthRange
+      source,
+      geometry
     );
-    this.probeOverlayRenderer.setDepthSourceContext(channelName, depthRange);
+    this.probeOverlayRenderer.setDepthSourceContext(source, geometry);
   }
 
   setColormapTexture(entryCount: number, rgba8: Uint8Array): void {

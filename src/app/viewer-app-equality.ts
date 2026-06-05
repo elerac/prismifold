@@ -328,6 +328,7 @@ function sameDepthReadout(
 
   return (
     a.channel === b.channel &&
+    (a.sourceKind ?? null) === (b.sourceKind ?? null) &&
     a.focalLengthPx === b.focalLengthPx &&
     a.resolvedFocalLengthPx === b.resolvedFocalLengthPx &&
     a.pointSizePx === b.pointSizePx &&

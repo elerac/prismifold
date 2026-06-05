@@ -2,7 +2,7 @@ import { samplePixelValuesForDisplay } from '../sampling/probe';
 import { resolveDisplayImageSize } from '../display-size';
 import {
   isValidDepthProbePixel,
-  resolveDepthChannelForLayer
+  resolveDepthSourceForLayer
 } from '../depth';
 import {
   buildProbeColorPreview,
@@ -72,7 +72,7 @@ export function buildProbeReadoutModel(args: BuildProbePresentationArgs): ProbeR
   }
 
   if (args.sessionState.viewerMode === 'depth') {
-    const depthChannel = resolveDepthChannelForLayer(
+    const depthSource = resolveDepthSourceForLayer(
       args.activeLayer.channelNames,
       args.sessionState.depthChannel,
       {
@@ -85,7 +85,7 @@ export function buildProbeReadoutModel(args: BuildProbePresentationArgs): ProbeR
       layer: args.activeLayer,
       width: args.activeSession.decoded.width,
       height: args.activeSession.decoded.height,
-      channelName: depthChannel
+      source: depthSource
     })) {
       return {
         mode,
