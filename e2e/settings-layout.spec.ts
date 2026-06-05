@@ -342,7 +342,7 @@ async function gotoViewerAppWithoutRuntime(
       return;
     }
 
-    await route.continue();
+    await route.fallback();
   });
   await page.goto(process.env.PLAYWRIGHT_APP_PATH ?? '/app/', { waitUntil: 'load' });
 }
@@ -426,7 +426,7 @@ async function gotoViewerAppWithDelayedRuntime(page: Page): Promise<() => Promis
       await runtimeBlock;
     }
 
-    await route.continue();
+    await route.fallback();
   });
 
   const navigation = page.goto(process.env.PLAYWRIGHT_APP_PATH ?? '/app/', { waitUntil: 'load' });
@@ -455,7 +455,7 @@ async function gotoViewerAppWithDelayedColormapManifest(page: Page): Promise<() 
   await page.route('**/colormaps/manifest.json', async (route) => {
     manifestRequested();
     await manifestBlock;
-    await route.continue();
+    await route.fallback();
   });
 
   await page.goto(process.env.PLAYWRIGHT_APP_PATH ?? '/app/', { waitUntil: 'domcontentloaded' });
@@ -677,13 +677,20 @@ test('persists the cache budget and keeps open-file actions limited to reload an
 
   const settingsDialogButton = page.getByRole('button', { name: 'Settings', exact: true });
   const settingsDialog = page.locator('#settings-dialog');
+  const budgetModeInput = page.locator('#display-cache-budget-mode-input');
+  const budgetFixedRow = page.locator('#display-cache-budget-fixed-row');
   const budgetInput = page.locator('#display-cache-budget-input');
-  const usageReadout = page.locator('#display-cache-usage');
+  const budgetBreakdownValue = page.locator('#display-cache-budget-breakdown-value');
 
   await settingsDialogButton.click();
   await expect(settingsDialog).toBeVisible();
+  await expect(budgetModeInput).toBeVisible();
+  await expect(budgetModeInput).toHaveValue('automatic');
+  await expect(budgetFixedRow).toBeHidden();
+  await expect(budgetInput).toBeHidden();
+  await expect(budgetInput).toBeDisabled();
   await expect(budgetInput).toHaveValue('256');
-  await expect(usageReadout).toContainText('/ 256 MB');
+  await expect(budgetBreakdownValue).toContainText(/^Automatic \(\d+ MB\)$/);
   await page.keyboard.press('Escape');
   await expect(settingsDialog).toBeHidden();
 
@@ -695,23 +702,30 @@ test('persists the cache budget and keeps open-file actions limited to reload an
 
   await settingsDialogButton.click();
   await expect(settingsDialog).toBeVisible();
+  await budgetModeInput.selectOption('fixed');
+  await expect(budgetFixedRow).toBeVisible();
+  await expect(budgetInput).toBeEnabled();
   await budgetInput.selectOption('128');
 
+  await expect(budgetModeInput).toHaveValue('fixed');
   await expect(budgetInput).toHaveValue('128');
-  await expect(usageReadout).toContainText('/ 128 MB');
+  await expect(budgetBreakdownValue).toContainText('Fixed (128 MB)');
   await expect.poll(async () => {
     return await page.evaluate(() => {
-      return window.localStorage.getItem('prismifold:display-cache-budget-mb:v1');
+      return JSON.parse(window.localStorage.getItem('prismifold:display-cache-budget-mb:v1') ?? 'null');
     });
-  }).toBe('128');
+  }).toEqual({ mode: 'fixed', fixedMb: 128 });
 
   await page.reload();
   await expectViewerAppReady(page);
 
   await settingsDialogButton.click();
   await expect(settingsDialog).toBeVisible();
+  await expect(budgetModeInput).toHaveValue('fixed');
+  await expect(budgetFixedRow).toBeVisible();
+  await expect(budgetInput).toBeEnabled();
   await expect(budgetInput).toHaveValue('128');
-  await expect(usageReadout).toContainText('/ 128 MB');
+  await expect(budgetBreakdownValue).toContainText('Fixed (128 MB)');
   await page.keyboard.press('Escape');
   await expect(settingsDialog).toBeHidden();
 
@@ -998,8 +1012,10 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   const settingsDialog = page.locator('#settings-dialog');
   const themeInput = page.locator('#theme-select');
   const imageLoadWorkersInput = page.locator('#image-load-workers-input');
+  const budgetModeInput = page.locator('#display-cache-budget-mode-input');
+  const budgetFixedRow = page.locator('#display-cache-budget-fixed-row');
   const budgetInput = page.locator('#display-cache-budget-input');
-  const usageReadout = page.locator('#display-cache-usage');
+  const budgetBreakdownValue = page.locator('#display-cache-budget-breakdown-value');
   const resetSettingsButton = page.getByRole('button', { name: 'Reset Settings', exact: true });
   const imageResizer = page.locator('#image-panel-resizer');
   const rightResizer = page.locator('#right-panel-resizer');
@@ -1058,9 +1074,13 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   await imageLoadWorkersInput.fill(imageLoadWorkersOverride);
   await imageLoadWorkersInput.dispatchEvent('change');
   await expect(imageLoadWorkersInput).toHaveValue(imageLoadWorkersOverride);
+  await budgetModeInput.selectOption('fixed');
+  await expect(budgetFixedRow).toBeVisible();
+  await expect(budgetInput).toBeEnabled();
   await budgetInput.selectOption('128');
+  await expect(budgetModeInput).toHaveValue('fixed');
   await expect(budgetInput).toHaveValue('128');
-  await expect(usageReadout).toContainText('/ 128 MB');
+  await expect(budgetBreakdownValue).toContainText('Fixed (128 MB)');
   await page.keyboard.press('Escape');
   await expect(settingsDialog).toBeHidden();
 
@@ -1081,7 +1101,7 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   expect(mutated.imageExpanded).toBe('false');
   expect(mutated.rightExpanded).toBe('false');
   expect(mutated.bottomExpanded).toBe('false');
-  expect(mutated.storedBudget).toBe('128');
+  expect(JSON.parse(mutated.storedBudget ?? 'null')).toEqual({ mode: 'fixed', fixedMb: 128 });
   expect(mutated.storedImageLoadWorkers).toBe(expectedStoredImageLoadWorkers);
   expect(mutated.storedTheme).toBe('spectrum-lattice');
   expect(mutated.storedSpectrumMotion).toBeNull();
@@ -1091,6 +1111,9 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   await expect(themeInput).toHaveValue('spectrum-lattice');
   await expect(page.locator('#spectrum-lattice-motion-select')).toHaveCount(0);
   await expect(imageLoadWorkersInput).toHaveValue(imageLoadWorkersOverride);
+  await expect(budgetModeInput).toHaveValue('fixed');
+  await expect(budgetFixedRow).toBeVisible();
+  await expect(budgetInput).toBeEnabled();
   await expect(budgetInput).toHaveValue('128');
   await resetSettingsButton.click();
 
@@ -1098,8 +1121,12 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   await expect(settingsDialogButton).toHaveAttribute('aria-expanded', 'true');
   await expect(themeInput).toHaveValue('default');
   await expect(imageLoadWorkersInput).toHaveValue(defaultImageLoadWorkers);
+  await expect(budgetModeInput).toHaveValue('automatic');
+  await expect(budgetFixedRow).toBeHidden();
+  await expect(budgetInput).toBeHidden();
+  await expect(budgetInput).toBeDisabled();
   await expect(budgetInput).toHaveValue('256');
-  await expect(usageReadout).toContainText('/ 256 MB');
+  await expect(budgetBreakdownValue).toContainText(/^Automatic \(\d+ MB\)$/);
 
   const afterReset = await readLayout();
   expect(Math.abs(afterReset.imageWidth - 220)).toBeLessThanOrEqual(2);
@@ -1108,7 +1135,7 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   expect(afterReset.imageExpanded).toBe('true');
   expect(afterReset.rightExpanded).toBe('true');
   expect(afterReset.bottomExpanded).toBe('true');
-  expect(afterReset.storedBudget).toBe('256');
+  expect(JSON.parse(afterReset.storedBudget ?? 'null')).toEqual({ mode: 'automatic', fixedMb: 256 });
   expect(afterReset.storedImageLoadWorkers).toBeNull();
   expect(afterReset.storedTheme).toBeNull();
   expect(afterReset.storedSpectrumMotion).toBeNull();
@@ -1129,8 +1156,12 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   await expect(themeInput).toHaveValue('default');
   await expect(page.locator('#spectrum-lattice-motion-select')).toHaveCount(0);
   await expect(imageLoadWorkersInput).toHaveValue(defaultImageLoadWorkers);
+  await expect(budgetModeInput).toHaveValue('automatic');
+  await expect(budgetFixedRow).toBeHidden();
+  await expect(budgetInput).toBeHidden();
+  await expect(budgetInput).toBeDisabled();
   await expect(budgetInput).toHaveValue('256');
-  await expect(usageReadout).toContainText('/ 256 MB');
+  await expect(budgetBreakdownValue).toContainText(/^Automatic \(\d+ MB\)$/);
 
   const afterReload = await readLayout();
   expect(Math.abs(afterReload.imageWidth - 220)).toBeLessThanOrEqual(2);
@@ -1139,7 +1170,7 @@ test('resets settings back to the default budget and panel layout', async ({ pag
   expect(afterReload.imageExpanded).toBe('true');
   expect(afterReload.rightExpanded).toBe('true');
   expect(afterReload.bottomExpanded).toBe('true');
-  expect(afterReload.storedBudget).toBe('256');
+  expect(JSON.parse(afterReload.storedBudget ?? 'null')).toEqual({ mode: 'automatic', fixedMb: 256 });
   expect(afterReload.storedTheme).toBeNull();
   expect(afterReload.storedSpectrumMotion).toBeNull();
   expect(JSON.parse(afterReload.storedPanel ?? '{}')).toEqual({

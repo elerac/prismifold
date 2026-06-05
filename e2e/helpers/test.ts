@@ -19,7 +19,7 @@ export const test = base.extend<ExternalExrRequestGuardFixtures>({
         return;
       }
 
-      await route.continue();
+      await route.fallback();
     };
 
     let testError: unknown;
