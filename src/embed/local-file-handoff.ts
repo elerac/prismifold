@@ -36,6 +36,10 @@ export interface EmbedConfigMessage {
   type: typeof EMBED_CONFIG_MESSAGE;
   panoramaAutoRotate: boolean;
   panoramaRotationSpeed: number;
+  threeDAutoOrbit?: boolean;
+  threeDOrbitSpeed?: number;
+  threeDOrbitYaw?: number;
+  threeDOrbitPitch?: number;
 }
 
 export interface LocalFileHandoffReadyMessage {
@@ -99,10 +103,25 @@ export function isEmbedConfigMessage(value: unknown): value is EmbedConfigMessag
     return false;
   }
   const record = value as Record<string, unknown>;
+  const hasThreeDConfig = (
+    record.threeDAutoOrbit !== undefined ||
+    record.threeDOrbitSpeed !== undefined ||
+    record.threeDOrbitYaw !== undefined ||
+    record.threeDOrbitPitch !== undefined
+  );
   return record.type === EMBED_CONFIG_MESSAGE &&
     typeof record.panoramaAutoRotate === 'boolean' &&
     typeof record.panoramaRotationSpeed === 'number' &&
-    Number.isFinite(record.panoramaRotationSpeed);
+    Number.isFinite(record.panoramaRotationSpeed) &&
+    (!hasThreeDConfig || (
+      typeof record.threeDAutoOrbit === 'boolean' &&
+      typeof record.threeDOrbitSpeed === 'number' &&
+      Number.isFinite(record.threeDOrbitSpeed) &&
+      typeof record.threeDOrbitYaw === 'number' &&
+      Number.isFinite(record.threeDOrbitYaw) &&
+      typeof record.threeDOrbitPitch === 'number' &&
+      Number.isFinite(record.threeDOrbitPitch)
+    ));
 }
 
 export function isLocalFileHandoffReadyMessage(value: unknown): value is LocalFileHandoffReadyMessage {

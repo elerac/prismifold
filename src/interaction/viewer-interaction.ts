@@ -19,9 +19,11 @@ import {
 } from '../viewer-pane-layout';
 import { imageToScreen } from './image-geometry';
 import {
+  ThreeDAutoOrbitController,
   ThreeDKeyboardOrbitController,
   orbitThreeDFromDrag,
   panThreeDFromDrag,
+  type ThreeDAutoOrbitConfig,
   zoomThreeDByKeyboardStep,
   zoomThreeDFromKeyboard,
   zoomThreeDFromWheel
@@ -87,6 +89,7 @@ export class ViewerInteraction {
   private readonly imageKeyboardPan: ImageKeyboardPanController;
   private readonly panoramaKeyboardOrbit: PanoramaKeyboardOrbitController;
   private readonly panoramaAutoRotate: PanoramaAutoRotateController;
+  private readonly threeDAutoOrbit: ThreeDAutoOrbitController;
   private readonly threeDKeyboardOrbit: ThreeDKeyboardOrbitController;
   private readonly keyboardZoom: ViewerKeyboardZoomController;
   private dragging = false;
@@ -126,6 +129,12 @@ export class ViewerInteraction {
     }, dependencies);
     this.panoramaAutoRotate = new PanoramaAutoRotateController({
       getState: callbacks.getState,
+      getImageSize: callbacks.getImageSize,
+      onViewChange: callbacks.onViewChange
+    }, dependencies);
+    this.threeDAutoOrbit = new ThreeDAutoOrbitController({
+      getState: callbacks.getState,
+      getViewport: () => this.getActiveViewport(),
       getImageSize: callbacks.getImageSize,
       onViewChange: callbacks.onViewChange
     }, dependencies);
@@ -169,6 +178,7 @@ export class ViewerInteraction {
     this.imageKeyboardPan.destroy();
     this.panoramaKeyboardOrbit.destroy();
     this.panoramaAutoRotate.destroy();
+    this.threeDAutoOrbit.destroy();
     this.threeDKeyboardOrbit.destroy();
     this.keyboardZoom.destroy();
   }
@@ -184,6 +194,20 @@ export class ViewerInteraction {
   pausePanoramaAutoRotateForUserInput(): void {
     if (this.callbacks.getState().viewerMode === 'panorama') {
       this.panoramaAutoRotate.pauseForUserInteraction();
+    }
+  }
+
+  setThreeDAutoOrbitConfig(config: ThreeDAutoOrbitConfig): void {
+    this.threeDAutoOrbit.setConfig(config);
+  }
+
+  refreshThreeDAutoOrbit(): void {
+    this.threeDAutoOrbit.sync();
+  }
+
+  pauseThreeDAutoOrbitForUserInput(): void {
+    if (this.callbacks.getState().viewerMode === '3d') {
+      this.threeDAutoOrbit.pauseForUserInteraction();
     }
   }
 
@@ -213,6 +237,7 @@ export class ViewerInteraction {
     }
 
     if (state.viewerMode === '3d') {
+      this.threeDAutoOrbit.pauseForUserInteraction();
       this.threeDKeyboardOrbit.handle(direction);
     }
   }
@@ -251,6 +276,7 @@ export class ViewerInteraction {
     }
 
     if (state.viewerMode === '3d') {
+      this.threeDAutoOrbit.pauseForUserInteraction();
       const nextView = zoomThreeDFromKeyboard(state, direction);
       const nextState = { ...state, ...nextView };
       this.callbacks.onViewChange(nextView);
@@ -286,6 +312,9 @@ export class ViewerInteraction {
     this.panoramaAutoRotate.setUserInteracting(
       this.callbacks.getState().viewerMode === 'panorama' && hasViewerKeyboardZoomInput(input)
     );
+    this.threeDAutoOrbit.setUserInteracting(
+      this.callbacks.getState().viewerMode === '3d' && hasViewerKeyboardZoomInput(input)
+    );
     this.keyboardZoom.setInput(input);
   }
 
@@ -293,6 +322,7 @@ export class ViewerInteraction {
     const state = this.callbacks.getState();
     if (state.viewerMode === 'image') {
       this.panoramaAutoRotate.setUserInteracting(false);
+      this.threeDAutoOrbit.setUserInteracting(false);
       this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.threeDKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.imageKeyboardPan.setInput(input);
@@ -301,6 +331,7 @@ export class ViewerInteraction {
 
     if (state.viewerMode === 'panorama') {
       this.panoramaAutoRotate.setUserInteracting(hasViewerKeyboardNavigationInput(input));
+      this.threeDAutoOrbit.setUserInteracting(false);
       this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
       this.threeDKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.panoramaKeyboardOrbit.setInput(input);
@@ -309,6 +340,7 @@ export class ViewerInteraction {
 
     if (state.viewerMode === '3d') {
       this.panoramaAutoRotate.setUserInteracting(false);
+      this.threeDAutoOrbit.setUserInteracting(hasViewerKeyboardNavigationInput(input));
       this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
       this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.threeDKeyboardOrbit.setInput(input);
@@ -316,6 +348,7 @@ export class ViewerInteraction {
     }
 
     this.panoramaAutoRotate.setUserInteracting(false);
+    this.threeDAutoOrbit.setUserInteracting(false);
     this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
     this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
     this.threeDKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
@@ -357,6 +390,7 @@ export class ViewerInteraction {
     }
 
     if (state.viewerMode === '3d') {
+      this.threeDAutoOrbit.pauseForUserInteraction();
       const nextView = zoomThreeDFromWheel(state, event.deltaY);
       const nextState = { ...state, ...nextView };
       this.callbacks.onViewChange(nextView);
@@ -437,6 +471,9 @@ export class ViewerInteraction {
     const viewport = panePoint.pane.viewport;
     if (state.viewerMode === 'panorama') {
       this.panoramaAutoRotate.setUserInteracting(true);
+    }
+    if (state.viewerMode === '3d') {
+      this.threeDAutoOrbit.setUserInteracting(true);
     }
     if (state.viewerMode === 'image') {
       const handle = state.roi ? resolveRoiAdjustmentHandle(point, state.roi, state, viewport) : null;
@@ -644,6 +681,7 @@ export class ViewerInteraction {
     const imageSize = this.callbacks.getImageSize();
     if (!imageSize) {
       this.panoramaAutoRotate.setUserInteracting(false);
+      this.threeDAutoOrbit.setUserInteracting(false);
       this.clearDrag(event.pointerId);
       return;
     }
@@ -776,6 +814,7 @@ export class ViewerInteraction {
     }
     if (wasDragging) {
       this.panoramaAutoRotate.setUserInteracting(false);
+      this.threeDAutoOrbit.setUserInteracting(false);
     }
   }
 
@@ -937,6 +976,7 @@ export class ViewerInteraction {
 
   private readonly onDocumentVisibilityChange = (): void => {
     this.panoramaAutoRotate.sync();
+    this.threeDAutoOrbit.sync();
   };
 }
 

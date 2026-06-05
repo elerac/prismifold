@@ -24,6 +24,10 @@ interface PrismifoldViewerElementForTest extends HTMLElement {
     view?: string;
     panoramaAutoRotate?: boolean | string;
     panoramaRotationSpeed?: number | string;
+    threeDAutoOrbit?: boolean | string;
+    threeDOrbitSpeed?: number | string;
+    threeDOrbitYaw?: number | string;
+    threeDOrbitPitch?: number | string;
   }): Promise<void>;
   loadUrl(src: string, options?: {
     name?: string;
@@ -31,10 +35,18 @@ interface PrismifoldViewerElementForTest extends HTMLElement {
     view?: string;
     panoramaAutoRotate?: boolean | string;
     panoramaRotationSpeed?: number | string;
+    threeDAutoOrbit?: boolean | string;
+    threeDOrbitSpeed?: number | string;
+    threeDOrbitYaw?: number | string;
+    threeDOrbitPitch?: number | string;
   }): Promise<void>;
   setView(view: string): void;
   setPanoramaAutoRotate(enabled: boolean | string): void;
   setPanoramaRotationSpeed(speedDegPerSecond: number | string): void;
+  setThreeDAutoOrbit(enabled: boolean | string): void;
+  setThreeDOrbitSpeed(speedDegPerSecond: number | string): void;
+  setThreeDOrbitYaw(yawAmplitudeDeg: number | string): void;
+  setThreeDOrbitPitch(pitchAmplitudeDeg: number | string): void;
 }
 
 interface PrismifoldControllerForTest {
@@ -44,6 +56,10 @@ interface PrismifoldControllerForTest {
     view?: string;
     panoramaAutoRotate?: boolean | string;
     panoramaRotationSpeed?: number | string;
+    threeDAutoOrbit?: boolean | string;
+    threeDOrbitSpeed?: number | string;
+    threeDOrbitYaw?: number | string;
+    threeDOrbitPitch?: number | string;
   }): Promise<void>;
   loadUrl(src: string, options?: {
     name?: string;
@@ -51,10 +67,18 @@ interface PrismifoldControllerForTest {
     view?: string;
     panoramaAutoRotate?: boolean | string;
     panoramaRotationSpeed?: number | string;
+    threeDAutoOrbit?: boolean | string;
+    threeDOrbitSpeed?: number | string;
+    threeDOrbitYaw?: number | string;
+    threeDOrbitPitch?: number | string;
   }): Promise<void>;
   setView(view: string): PrismifoldControllerForTest;
   setPanoramaAutoRotate(enabled: boolean | string): PrismifoldControllerForTest;
   setPanoramaRotationSpeed(speedDegPerSecond: number | string): PrismifoldControllerForTest;
+  setThreeDAutoOrbit(enabled: boolean | string): PrismifoldControllerForTest;
+  setThreeDOrbitSpeed(speedDegPerSecond: number | string): PrismifoldControllerForTest;
+  setThreeDOrbitYaw(yawAmplitudeDeg: number | string): PrismifoldControllerForTest;
+  setThreeDOrbitPitch(pitchAmplitudeDeg: number | string): PrismifoldControllerForTest;
   destroy(): void;
 }
 
@@ -71,6 +95,10 @@ interface PrismifoldApiForTest {
     bottomPanel?: string;
     panoramaAutoRotate?: boolean | string;
     panoramaRotationSpeed?: number | string;
+    threeDAutoOrbit?: boolean | string;
+    threeDOrbitSpeed?: number | string;
+    threeDOrbitYaw?: number | string;
+    threeDOrbitPitch?: number | string;
     autoLoad?: boolean | string;
   }): PrismifoldControllerForTest;
 }
@@ -152,6 +180,32 @@ describe('embed wrapper public script', () => {
     expect(iframeUrl.searchParams.get('bottomPanel')).toBe('channels');
     expect(iframeUrl.searchParams.get('panoramaAutoRotate')).toBe('true');
     expect(iframeUrl.searchParams.get('panoramaRotationSpeed')).toBe('12.5');
+  });
+
+  it('creates iframe-backed 3D orbit viewers with expected params', () => {
+    document.body.innerHTML = '<div id="target"></div>';
+
+    const controller = getPrismifold().create('#target', {
+      src: 'https://example.com/depth.exr',
+      name: 'Depth pass',
+      view: '3d',
+      threeDAutoOrbit: true,
+      threeDOrbitSpeed: 9,
+      threeDOrbitYaw: 14,
+      threeDOrbitPitch: 3
+    });
+
+    const iframeUrl = new URL(getViewerIframe(controller.element).src);
+
+    expect(controller.element.getAttribute('three-d-auto-orbit')).toBe('true');
+    expect(controller.element.getAttribute('three-d-orbit-speed')).toBe('9');
+    expect(controller.element.getAttribute('three-d-orbit-yaw')).toBe('14');
+    expect(controller.element.getAttribute('three-d-orbit-pitch')).toBe('3');
+    expect(iframeUrl.searchParams.get('view')).toBe('3d');
+    expect(iframeUrl.searchParams.get('threeDAutoOrbit')).toBe('true');
+    expect(iframeUrl.searchParams.get('threeDOrbitSpeed')).toBe('9');
+    expect(iframeUrl.searchParams.get('threeDOrbitYaw')).toBe('14');
+    expect(iframeUrl.searchParams.get('threeDOrbitPitch')).toBe('3');
   });
 
   it('passes bottom-panel markup through and omits the default probe query param', () => {
@@ -401,6 +455,48 @@ describe('embed wrapper public script', () => {
     expect(document.querySelector('prismifold-viewer')).toBeNull();
   });
 
+  it('normalizes 3D and legacy depth view values for posted file state', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const controller = getPrismifold().create('#target');
+    const iframe = getViewerIframe(controller.element);
+    const postMessage = spyOnIframePostMessage(iframe);
+
+    dispatchEmbedReady(controller.element, iframe);
+    await controller.loadFile(new File(['pixels'], 'depth.exr'), {
+      view: '3d',
+      threeDAutoOrbit: true,
+      threeDOrbitSpeed: 9,
+      threeDOrbitYaw: 14,
+      threeDOrbitPitch: 3
+    });
+    await controller.loadFile(new File(['pixels'], 'legacy-depth.exr'), {
+      view: 'depth'
+    });
+
+    const postedFiles = postMessage.mock.calls
+      .map((call) => call[0] as { type?: string; state?: { viewerMode?: string } | null })
+      .filter((message) => message.type === EMBED_LOAD_FILE_MESSAGE);
+    expect(postedFiles[0]?.state).toEqual({ viewerMode: '3d' });
+    expect(postedFiles[1]?.state).toEqual({ viewerMode: '3d' });
+
+    const configMessage = postMessage.mock.calls
+      .map((call) => call[0] as {
+        type?: string;
+        threeDAutoOrbit?: boolean;
+        threeDOrbitSpeed?: number;
+        threeDOrbitYaw?: number;
+        threeDOrbitPitch?: number;
+      })
+      .find((message) => message.type === EMBED_CONFIG_MESSAGE);
+    expect(configMessage).toEqual(expect.objectContaining({
+      type: EMBED_CONFIG_MESSAGE,
+      threeDAutoOrbit: true,
+      threeDOrbitSpeed: 9,
+      threeDOrbitYaw: 14,
+      threeDOrbitPitch: 3
+    }));
+  });
+
   it('live-updates panorama animation config without replacing the iframe', async () => {
     document.body.innerHTML = '<div id="target"></div>';
     const controller = getPrismifold().create('#target', {
@@ -422,19 +518,100 @@ describe('embed wrapper public script', () => {
     expect(controller.element.getAttribute('panorama-auto-rotate')).toBe('false');
 
     const configMessages = postMessage.mock.calls
-      .map((call) => call[0] as { type?: string; panoramaAutoRotate?: boolean; panoramaRotationSpeed?: number })
+      .map((call) => call[0] as {
+        type?: string;
+        panoramaAutoRotate?: boolean;
+        panoramaRotationSpeed?: number;
+        threeDAutoOrbit?: boolean;
+        threeDOrbitSpeed?: number;
+        threeDOrbitYaw?: number;
+        threeDOrbitPitch?: number;
+      })
       .filter((message) => message.type === EMBED_CONFIG_MESSAGE);
     expect(configMessages).toEqual([
       {
         type: EMBED_CONFIG_MESSAGE,
         panoramaAutoRotate: true,
-        panoramaRotationSpeed: 60
+        panoramaRotationSpeed: 60,
+        threeDAutoOrbit: false,
+        threeDOrbitSpeed: 6,
+        threeDOrbitYaw: 12,
+        threeDOrbitPitch: 2
       },
       {
         type: EMBED_CONFIG_MESSAGE,
         panoramaAutoRotate: false,
-        panoramaRotationSpeed: 60
+        panoramaRotationSpeed: 60,
+        threeDAutoOrbit: false,
+        threeDOrbitSpeed: 6,
+        threeDOrbitYaw: 12,
+        threeDOrbitPitch: 2
       }
+    ]);
+  });
+
+  it('live-updates 3D orbit config without replacing the iframe', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const controller = getPrismifold().create('#target', {
+      src: 'https://example.com/depth.exr',
+      view: '3d',
+      threeDAutoOrbit: true
+    });
+    const iframe = getViewerIframe(controller.element);
+    const postMessage = spyOnIframePostMessage(iframe);
+    dispatchEmbedReady(controller.element, iframe);
+
+    const returned = controller
+      .setThreeDOrbitSpeed(100)
+      .setThreeDOrbitYaw(100)
+      .setThreeDOrbitPitch(100)
+      .setThreeDAutoOrbit(false);
+
+    expect(returned).toBe(controller);
+    expect(getViewerIframe(controller.element)).toBe(iframe);
+    expect(controller.element.getAttribute('three-d-orbit-speed')).toBe('30');
+    expect(controller.element.getAttribute('three-d-orbit-yaw')).toBe('30');
+    expect(controller.element.getAttribute('three-d-orbit-pitch')).toBe('8');
+    expect(controller.element.getAttribute('three-d-auto-orbit')).toBe('false');
+
+    const configMessages = postMessage.mock.calls
+      .map((call) => call[0] as {
+        type?: string;
+        threeDAutoOrbit?: boolean;
+        threeDOrbitSpeed?: number;
+        threeDOrbitYaw?: number;
+        threeDOrbitPitch?: number;
+      })
+      .filter((message) => message.type === EMBED_CONFIG_MESSAGE);
+    expect(configMessages).toEqual([
+      expect.objectContaining({
+        type: EMBED_CONFIG_MESSAGE,
+        threeDAutoOrbit: true,
+        threeDOrbitSpeed: 30,
+        threeDOrbitYaw: 12,
+        threeDOrbitPitch: 2
+      }),
+      expect.objectContaining({
+        type: EMBED_CONFIG_MESSAGE,
+        threeDAutoOrbit: true,
+        threeDOrbitSpeed: 30,
+        threeDOrbitYaw: 30,
+        threeDOrbitPitch: 2
+      }),
+      expect.objectContaining({
+        type: EMBED_CONFIG_MESSAGE,
+        threeDAutoOrbit: true,
+        threeDOrbitSpeed: 30,
+        threeDOrbitYaw: 30,
+        threeDOrbitPitch: 8
+      }),
+      expect.objectContaining({
+        type: EMBED_CONFIG_MESSAGE,
+        threeDAutoOrbit: false,
+        threeDOrbitSpeed: 30,
+        threeDOrbitYaw: 30,
+        threeDOrbitPitch: 8
+      })
     ]);
   });
 
@@ -458,7 +635,11 @@ describe('embed wrapper public script', () => {
     expect(postMessage.mock.calls[0]?.[0]).toEqual({
       type: EMBED_CONFIG_MESSAGE,
       panoramaAutoRotate: true,
-      panoramaRotationSpeed: -8
+      panoramaRotationSpeed: -8,
+      threeDAutoOrbit: false,
+      threeDOrbitSpeed: 6,
+      threeDOrbitYaw: 12,
+      threeDOrbitPitch: 2
     });
     expect(postMessage.mock.calls[1]?.[0]).toMatchObject({
       type: EMBED_LOAD_FILE_MESSAGE,

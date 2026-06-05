@@ -197,13 +197,15 @@
                 <p>
                   Set <code>view="3d"</code> for EXR files that include RGB plus depth. Prismifold
                   opens the compact point-cloud viewer when it can infer a depth channel such as
-                  <code>Z</code>.
+                  <code>Z</code>, and the embed can animate a front-biased orbit for quick shape
+                  inspection.
                 </p>
                 <div class="gallery-code-frame" aria-label="3D embed code">
                   <pre><code class="language-html"><span class="syntax-punctuation">&lt;</span><span class="syntax-tag">prismifold-viewer</span>
   <span class="syntax-attribute">src</span><span class="syntax-punctuation">=</span><span class="syntax-string">"../middlebury_chess1_rgb_z.exr"</span>
   <span class="syntax-attribute">name</span><span class="syntax-punctuation">=</span><span class="syntax-string">"Middlebury RGB + Z"</span>
   <span class="syntax-attribute">view</span><span class="syntax-punctuation">=</span><span class="syntax-string">"3d"</span>
+  <span class="syntax-attribute">three-d-auto-orbit</span><span class="syntax-punctuation">=</span><span class="syntax-string">"true"</span>
   <span class="syntax-attribute">bottom-panel</span><span class="syntax-punctuation">=</span><span class="syntax-string">"none"</span>
   <span class="syntax-attribute">source-origin</span><span class="syntax-punctuation">=</span><span class="syntax-string">"viewer"</span>
   <span class="syntax-attribute">height</span><span class="syntax-punctuation">=</span><span class="syntax-string">"360"</span><span class="syntax-punctuation">&gt;</span>
@@ -216,6 +218,7 @@
                   src="../middlebury_chess1_rgb_z.exr"
                   name="Middlebury RGB + Z"
                   view="3d"
+                  three-d-auto-orbit="true"
                   bottom-panel="none"
                   source-origin="viewer"
                   height="360"
@@ -350,6 +353,26 @@ document.querySelector<span class="syntax-punctuation">(</span><span class="synt
               <span role="cell">Signed panorama rotation speed. Defaults to <code>6</code>.</span>
             </div>
             <div class="embed-reference-row" role="row">
+              <code role="cell">three-d-auto-orbit</code>
+              <span role="cell"><code>true</code> or <code>false</code></span>
+              <span role="cell">Animate a front-biased orbit in embedded 3D view.</span>
+            </div>
+            <div class="embed-reference-row" role="row">
+              <code role="cell">three-d-orbit-speed</code>
+              <span role="cell">Degrees per second</span>
+              <span role="cell">Maximum center yaw speed. Defaults to <code>6</code>.</span>
+            </div>
+            <div class="embed-reference-row" role="row">
+              <code role="cell">three-d-orbit-yaw</code>
+              <span role="cell">Degrees</span>
+              <span role="cell">3D orbit yaw amplitude. Defaults to <code>12</code>.</span>
+            </div>
+            <div class="embed-reference-row" role="row">
+              <code role="cell">three-d-orbit-pitch</code>
+              <span role="cell">Degrees</span>
+              <span role="cell">3D orbit pitch amplitude. Defaults to <code>2</code>.</span>
+            </div>
+            <div class="embed-reference-row" role="row">
               <code role="cell">auto-load</code>
               <span role="cell"><code>true</code> or <code>false</code></span>
               <span role="cell">Set to false to wait for a click before fetching the source.</span>
@@ -385,12 +408,12 @@ document.querySelector<span class="syntax-punctuation">(</span><span class="synt
             </div>
             <div class="embed-reference-row" role="row">
               <code role="cell">loadUrl(src, options)</code>
-              <span role="cell"><code>src</code>, optional <code>name</code>, <code>view</code>, <code>sourceOrigin</code>, <code>panoramaAutoRotate</code>, <code>panoramaRotationSpeed</code></span>
+              <span role="cell"><code>src</code>, optional <code>name</code>, <code>view</code>, <code>sourceOrigin</code>, panorama animation fields, 3D orbit fields</span>
               <span role="cell">Load an EXR URL from the parent page or viewer iframe.</span>
             </div>
             <div class="embed-reference-row" role="row">
               <code role="cell">loadFile(file, options)</code>
-              <span role="cell"><code>File</code>, optional <code>name</code>, <code>view</code>, <code>panoramaAutoRotate</code>, <code>panoramaRotationSpeed</code></span>
+              <span role="cell"><code>File</code>, optional <code>name</code>, <code>view</code>, panorama animation fields, 3D orbit fields</span>
               <span role="cell">Load a browser <code>File</code> object, such as one selected through a local file input.</span>
             </div>
             <div class="embed-reference-row" role="row">
@@ -407,6 +430,26 @@ document.querySelector<span class="syntax-punctuation">(</span><span class="synt
               <code role="cell">setPanoramaRotationSpeed(speed)</code>
               <span role="cell">Degrees per second</span>
               <span role="cell">Set signed panorama rotation speed without replacing the iframe.</span>
+            </div>
+            <div class="embed-reference-row" role="row">
+              <code role="cell">setThreeDAutoOrbit(enabled)</code>
+              <span role="cell"><code>true</code> or <code>false</code></span>
+              <span role="cell">Enable or disable 3D orbit without replacing the iframe.</span>
+            </div>
+            <div class="embed-reference-row" role="row">
+              <code role="cell">setThreeDOrbitSpeed(speed)</code>
+              <span role="cell">Degrees per second</span>
+              <span role="cell">Set 3D orbit speed without replacing the iframe.</span>
+            </div>
+            <div class="embed-reference-row" role="row">
+              <code role="cell">setThreeDOrbitYaw(yaw)</code>
+              <span role="cell">Degrees</span>
+              <span role="cell">Set 3D orbit yaw amplitude without replacing the iframe.</span>
+            </div>
+            <div class="embed-reference-row" role="row">
+              <code role="cell">setThreeDOrbitPitch(pitch)</code>
+              <span role="cell">Degrees</span>
+              <span role="cell">Set 3D orbit pitch amplitude without replacing the iframe.</span>
             </div>
             <div class="embed-reference-row" role="row">
               <code role="cell">destroy()</code>

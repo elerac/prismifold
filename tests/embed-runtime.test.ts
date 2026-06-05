@@ -16,6 +16,7 @@ function createAppHandle(): AppHandle {
     applyState: vi.fn(),
     setError: vi.fn(),
     setEmbedPanoramaAnimationConfig: vi.fn(),
+    setEmbedThreeDAnimationConfig: vi.fn(),
     deferInitialLoad: vi.fn(),
     openFullViewer: vi.fn(),
     dispose: vi.fn()
@@ -33,6 +34,12 @@ describe('embed runtime', () => {
       autoLoad: true,
       bottomPanel: 'probe',
       panoramaAnimation: { autoRotate: false, rotationSpeedDegPerSecond: 6 },
+      threeDAnimation: {
+        autoOrbit: false,
+        orbitSpeedDegPerSecond: 6,
+        orbitYawAmplitudeDeg: 12,
+        orbitPitchAmplitudeDeg: 2
+      },
       handoffId: null,
       state: null
     }, urlApp);
@@ -59,6 +66,12 @@ describe('embed runtime', () => {
       autoLoad: false,
       bottomPanel: 'probe',
       panoramaAnimation: { autoRotate: false, rotationSpeedDegPerSecond: 6 },
+      threeDAnimation: {
+        autoOrbit: false,
+        orbitSpeedDegPerSecond: 6,
+        orbitYawAmplitudeDeg: 12,
+        orbitPitchAmplitudeDeg: 2
+      },
       handoffId: null,
       state: null
     }, urlApp);
@@ -137,6 +150,33 @@ describe('embed runtime', () => {
     expect(app.setEmbedPanoramaAnimationConfig).toHaveBeenCalledWith({
       autoRotate: true,
       rotationSpeedDegPerSecond: -12.5
+    });
+    expect(app.setEmbedThreeDAnimationConfig).not.toHaveBeenCalled();
+    cleanup();
+  });
+
+  it('passes wrapper-provided 3D embed animation config to the app', () => {
+    const app = createAppHandle();
+    const cleanup = registerEmbedMessageBridge(app);
+
+    window.dispatchEvent(new MessageEvent('message', {
+      source: window,
+      data: {
+        type: EMBED_CONFIG_MESSAGE,
+        panoramaAutoRotate: false,
+        panoramaRotationSpeed: 6,
+        threeDAutoOrbit: true,
+        threeDOrbitSpeed: 9,
+        threeDOrbitYaw: 14,
+        threeDOrbitPitch: 3
+      }
+    }));
+
+    expect(app.setEmbedThreeDAnimationConfig).toHaveBeenCalledWith({
+      autoOrbit: true,
+      orbitSpeedDegPerSecond: 9,
+      orbitYawAmplitudeDeg: 14,
+      orbitPitchAmplitudeDeg: 3
     });
     cleanup();
   });

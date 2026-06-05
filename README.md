@@ -225,8 +225,12 @@ Common attributes:
 | `bottom-panel` | Embed bottom content: `probe`, `channels`, or `none`. Defaults to `probe`. |
 | `panorama-auto-rotate` | Set to `true` on panorama embeds to rotate the yaw automatically. Defaults to `false`. |
 | `panorama-rotation-speed` | Signed panorama rotation speed in degrees per second. Defaults to `6`; values are clamped to `-60` to `60`. |
+| `three-d-auto-orbit` | Set to `true` on 3D embeds to animate a front-biased point-cloud orbit. Defaults to `false`. |
+| `three-d-orbit-speed` | Maximum center yaw speed in degrees per second. Defaults to `6`; values are clamped to `0` to `30`. |
+| `three-d-orbit-yaw` | 3D orbit yaw amplitude in degrees. Defaults to `12`; values are clamped to `0` to `30`. |
+| `three-d-orbit-pitch` | 3D orbit pitch amplitude in degrees. Defaults to `2`; values are clamped to `0` to `8`. |
 
-The embed supports pan, zoom, hover probe or compact channel selection, panorama auto-rotation, and an `Open full viewer` button.
+The embed supports pan, zoom, hover probe or compact channel selection, panorama auto-rotation, 3D point-cloud orbit, and an `Open full viewer` button.
 
 ### JavaScript API
 
@@ -252,11 +256,15 @@ Controller methods:
 
 | Method | Description |
 | --- | --- |
-| `loadUrl(src, options)` | Load an EXR URL; options include `name`, `view`, `sourceOrigin`, `panoramaAutoRotate`, and `panoramaRotationSpeed`. |
-| `loadFile(file, options)` | Load a browser `File`; options include `name`, `view`, `panoramaAutoRotate`, and `panoramaRotationSpeed`. |
-| `setView(view)` | Switch to `image`, `panorama`, or `depth`. |
+| `loadUrl(src, options)` | Load an EXR URL; options include `name`, `view`, `sourceOrigin`, panorama animation fields, and 3D orbit fields. |
+| `loadFile(file, options)` | Load a browser `File`; options include `name`, `view`, panorama animation fields, and 3D orbit fields. |
+| `setView(view)` | Switch to `image`, `panorama`, or `3d`. |
 | `setPanoramaAutoRotate(enabled)` | Enable or disable panorama auto-rotation without replacing the iframe. |
 | `setPanoramaRotationSpeed(speedDegPerSecond)` | Set signed panorama rotation speed in degrees per second without replacing the iframe. |
+| `setThreeDAutoOrbit(enabled)` | Enable or disable 3D point-cloud orbit without replacing the iframe. |
+| `setThreeDOrbitSpeed(speedDegPerSecond)` | Set 3D orbit speed without replacing the iframe. |
+| `setThreeDOrbitYaw(yawAmplitudeDeg)` | Set 3D orbit yaw amplitude without replacing the iframe. |
+| `setThreeDOrbitPitch(pitchAmplitudeDeg)` | Set 3D orbit pitch amplitude without replacing the iframe. |
 | `destroy()` | Remove the embedded viewer. |
 
 ### Source loading and CORS

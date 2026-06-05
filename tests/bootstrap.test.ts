@@ -66,8 +66,17 @@ const mocks = vi.hoisted(() => {
       panoramaYawDeg: 0,
       panoramaPitchDeg: 0,
       panoramaHfovDeg: 100,
+      depthYawDeg: 0,
+      depthPitchDeg: 0,
+      depthZoom: 1,
+      depthTargetX: 0,
+      depthTargetY: 0,
+      depthTargetZ: 0,
       activeLayer: 0,
       displaySelection: null,
+      depthChannel: null,
+      depthFocalLengthPx: null,
+      depthPointSizePx: 2,
       lockedPixel: null,
       roi: null
     },
@@ -78,7 +87,13 @@ const mocks = vi.hoisted(() => {
         panY: 0,
         panoramaYawDeg: 0,
         panoramaPitchDeg: 0,
-        panoramaHfovDeg: 100
+        panoramaHfovDeg: 100,
+        depthYawDeg: 0,
+        depthPitchDeg: 0,
+        depthZoom: 1,
+        depthTargetX: 0,
+        depthTargetY: 0,
+        depthTargetZ: 0
       },
       hoveredPixel: null,
       draftRoi: null
@@ -94,6 +109,9 @@ const mocks = vi.hoisted(() => {
   const interactionSetPanoramaAutoRotateConfig = vi.fn();
   const interactionRefreshPanoramaAutoRotate = vi.fn();
   const interactionPausePanoramaAutoRotateForUserInput = vi.fn();
+  const interactionSetThreeDAutoOrbitConfig = vi.fn();
+  const interactionRefreshThreeDAutoOrbit = vi.fn();
+  const interactionPauseThreeDAutoOrbitForUserInput = vi.fn();
   const interactionCoordinatorDispose = vi.fn();
   const sessionDispose = vi.fn();
   const sessionResetActiveSessionViewState = vi.fn();
@@ -178,6 +196,9 @@ const mocks = vi.hoisted(() => {
     interactionSetPanoramaAutoRotateConfig,
     interactionRefreshPanoramaAutoRotate,
     interactionPausePanoramaAutoRotateForUserInput,
+    interactionSetThreeDAutoOrbitConfig,
+    interactionRefreshThreeDAutoOrbit,
+    interactionPauseThreeDAutoOrbitForUserInput,
     interactionCoordinatorDispose,
     sessionDispose,
     displayDispose,
@@ -397,6 +418,9 @@ vi.mock('../src/interaction/viewer-interaction', () => ({
     readonly setPanoramaAutoRotateConfig = mocks.interactionSetPanoramaAutoRotateConfig;
     readonly refreshPanoramaAutoRotate = mocks.interactionRefreshPanoramaAutoRotate;
     readonly pausePanoramaAutoRotateForUserInput = mocks.interactionPausePanoramaAutoRotateForUserInput;
+    readonly setThreeDAutoOrbitConfig = mocks.interactionSetThreeDAutoOrbitConfig;
+    readonly refreshThreeDAutoOrbit = mocks.interactionRefreshThreeDAutoOrbit;
+    readonly pauseThreeDAutoOrbitForUserInput = mocks.interactionPauseThreeDAutoOrbitForUserInput;
   }
 }));
 
@@ -1182,6 +1206,42 @@ describe('bootstrap app lifecycle', () => {
     expect(mocks.interactionSetPanoramaAutoRotateConfig).toHaveBeenLastCalledWith({
       autoRotate: true,
       rotationSpeedDegPerSecond: 60
+    });
+
+    app.dispose();
+  });
+
+  it('routes embed 3D animation config to viewer interaction', async () => {
+    const { bootstrapApp } = await import('../src/app/bootstrap');
+    const app = await bootstrapApp({
+      mode: 'embed',
+      embedThreeDAnimation: {
+        autoOrbit: true,
+        orbitSpeedDegPerSecond: 9,
+        orbitYawAmplitudeDeg: 14,
+        orbitPitchAmplitudeDeg: 3
+      }
+    });
+
+    expect(mocks.interactionSetThreeDAutoOrbitConfig).toHaveBeenCalledWith({
+      autoOrbit: true,
+      orbitSpeedDegPerSecond: 9,
+      orbitYawAmplitudeDeg: 14,
+      orbitPitchAmplitudeDeg: 3
+    });
+
+    app.setEmbedThreeDAnimationConfig({
+      autoOrbit: true,
+      orbitSpeedDegPerSecond: 100,
+      orbitYawAmplitudeDeg: 100,
+      orbitPitchAmplitudeDeg: 100
+    });
+
+    expect(mocks.interactionSetThreeDAutoOrbitConfig).toHaveBeenLastCalledWith({
+      autoOrbit: true,
+      orbitSpeedDegPerSecond: 30,
+      orbitYawAmplitudeDeg: 30,
+      orbitPitchAmplitudeDeg: 8
     });
 
     app.dispose();

@@ -152,6 +152,51 @@ test('auto-rotates panorama embeds and ramps resume after user interaction', asy
   }, { timeout: 2000 }).toBeGreaterThan(1);
 });
 
+test('auto-orbits 3D embeds and ramps resume after mouse release', async ({ page }) => {
+  const orbitSpeedDegPerSecond = 30;
+  const centeredThreeDState = encodeURIComponent(JSON.stringify({
+    viewerMode: '3d',
+    view: {
+      depthYawDeg: 0,
+      depthPitchDeg: 0
+    }
+  }));
+  await page.setViewportSize({ width: 640, height: 360 });
+  await gotoEmbed(
+    page,
+    `/app/?ui=embed&src=%2Fmiddlebury_chess1_rgb_z.exr&view=3d&threeDAutoOrbit=true&threeDOrbitSpeed=${orbitSpeedDegPerSecond}&state=${centeredThreeDState}`
+  );
+
+  const initialView = await readEmbedDepthView(page);
+  await expect.poll(async () => {
+    return depthViewDelta(await readEmbedDepthView(page), initialView);
+  }, { timeout: 5000 }).toBeGreaterThan(1);
+
+  const viewer = page.locator('#viewer-container');
+  const box = await viewer.boundingBox();
+  if (!box) {
+    throw new Error('Embed viewer was not visible.');
+  }
+  const centerX = box.x + box.width / 2;
+  const centerY = box.y + box.height / 2;
+  await page.mouse.move(centerX, centerY);
+  await page.mouse.down();
+  await page.mouse.move(centerX + 32, centerY, { steps: 4 });
+  await page.mouse.up();
+
+  const resumeStartView = await readEmbedDepthView(page);
+  await expect.poll(async () => {
+    return depthViewDelta(await readEmbedDepthView(page), resumeStartView);
+  }, {
+    intervals: [100, 200, 300, 400, 500],
+    timeout: 2500
+  }).toBeGreaterThan(0.1);
+
+  await expect.poll(async () => {
+    return depthViewDelta(await readEmbedDepthView(page), resumeStartView);
+  }, { timeout: 2000 }).toBeGreaterThan(1);
+});
+
 async function gotoEmbed(page: Page, path: string): Promise<void> {
   await page.goto(path);
   await expect(page.locator('#gl-canvas')).toBeVisible();
@@ -213,6 +258,31 @@ async function readEmbedPanoramaYaw(page: Page): Promise<number> {
     }
     return hooks.snapshot().panoramaYawDeg;
   });
+}
+
+async function readEmbedDepthView(page: Page): Promise<{ depthYawDeg: number; depthPitchDeg: number }> {
+  return await page.evaluate(() => {
+    const hooks = (window as unknown as {
+      __openExrViewerE2E?: {
+        snapshot(): { depthYawDeg: number; depthPitchDeg: number };
+      };
+    }).__openExrViewerE2E;
+    if (!hooks) {
+      throw new Error('Prismifold E2E hooks are not available.');
+    }
+    const snapshot = hooks.snapshot();
+    return {
+      depthYawDeg: snapshot.depthYawDeg,
+      depthPitchDeg: snapshot.depthPitchDeg
+    };
+  });
+}
+
+function depthViewDelta(
+  a: { depthYawDeg: number; depthPitchDeg: number },
+  b: { depthYawDeg: number; depthPitchDeg: number }
+): number {
+  return Math.abs(a.depthYawDeg - b.depthYawDeg) + Math.abs(a.depthPitchDeg - b.depthPitchDeg);
 }
 
 function normalizeYawDelta(deltaDeg: number): number {

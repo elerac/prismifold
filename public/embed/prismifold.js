@@ -10,6 +10,15 @@
   const DEFAULT_PANORAMA_ROTATION_SPEED = 6;
   const MIN_PANORAMA_ROTATION_SPEED = -60;
   const MAX_PANORAMA_ROTATION_SPEED = 60;
+  const DEFAULT_THREE_D_ORBIT_SPEED = 6;
+  const MIN_THREE_D_ORBIT_SPEED = 0;
+  const MAX_THREE_D_ORBIT_SPEED = 30;
+  const DEFAULT_THREE_D_ORBIT_YAW = 12;
+  const MIN_THREE_D_ORBIT_YAW = 0;
+  const MAX_THREE_D_ORBIT_YAW = 30;
+  const DEFAULT_THREE_D_ORBIT_PITCH = 2;
+  const MIN_THREE_D_ORBIT_PITCH = 0;
+  const MAX_THREE_D_ORBIT_PITCH = 8;
   const observedAttributes = [
     'src',
     'view',
@@ -21,6 +30,10 @@
     'bottom-panel',
     'panorama-auto-rotate',
     'panorama-rotation-speed',
+    'three-d-auto-orbit',
+    'three-d-orbit-speed',
+    'three-d-orbit-yaw',
+    'three-d-orbit-pitch',
     'auto-load',
     'autoload'
   ];
@@ -64,7 +77,7 @@
 
     attributeChangedCallback(name) {
       if (this.isConnected && !this.updatingAttributes) {
-        if (isPanoramaAnimationAttribute(name)) {
+        if (isAnimationAttribute(name)) {
           this.queueEmbedConfig();
           return;
         }
@@ -92,6 +105,18 @@
         'panorama-rotation-speed': hasOwn(options, 'panoramaRotationSpeed')
           ? serializePanoramaRotationSpeed(options.panoramaRotationSpeed)
           : undefined,
+        'three-d-auto-orbit': hasOwn(options, 'threeDAutoOrbit')
+          ? serializeFalseDefaultBoolean(options.threeDAutoOrbit)
+          : undefined,
+        'three-d-orbit-speed': hasOwn(options, 'threeDOrbitSpeed')
+          ? serializeThreeDOrbitSpeed(options.threeDOrbitSpeed)
+          : undefined,
+        'three-d-orbit-yaw': hasOwn(options, 'threeDOrbitYaw')
+          ? serializeThreeDOrbitYaw(options.threeDOrbitYaw)
+          : undefined,
+        'three-d-orbit-pitch': hasOwn(options, 'threeDOrbitPitch')
+          ? serializeThreeDOrbitPitch(options.threeDOrbitPitch)
+          : undefined,
         'source-origin': hasOwn(options, 'sourceOrigin') ? nextSourceOrigin : undefined,
         'auto-load': 'true'
       });
@@ -112,16 +137,33 @@
       if (!(file instanceof File)) {
         return Promise.reject(new TypeError('prismifold-viewer.loadFile(file) expects a File.'));
       }
-      const hasPanoramaAnimationOptions = hasOwn(options, 'panoramaAutoRotate') || hasOwn(options, 'panoramaRotationSpeed');
+      const hasAnimationOptions = hasOwn(options, 'panoramaAutoRotate') ||
+        hasOwn(options, 'panoramaRotationSpeed') ||
+        hasOwn(options, 'threeDAutoOrbit') ||
+        hasOwn(options, 'threeDOrbitSpeed') ||
+        hasOwn(options, 'threeDOrbitYaw') ||
+        hasOwn(options, 'threeDOrbitPitch');
       this.updateAttributes({
         'panorama-auto-rotate': hasOwn(options, 'panoramaAutoRotate')
           ? serializeFalseDefaultBoolean(options.panoramaAutoRotate)
           : undefined,
         'panorama-rotation-speed': hasOwn(options, 'panoramaRotationSpeed')
           ? serializePanoramaRotationSpeed(options.panoramaRotationSpeed)
+          : undefined,
+        'three-d-auto-orbit': hasOwn(options, 'threeDAutoOrbit')
+          ? serializeFalseDefaultBoolean(options.threeDAutoOrbit)
+          : undefined,
+        'three-d-orbit-speed': hasOwn(options, 'threeDOrbitSpeed')
+          ? serializeThreeDOrbitSpeed(options.threeDOrbitSpeed)
+          : undefined,
+        'three-d-orbit-yaw': hasOwn(options, 'threeDOrbitYaw')
+          ? serializeThreeDOrbitYaw(options.threeDOrbitYaw)
+          : undefined,
+        'three-d-orbit-pitch': hasOwn(options, 'threeDOrbitPitch')
+          ? serializeThreeDOrbitPitch(options.threeDOrbitPitch)
           : undefined
       }, { render: false });
-      if (hasPanoramaAnimationOptions) {
+      if (hasAnimationOptions) {
         this.queueEmbedConfig();
       }
       this.deferredFileLoad = null;
@@ -150,6 +192,34 @@
     setPanoramaRotationSpeed(speedDegPerSecond) {
       this.updateAttributes({
         'panorama-rotation-speed': serializePanoramaRotationSpeed(speedDegPerSecond)
+      }, { render: false });
+      this.queueEmbedConfig();
+    }
+
+    setThreeDAutoOrbit(enabled) {
+      this.updateAttributes({
+        'three-d-auto-orbit': serializeFalseDefaultBoolean(enabled)
+      }, { render: false });
+      this.queueEmbedConfig();
+    }
+
+    setThreeDOrbitSpeed(speedDegPerSecond) {
+      this.updateAttributes({
+        'three-d-orbit-speed': serializeThreeDOrbitSpeed(speedDegPerSecond)
+      }, { render: false });
+      this.queueEmbedConfig();
+    }
+
+    setThreeDOrbitYaw(yawAmplitudeDeg) {
+      this.updateAttributes({
+        'three-d-orbit-yaw': serializeThreeDOrbitYaw(yawAmplitudeDeg)
+      }, { render: false });
+      this.queueEmbedConfig();
+    }
+
+    setThreeDOrbitPitch(pitchAmplitudeDeg) {
+      this.updateAttributes({
+        'three-d-orbit-pitch': serializeThreeDOrbitPitch(pitchAmplitudeDeg)
       }, { render: false });
       this.queueEmbedConfig();
     }
@@ -196,6 +266,10 @@
       const bottomPanel = normalizeEmbedBottomPanel(this.getAttribute('bottom-panel'));
       const panoramaAutoRotate = this.getPanoramaAutoRotate();
       const panoramaRotationSpeed = this.getPanoramaRotationSpeed();
+      const threeDAutoOrbit = this.getThreeDAutoOrbit();
+      const threeDOrbitSpeed = this.getThreeDOrbitSpeed();
+      const threeDOrbitYaw = this.getThreeDOrbitYaw();
+      const threeDOrbitPitch = this.getThreeDOrbitPitch();
       const srcUsesParentFetch = src && shouldParentFetchSource(src, this.getSourceOrigin());
 
       url.searchParams.set('ui', 'embed');
@@ -219,6 +293,18 @@
       }
       if (panoramaAutoRotate || this.hasAttribute('panorama-rotation-speed')) {
         url.searchParams.set('panoramaRotationSpeed', String(panoramaRotationSpeed));
+      }
+      if (threeDAutoOrbit) {
+        url.searchParams.set('threeDAutoOrbit', 'true');
+      }
+      if (threeDAutoOrbit || this.hasAttribute('three-d-orbit-speed')) {
+        url.searchParams.set('threeDOrbitSpeed', String(threeDOrbitSpeed));
+      }
+      if (threeDAutoOrbit || this.hasAttribute('three-d-orbit-yaw')) {
+        url.searchParams.set('threeDOrbitYaw', String(threeDOrbitYaw));
+      }
+      if (threeDAutoOrbit || this.hasAttribute('three-d-orbit-pitch')) {
+        url.searchParams.set('threeDOrbitPitch', String(threeDOrbitPitch));
       }
       return url.toString();
     }
@@ -269,6 +355,22 @@
       return normalizePanoramaRotationSpeed(this.getAttribute('panorama-rotation-speed'));
     }
 
+    getThreeDAutoOrbit() {
+      return parseFalseDefaultBoolean(this.getAttribute('three-d-auto-orbit'));
+    }
+
+    getThreeDOrbitSpeed() {
+      return normalizeThreeDOrbitSpeed(this.getAttribute('three-d-orbit-speed'));
+    }
+
+    getThreeDOrbitYaw() {
+      return normalizeThreeDOrbitYaw(this.getAttribute('three-d-orbit-yaw'));
+    }
+
+    getThreeDOrbitPitch() {
+      return normalizeThreeDOrbitPitch(this.getAttribute('three-d-orbit-pitch'));
+    }
+
     createAttributeViewerState() {
       return createViewerModeState(this.getAttribute('view'));
     }
@@ -276,8 +378,21 @@
     createEmbedConfig() {
       return {
         panoramaAutoRotate: this.getPanoramaAutoRotate(),
-        panoramaRotationSpeed: this.getPanoramaRotationSpeed()
+        panoramaRotationSpeed: this.getPanoramaRotationSpeed(),
+        threeDAutoOrbit: this.getThreeDAutoOrbit(),
+        threeDOrbitSpeed: this.getThreeDOrbitSpeed(),
+        threeDOrbitYaw: this.getThreeDOrbitYaw(),
+        threeDOrbitPitch: this.getThreeDOrbitPitch()
       };
+    }
+
+    hasAnimationAttributes() {
+      return this.hasAttribute('panorama-auto-rotate') ||
+        this.hasAttribute('panorama-rotation-speed') ||
+        this.hasAttribute('three-d-auto-orbit') ||
+        this.hasAttribute('three-d-orbit-speed') ||
+        this.hasAttribute('three-d-orbit-yaw') ||
+        this.hasAttribute('three-d-orbit-pitch');
     }
 
     updateAttributes(attributes, options = {}) {
@@ -384,7 +499,7 @@
           ? createViewerModeState(options.view)
           : this.createAttributeViewerState()
       };
-      if (this.hasAttribute('panorama-auto-rotate') || this.hasAttribute('panorama-rotation-speed')) {
+      if (this.hasAnimationAttributes()) {
         this.queueEmbedConfig();
       }
     }
@@ -496,33 +611,63 @@
         element.setPanoramaRotationSpeed(speedDegPerSecond);
         return controller;
       },
+      setThreeDAutoOrbit: (enabled) => {
+        element.setThreeDAutoOrbit(enabled);
+        return controller;
+      },
+      setThreeDOrbitSpeed: (speedDegPerSecond) => {
+        element.setThreeDOrbitSpeed(speedDegPerSecond);
+        return controller;
+      },
+      setThreeDOrbitYaw: (yawAmplitudeDeg) => {
+        element.setThreeDOrbitYaw(yawAmplitudeDeg);
+        return controller;
+      },
+      setThreeDOrbitPitch: (pitchAmplitudeDeg) => {
+        element.setThreeDOrbitPitch(pitchAmplitudeDeg);
+        return controller;
+      },
       destroy: () => {
         element.remove();
       }
     };
 
     if (autoLoad && options.file) {
-      void controller.loadFile(options.file, {
+      const loadOptions = withAnimationOptions({
         name: options.name,
-        view: options.view,
-        panoramaAutoRotate: options.panoramaAutoRotate,
-        panoramaRotationSpeed: options.panoramaRotationSpeed
-      }).catch((error) => {
+        view: options.view
+      }, options);
+      void controller.loadFile(options.file, loadOptions).catch((error) => {
         logEmbedError('Failed to load the provided Prismifold file.', error);
       });
     } else if (autoLoad && options.src) {
-      void controller.loadUrl(options.src, {
+      const loadOptions = withAnimationOptions({
         name: options.name,
         view: options.view,
-        sourceOrigin: options.sourceOrigin,
-        panoramaAutoRotate: options.panoramaAutoRotate,
-        panoramaRotationSpeed: options.panoramaRotationSpeed
-      }).catch((error) => {
+        sourceOrigin: options.sourceOrigin
+      }, options);
+      void controller.loadUrl(options.src, loadOptions).catch((error) => {
         logEmbedError(`Failed to load ${options.src}.`, error);
       });
     }
 
     return controller;
+  }
+
+  function withAnimationOptions(loadOptions, sourceOptions) {
+    for (const key of [
+      'panoramaAutoRotate',
+      'panoramaRotationSpeed',
+      'threeDAutoOrbit',
+      'threeDOrbitSpeed',
+      'threeDOrbitYaw',
+      'threeDOrbitPitch'
+    ]) {
+      if (hasOwn(sourceOptions, key)) {
+        loadOptions[key] = sourceOptions[key];
+      }
+    }
+    return loadOptions;
   }
 
   function applyCreateOptions(element, options) {
@@ -539,6 +684,18 @@
         : undefined,
       'panorama-rotation-speed': hasOwn(options, 'panoramaRotationSpeed')
         ? serializePanoramaRotationSpeed(options.panoramaRotationSpeed)
+        : undefined,
+      'three-d-auto-orbit': hasOwn(options, 'threeDAutoOrbit')
+        ? serializeFalseDefaultBoolean(options.threeDAutoOrbit)
+        : undefined,
+      'three-d-orbit-speed': hasOwn(options, 'threeDOrbitSpeed')
+        ? serializeThreeDOrbitSpeed(options.threeDOrbitSpeed)
+        : undefined,
+      'three-d-orbit-yaw': hasOwn(options, 'threeDOrbitYaw')
+        ? serializeThreeDOrbitYaw(options.threeDOrbitYaw)
+        : undefined,
+      'three-d-orbit-pitch': hasOwn(options, 'threeDOrbitPitch')
+        ? serializeThreeDOrbitPitch(options.threeDOrbitPitch)
         : undefined,
       'auto-load': hasOwn(options, 'autoLoad') ? serializeAutoLoad(options.autoLoad) : undefined
     };
@@ -607,7 +764,10 @@
 
   function normalizeViewerMode(value) {
     const normalized = normalizeNonEmpty(value);
-    if (normalized === 'image' || normalized === 'panorama' || normalized === 'depth') {
+    if (normalized === 'depth') {
+      return '3d';
+    }
+    if (normalized === 'image' || normalized === 'panorama' || normalized === '3d') {
       return normalized;
     }
     return null;
@@ -674,6 +834,56 @@
     return Math.min(MAX_PANORAMA_ROTATION_SPEED, Math.max(MIN_PANORAMA_ROTATION_SPEED, parsed));
   }
 
+  function serializeThreeDOrbitSpeed(value) {
+    return String(normalizeThreeDOrbitSpeed(value));
+  }
+
+  function normalizeThreeDOrbitSpeed(value) {
+    return normalizeClampedNumber(
+      value,
+      DEFAULT_THREE_D_ORBIT_SPEED,
+      MIN_THREE_D_ORBIT_SPEED,
+      MAX_THREE_D_ORBIT_SPEED
+    );
+  }
+
+  function serializeThreeDOrbitYaw(value) {
+    return String(normalizeThreeDOrbitYaw(value));
+  }
+
+  function normalizeThreeDOrbitYaw(value) {
+    return normalizeClampedNumber(
+      value,
+      DEFAULT_THREE_D_ORBIT_YAW,
+      MIN_THREE_D_ORBIT_YAW,
+      MAX_THREE_D_ORBIT_YAW
+    );
+  }
+
+  function serializeThreeDOrbitPitch(value) {
+    return String(normalizeThreeDOrbitPitch(value));
+  }
+
+  function normalizeThreeDOrbitPitch(value) {
+    return normalizeClampedNumber(
+      value,
+      DEFAULT_THREE_D_ORBIT_PITCH,
+      MIN_THREE_D_ORBIT_PITCH,
+      MAX_THREE_D_ORBIT_PITCH
+    );
+  }
+
+  function normalizeClampedNumber(value, fallback, min, max) {
+    if (value === null || value === undefined) {
+      return fallback;
+    }
+    const parsed = typeof value === 'number' ? value : Number(String(value).trim());
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+    return Math.min(max, Math.max(min, parsed));
+  }
+
   function normalizePostMessageTargetOrigin(origin) {
     return origin === 'null' ? '*' : origin;
   }
@@ -711,8 +921,13 @@
     return Object.prototype.hasOwnProperty.call(value, key);
   }
 
-  function isPanoramaAnimationAttribute(name) {
-    return name === 'panorama-auto-rotate' || name === 'panorama-rotation-speed';
+  function isAnimationAttribute(name) {
+    return name === 'panorama-auto-rotate' ||
+      name === 'panorama-rotation-speed' ||
+      name === 'three-d-auto-orbit' ||
+      name === 'three-d-orbit-speed' ||
+      name === 'three-d-orbit-yaw' ||
+      name === 'three-d-orbit-pitch';
   }
 
   function logEmbedError(message, error) {

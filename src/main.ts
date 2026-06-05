@@ -10,7 +10,8 @@ const params = parseViewerBootstrapParams(window.location);
 void bootstrapApp({
   mode: params.uiMode,
   embedBottomPanel: params.bottomPanel,
-  embedPanoramaAnimation: params.panoramaAnimation
+  embedPanoramaAnimation: params.panoramaAnimation,
+  embedThreeDAnimation: params.threeDAnimation
 }).then((app) => {
   const cleanupHandoffReceiver = initializeFullViewerHandoffReceiver(params.handoffId, app, params.state);
   const cleanupEmbedBridge = params.uiMode === 'embed'

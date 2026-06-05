@@ -36,6 +36,14 @@ export function registerEmbedMessageBridge(app: AppHandle): () => void {
         autoRotate: event.data.panoramaAutoRotate,
         rotationSpeedDegPerSecond: event.data.panoramaRotationSpeed
       });
+      if (event.data.threeDAutoOrbit !== undefined) {
+        app.setEmbedThreeDAnimationConfig({
+          autoOrbit: event.data.threeDAutoOrbit,
+          orbitSpeedDegPerSecond: event.data.threeDOrbitSpeed!,
+          orbitYawAmplitudeDeg: event.data.threeDOrbitYaw!,
+          orbitPitchAmplitudeDeg: event.data.threeDOrbitPitch!
+        });
+      }
     }
   };
 

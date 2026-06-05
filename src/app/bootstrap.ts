@@ -11,10 +11,17 @@ import {
 } from '../embed/embed-state';
 import {
   DEFAULT_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND,
+  DEFAULT_THREE_D_ORBIT_PITCH_AMPLITUDE_DEG,
+  DEFAULT_THREE_D_ORBIT_SPEED_DEG_PER_SECOND,
+  DEFAULT_THREE_D_ORBIT_YAW_AMPLITUDE_DEG,
   buildFullViewerUrl,
   parsePanoramaRotationSpeed,
+  parseThreeDOrbitPitchAmplitude,
+  parseThreeDOrbitSpeed,
+  parseThreeDOrbitYawAmplitude,
   type EmbedBottomPanelMode,
-  type EmbedPanoramaAnimationConfig
+  type EmbedPanoramaAnimationConfig,
+  type EmbedThreeDAnimationConfig
 } from '../embed/embed-params';
 import {
   createLocalFileHandoffId,
@@ -43,6 +50,7 @@ export interface BootstrapAppOptions {
   mode?: 'full' | 'embed';
   embedBottomPanel?: EmbedBottomPanelMode;
   embedPanoramaAnimation?: EmbedPanoramaAnimationConfig;
+  embedThreeDAnimation?: EmbedThreeDAnimationConfig;
 }
 
 export interface AppHandle {
@@ -52,6 +60,7 @@ export interface AppHandle {
   applyState(state: EmbedViewerStateSnapshot | null | undefined): void;
   setError(message: string | null): void;
   setEmbedPanoramaAnimationConfig(config: EmbedPanoramaAnimationConfig): void;
+  setEmbedThreeDAnimationConfig(config: EmbedThreeDAnimationConfig): void;
   deferInitialLoad(load: () => void | Promise<void>): void;
   openFullViewer(): void;
   dispose(): void;
@@ -70,6 +79,7 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
   let services: BootstrapServices | null = null;
   let interaction: ViewerInteraction | null = null;
   let embedPanoramaAnimationConfig = normalizeEmbedPanoramaAnimationConfig(options.embedPanoramaAnimation);
+  let embedThreeDAnimationConfig = normalizeEmbedThreeDAnimationConfig(options.embedThreeDAnimation);
   let resizeObserver: ResizeObserver | null = null;
   let cleanupE2EHooks: () => void = () => {};
   const unsubscribers: Array<() => void> = [];
@@ -184,6 +194,10 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
     setEmbedPanoramaAnimationConfig: (config) => {
       embedPanoramaAnimationConfig = normalizeEmbedPanoramaAnimationConfig(config);
       interaction?.setPanoramaAutoRotateConfig(embedPanoramaAnimationConfig);
+    },
+    setEmbedThreeDAnimationConfig: (config) => {
+      embedThreeDAnimationConfig = normalizeEmbedThreeDAnimationConfig(config);
+      interaction?.setThreeDAutoOrbitConfig(embedThreeDAnimationConfig);
     },
     deferInitialLoad: (load) => {
       if (!ui.setDeferredLoad) {
@@ -316,14 +330,17 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
       interactionCoordinator: services.interactionCoordinator
     });
     interaction.setPanoramaAutoRotateConfig(embedPanoramaAnimationConfig);
+    interaction.setThreeDAutoOrbitConfig(embedThreeDAnimationConfig);
     unsubscribers.push(core.subscribeState((transition) => {
       if (disposed) {
         return;
       }
       if (transition.intent.type === 'viewerStateEdited') {
         interaction?.pausePanoramaAutoRotateForUserInput();
+        interaction?.pauseThreeDAutoOrbitForUserInput();
       }
       interaction?.refreshPanoramaAutoRotate();
+      interaction?.refreshThreeDAutoOrbit();
     }));
     resizeObserver = initializeViewportLifecycle({
       core,
@@ -355,6 +372,23 @@ function normalizeEmbedPanoramaAnimationConfig(
     autoRotate: config?.autoRotate === true,
     rotationSpeedDegPerSecond: parsePanoramaRotationSpeed(
       config?.rotationSpeedDegPerSecond ?? DEFAULT_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND
+    )
+  };
+}
+
+function normalizeEmbedThreeDAnimationConfig(
+  config: EmbedThreeDAnimationConfig | null | undefined
+): EmbedThreeDAnimationConfig {
+  return {
+    autoOrbit: config?.autoOrbit === true,
+    orbitSpeedDegPerSecond: parseThreeDOrbitSpeed(
+      config?.orbitSpeedDegPerSecond ?? DEFAULT_THREE_D_ORBIT_SPEED_DEG_PER_SECOND
+    ),
+    orbitYawAmplitudeDeg: parseThreeDOrbitYawAmplitude(
+      config?.orbitYawAmplitudeDeg ?? DEFAULT_THREE_D_ORBIT_YAW_AMPLITUDE_DEG
+    ),
+    orbitPitchAmplitudeDeg: parseThreeDOrbitPitchAmplitude(
+      config?.orbitPitchAmplitudeDeg ?? DEFAULT_THREE_D_ORBIT_PITCH_AMPLITUDE_DEG
     )
   };
 }

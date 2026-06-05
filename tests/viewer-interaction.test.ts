@@ -799,6 +799,43 @@ describe('viewer interaction depth probe', () => {
     expect(harness.onHoverPixel).not.toHaveBeenCalled();
   });
 
+  it('resumes 3D auto-orbit immediately after mouse orbit drag releases', () => {
+    const harness = createHarness({
+      viewerMode: '3d',
+      depthChannel: 'Z',
+      depthYawDeg: 0,
+      depthPitchDeg: 0
+    });
+
+    harness.interaction.setThreeDAutoOrbitConfig({
+      autoOrbit: true,
+      orbitSpeedDegPerSecond: 30,
+      orbitYawAmplitudeDeg: 12,
+      orbitPitchAmplitudeDeg: 2
+    });
+    expect(harness.hasScheduledFrame()).toBe(true);
+
+    dispatchPointer(harness.element, 'pointerdown', { pointerId: 1, clientX: 50, clientY: 50 });
+    expect(harness.hasScheduledFrame()).toBe(false);
+
+    dispatchPointer(harness.element, 'pointermove', { pointerId: 1, clientX: 60, clientY: 50 });
+    harness.interaction.pauseThreeDAutoOrbitForUserInput();
+    expect(harness.hasScheduledFrame()).toBe(false);
+
+    dispatchPointer(harness.element, 'pointerup', { pointerId: 1, clientX: 60, clientY: 50 });
+    expect(harness.hasScheduledFrame()).toBe(true);
+
+    const releaseView = {
+      depthYawDeg: harness.getState().depthYawDeg,
+      depthPitchDeg: harness.getState().depthPitchDeg
+    };
+    harness.flushFrame(100000);
+    expect(
+      Math.abs(harness.getState().depthYawDeg - releaseView.depthYawDeg) +
+      Math.abs(harness.getState().depthPitchDeg - releaseView.depthPitchDeg)
+    ).toBeGreaterThan(0);
+  });
+
   it('pans the 3D target with middle-button drag instead of orbiting', () => {
     const harness = createHarness({
       viewerMode: '3d',

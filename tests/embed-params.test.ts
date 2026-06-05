@@ -34,6 +34,12 @@ describe('embed params', () => {
         autoRotate: false,
         rotationSpeedDegPerSecond: 6
       },
+      threeDAnimation: {
+        autoOrbit: false,
+        orbitSpeedDegPerSecond: 6,
+        orbitYawAmplitudeDeg: 12,
+        orbitPitchAmplitudeDeg: 2
+      },
       handoffId: 'local-1',
       state
     });
@@ -168,5 +174,65 @@ describe('embed params', () => {
       search: '?panoramaRotationSpeed=not-a-number',
       hash: ''
     }).panoramaAnimation.rotationSpeedDegPerSecond).toBe(6);
+  });
+
+  it('parses 3D auto-orbit config with clamped speed and amplitudes', () => {
+    expect(parseViewerBootstrapParams({ search: '', hash: '' }).threeDAnimation).toEqual({
+      autoOrbit: false,
+      orbitSpeedDegPerSecond: 6,
+      orbitYawAmplitudeDeg: 12,
+      orbitPitchAmplitudeDeg: 2
+    });
+
+    for (const value of ['false', '0', 'no', 'off']) {
+      expect(parseViewerBootstrapParams({
+        search: `?threeDAutoOrbit=${encodeURIComponent(value)}`,
+        hash: ''
+      }).threeDAnimation.autoOrbit).toBe(false);
+    }
+
+    for (const value of ['', 'true', '1', 'yes', 'on', 'unexpected']) {
+      expect(parseViewerBootstrapParams({
+        search: `?threeDAutoOrbit=${encodeURIComponent(value)}`,
+        hash: ''
+      }).threeDAnimation.autoOrbit).toBe(true);
+    }
+
+    expect(parseViewerBootstrapParams({
+      search: '?three-d-auto-orbit=true&three-d-orbit-speed=9&three-d-orbit-yaw=14&three-d-orbit-pitch=3',
+      hash: ''
+    }).threeDAnimation).toEqual({
+      autoOrbit: true,
+      orbitSpeedDegPerSecond: 9,
+      orbitYawAmplitudeDeg: 14,
+      orbitPitchAmplitudeDeg: 3
+    });
+    expect(parseViewerBootstrapParams({
+      search: '?threeDOrbitSpeed=100&threeDOrbitYaw=100&threeDOrbitPitch=100',
+      hash: ''
+    }).threeDAnimation).toEqual({
+      autoOrbit: false,
+      orbitSpeedDegPerSecond: 30,
+      orbitYawAmplitudeDeg: 30,
+      orbitPitchAmplitudeDeg: 8
+    });
+    expect(parseViewerBootstrapParams({
+      search: '?threeDOrbitSpeed=-1&threeDOrbitYaw=-1&threeDOrbitPitch=-1',
+      hash: ''
+    }).threeDAnimation).toEqual({
+      autoOrbit: false,
+      orbitSpeedDegPerSecond: 0,
+      orbitYawAmplitudeDeg: 0,
+      orbitPitchAmplitudeDeg: 0
+    });
+    expect(parseViewerBootstrapParams({
+      search: '?threeDOrbitSpeed=nan&threeDOrbitYaw=nan&threeDOrbitPitch=nan',
+      hash: ''
+    }).threeDAnimation).toEqual({
+      autoOrbit: false,
+      orbitSpeedDegPerSecond: 6,
+      orbitYawAmplitudeDeg: 12,
+      orbitPitchAmplitudeDeg: 2
+    });
   });
 });

@@ -50,6 +50,7 @@ async function expectEmbedIframeUiMode(page: Page, locatorText: string): Promise
 }
 
 test('serves the embed guide with live examples and reference content @smoke', async ({ page }) => {
+  test.setTimeout(60000);
   const unexpectedErrors = watchUnexpectedErrors(page);
   await page.route(POLYHAVEN_BROWN_PHOTOSTUDIO_URL, async (route) => {
     await route.fulfill({
@@ -124,6 +125,7 @@ test('serves the embed guide with live examples and reference content @smoke', a
   await expect(threeDCode).toContainText('src="../middlebury_chess1_rgb_z.exr"');
   await expect(threeDCode).toContainText('name="Middlebury RGB + Z"');
   await expect(threeDCode).toContainText('view="3d"');
+  await expect(threeDCode).toContainText('three-d-auto-orbit="true"');
   await expect(threeDCode).toContainText('bottom-panel="none"');
   await expect(threeDCode).toContainText('source-origin="viewer"');
 
@@ -158,6 +160,10 @@ test('serves the embed guide with live examples and reference content @smoke', a
   const threeDUrl = await expectEmbedIframeUiMode(page, '3D view');
   expect(threeDUrl.searchParams.get('src')).toBe('../middlebury_chess1_rgb_z.exr');
   expect(threeDUrl.searchParams.get('view')).toBe('3d');
+  expect(threeDUrl.searchParams.get('threeDAutoOrbit')).toBe('true');
+  expect(threeDUrl.searchParams.get('threeDOrbitSpeed')).toBe('6');
+  expect(threeDUrl.searchParams.get('threeDOrbitYaw')).toBe('12');
+  expect(threeDUrl.searchParams.get('threeDOrbitPitch')).toBe('2');
   expect(threeDUrl.searchParams.get('bottomPanel')).toBe('none');
   expect(threeDUrl.searchParams.get('name')).toBe('Middlebury RGB + Z');
   const deferredUrl = await expectEmbedIframeUiMode(page, 'Deferred loading');
@@ -222,6 +228,10 @@ test('serves the embed guide with live examples and reference content @smoke', a
     'height',
     'view',
     'bottom-panel',
+    'three-d-auto-orbit',
+    'three-d-orbit-speed',
+    'three-d-orbit-yaw',
+    'three-d-orbit-pitch',
     'auto-load',
     'viewer-url',
     'source-origin'
@@ -235,6 +245,10 @@ test('serves the embed guide with live examples and reference content @smoke', a
   await expect(page.getByText('loadUrl(src, options)', { exact: true })).toBeVisible();
   await expect(page.getByText('loadFile(file, options)', { exact: true })).toBeVisible();
   await expect(page.getByText('setView(view)', { exact: true })).toBeVisible();
+  await expect(page.getByText('setThreeDAutoOrbit(enabled)', { exact: true })).toBeVisible();
+  await expect(page.getByText('setThreeDOrbitSpeed(speed)', { exact: true })).toBeVisible();
+  await expect(page.getByText('setThreeDOrbitYaw(yaw)', { exact: true })).toBeVisible();
+  await expect(page.getByText('setThreeDOrbitPitch(pitch)', { exact: true })).toBeVisible();
   await expect(page.getByText('destroy()', { exact: true })).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });

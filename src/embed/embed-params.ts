@@ -12,6 +12,13 @@ export interface EmbedPanoramaAnimationConfig {
   rotationSpeedDegPerSecond: number;
 }
 
+export interface EmbedThreeDAnimationConfig {
+  autoOrbit: boolean;
+  orbitSpeedDegPerSecond: number;
+  orbitYawAmplitudeDeg: number;
+  orbitPitchAmplitudeDeg: number;
+}
+
 export interface ViewerBootstrapParams {
   uiMode: 'full' | 'embed';
   src: string | null;
@@ -20,6 +27,7 @@ export interface ViewerBootstrapParams {
   autoLoad: boolean;
   bottomPanel: EmbedBottomPanelMode;
   panoramaAnimation: EmbedPanoramaAnimationConfig;
+  threeDAnimation: EmbedThreeDAnimationConfig;
   handoffId: string | null;
   state: EmbedViewerStateSnapshot | null;
 }
@@ -35,6 +43,15 @@ export interface FullViewerUrlOptions {
 export const DEFAULT_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND = 6;
 export const MIN_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND = -60;
 export const MAX_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND = 60;
+export const DEFAULT_THREE_D_ORBIT_SPEED_DEG_PER_SECOND = 6;
+export const MIN_THREE_D_ORBIT_SPEED_DEG_PER_SECOND = 0;
+export const MAX_THREE_D_ORBIT_SPEED_DEG_PER_SECOND = 30;
+export const DEFAULT_THREE_D_ORBIT_YAW_AMPLITUDE_DEG = 12;
+export const MIN_THREE_D_ORBIT_YAW_AMPLITUDE_DEG = 0;
+export const MAX_THREE_D_ORBIT_YAW_AMPLITUDE_DEG = 30;
+export const DEFAULT_THREE_D_ORBIT_PITCH_AMPLITUDE_DEG = 2;
+export const MIN_THREE_D_ORBIT_PITCH_AMPLITUDE_DEG = 0;
+export const MAX_THREE_D_ORBIT_PITCH_AMPLITUDE_DEG = 8;
 
 export function parseViewerBootstrapParams(location: Pick<Location, 'search' | 'hash'>): ViewerBootstrapParams {
   const params = mergeParams(parseSearchParams(location.search), parseHashParams(location.hash));
@@ -51,6 +68,20 @@ export function parseViewerBootstrapParams(location: Pick<Location, 'search' | '
       ),
       rotationSpeedDegPerSecond: parsePanoramaRotationSpeed(
         params.get('panoramaRotationSpeed') ?? params.get('panorama-rotation-speed')
+      )
+    },
+    threeDAnimation: {
+      autoOrbit: parseFalseDefaultBooleanParam(
+        params.get('threeDAutoOrbit') ?? params.get('three-d-auto-orbit')
+      ),
+      orbitSpeedDegPerSecond: parseThreeDOrbitSpeed(
+        params.get('threeDOrbitSpeed') ?? params.get('three-d-orbit-speed')
+      ),
+      orbitYawAmplitudeDeg: parseThreeDOrbitYawAmplitude(
+        params.get('threeDOrbitYaw') ?? params.get('three-d-orbit-yaw')
+      ),
+      orbitPitchAmplitudeDeg: parseThreeDOrbitPitchAmplitude(
+        params.get('threeDOrbitPitch') ?? params.get('three-d-orbit-pitch')
       )
     },
     handoffId: normalizeNonEmpty(params.get('handoff')),
@@ -150,4 +181,49 @@ export function parsePanoramaRotationSpeed(value: string | number | null | undef
     MAX_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND,
     Math.max(MIN_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND, parsed)
   );
+}
+
+export function parseThreeDOrbitSpeed(value: string | number | null | undefined): number {
+  return parseClampedNumber(
+    value,
+    DEFAULT_THREE_D_ORBIT_SPEED_DEG_PER_SECOND,
+    MIN_THREE_D_ORBIT_SPEED_DEG_PER_SECOND,
+    MAX_THREE_D_ORBIT_SPEED_DEG_PER_SECOND
+  );
+}
+
+export function parseThreeDOrbitYawAmplitude(value: string | number | null | undefined): number {
+  return parseClampedNumber(
+    value,
+    DEFAULT_THREE_D_ORBIT_YAW_AMPLITUDE_DEG,
+    MIN_THREE_D_ORBIT_YAW_AMPLITUDE_DEG,
+    MAX_THREE_D_ORBIT_YAW_AMPLITUDE_DEG
+  );
+}
+
+export function parseThreeDOrbitPitchAmplitude(value: string | number | null | undefined): number {
+  return parseClampedNumber(
+    value,
+    DEFAULT_THREE_D_ORBIT_PITCH_AMPLITUDE_DEG,
+    MIN_THREE_D_ORBIT_PITCH_AMPLITUDE_DEG,
+    MAX_THREE_D_ORBIT_PITCH_AMPLITUDE_DEG
+  );
+}
+
+function parseClampedNumber(
+  value: string | number | null | undefined,
+  fallback: number,
+  min: number,
+  max: number
+): number {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  const parsed = typeof value === 'number' ? value : Number(String(value).trim());
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, parsed));
 }
