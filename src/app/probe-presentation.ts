@@ -37,7 +37,7 @@ export interface BuildProbePresentationArgs {
 export function buildProbeReadoutModel(args: BuildProbePresentationArgs): ProbeReadoutModel {
   const mode = resolveProbeMode(args.sessionState.lockedPixel);
   const imageSize = args.activeSession
-    ? args.sessionState.viewerMode === 'depth'
+    ? args.sessionState.viewerMode === '3d'
       ? {
           width: args.activeSession.decoded.width,
           height: args.activeSession.decoded.height
@@ -71,7 +71,7 @@ export function buildProbeReadoutModel(args: BuildProbePresentationArgs): ProbeR
     };
   }
 
-  if (args.sessionState.viewerMode === 'depth') {
+  if (args.sessionState.viewerMode === '3d') {
     const depthSource = resolveDepthSourceForLayer(
       args.activeLayer.channelNames,
       args.sessionState.depthChannel,

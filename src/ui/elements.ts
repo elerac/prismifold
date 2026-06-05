@@ -55,7 +55,7 @@ export interface Elements {
   resetSettingsButton: HTMLButtonElement;
   imageViewerMenuItem: HTMLButtonElement;
   panoramaViewerMenuItem: HTMLButtonElement;
-  depthViewerMenuItem: HTMLButtonElement;
+  threeDViewerMenuItem: HTMLButtonElement;
   rulersMenuItem: HTMLButtonElement;
   windowNormalMenuItem: HTMLButtonElement;
   windowFullScreenPreviewMenuItem: HTMLButtonElement;
@@ -625,7 +625,7 @@ export function resolveElements(): Elements {
     resetSettingsButton: requireElement('reset-settings-button', HTMLButtonElement),
     imageViewerMenuItem: requireElement('image-viewer-menu-item', HTMLButtonElement),
     panoramaViewerMenuItem: requireElement('panorama-viewer-menu-item', HTMLButtonElement),
-    depthViewerMenuItem: requireElement('depth-viewer-menu-item', HTMLButtonElement),
+    threeDViewerMenuItem: requireElement('three-d-viewer-menu-item', HTMLButtonElement),
     rulersMenuItem: requireElement('rulers-menu-item', HTMLButtonElement),
     windowNormalMenuItem: requireElement('window-normal-menu-item', HTMLButtonElement),
     windowFullScreenPreviewMenuItem: requireElement('window-full-screen-preview-menu-item', HTMLButtonElement),

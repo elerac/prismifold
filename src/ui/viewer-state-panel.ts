@@ -87,7 +87,7 @@ export class ViewerStatePanel implements Disposable {
 
     const imageFieldsActive = readout.hasActiveImage && readout.viewerMode === 'image';
     const panoramaFieldsActive = readout.hasActiveImage && readout.viewerMode === 'panorama';
-    const depthFieldsActive = readout.hasActiveImage && readout.viewerMode === 'depth';
+    const depthFieldsActive = readout.hasActiveImage && readout.viewerMode === '3d';
     this.elements.viewerStateEmptyState.classList.toggle('hidden', readout.hasActiveImage);
     this.elements.viewerStateImageFields.classList.toggle(
       'hidden',

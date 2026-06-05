@@ -24,8 +24,8 @@ const CBOX_RGB_INSPECTION_STATE: EmbedViewerStateSnapshot = {
   }
 };
 
-const DEPTH_INSPECTION_STATE: EmbedViewerStateSnapshot = {
-  viewerMode: 'depth',
+const THREE_D_INSPECTION_STATE: EmbedViewerStateSnapshot = {
+  viewerMode: '3d',
   depthChannel: 'Z',
   depthFocalLengthPx: 960,
   depthPointSizePx: 2,
@@ -66,9 +66,9 @@ const GALLERY_LAUNCHES: Record<string, { src: string; state?: EmbedViewerStateSn
     src: POLANALYSER_SPOONS_STOKES_URL,
     state: null
   },
-  depth: {
+  '3d': {
     src: resolveAssetUrl('middlebury_chess1_rgb_z.exr'),
-    state: DEPTH_INSPECTION_STATE
+    state: THREE_D_INSPECTION_STATE
   },
   hyperspectral: {
     src: KAIST_SCENE27_REFLECTANCE_URL,

@@ -10,7 +10,7 @@ export function resolveProbePixel(
   imageSize: ImageSize,
   resolveDepthProbePixel?: DepthProbePixelResolver
 ): ImagePixel | null {
-  if (state.viewerMode === 'depth') {
+  if (state.viewerMode === '3d') {
     return resolveDepthProbePixel?.(point, state, viewport) ?? null;
   }
 

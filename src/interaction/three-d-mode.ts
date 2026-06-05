@@ -4,8 +4,8 @@ import {
   normalizeDepthYawForSource
 } from '../depth';
 import type {
-  DepthKeyboardOrbitDirection,
-  DepthKeyboardOrbitInput,
+  ThreeDKeyboardOrbitDirection,
+  ThreeDKeyboardOrbitInput,
   ViewerKeyboardZoomDirection,
   ViewerState,
   ViewportInfo
@@ -17,24 +17,24 @@ import type {
 } from './shared';
 import { resolveHoverPixel } from './probe-mode';
 
-const DEPTH_KEYBOARD_ORBIT_STEP_RATIO = 0.05;
-const DEPTH_KEYBOARD_ORBIT_SPEED_PER_SECOND = 1.5;
-const DEPTH_KEYBOARD_ORBIT_MAX_FRAME_MS = 50;
-const DEPTH_KEYBOARD_ZOOM_STEP = 1.25;
+const THREE_D_KEYBOARD_ORBIT_STEP_RATIO = 0.05;
+const THREE_D_KEYBOARD_ORBIT_SPEED_PER_SECOND = 1.5;
+const THREE_D_KEYBOARD_ORBIT_MAX_FRAME_MS = 50;
+const THREE_D_KEYBOARD_ZOOM_STEP = 1.25;
 
 type DepthViewChange = Pick<
   ViewerState,
   'depthYawDeg' | 'depthPitchDeg' | 'depthZoom'
 >;
 
-type DepthKeyboardOrbitCallbacks = Pick<
+type ThreeDKeyboardOrbitCallbacks = Pick<
   InteractionCallbacks,
   'getState' | 'getViewport' | 'getImageSize' | 'resolveDepthProbePixel' | 'onViewChange' | 'onHoverPixel'
 > & {
   getLastPointerInElement: () => PointerPosition | null;
 };
 
-export function orbitDepthFromDrag(
+export function orbitThreeDFromDrag(
   state: ViewerState,
   viewport: ViewportInfo,
   deltaX: number,
@@ -62,7 +62,7 @@ export function orbitDepthFromDrag(
   };
 }
 
-export function zoomDepthFromWheel(
+export function zoomThreeDFromWheel(
   state: ViewerState,
   deltaY: number
 ): DepthViewChange {
@@ -74,34 +74,34 @@ export function zoomDepthFromWheel(
   };
 }
 
-export function zoomDepthFromKeyboard(
+export function zoomThreeDFromKeyboard(
   state: ViewerState,
   direction: ViewerKeyboardZoomDirection
 ): DepthViewChange {
-  return zoomDepthByKeyboardStep(state, direction === 'in' ? 1 : -1);
+  return zoomThreeDByKeyboardStep(state, direction === 'in' ? 1 : -1);
 }
 
-export function zoomDepthByKeyboardStep(
+export function zoomThreeDByKeyboardStep(
   state: ViewerState,
   signedStep: number
 ): DepthViewChange {
   return {
     depthYawDeg: normalizeDepthYawForSource(state.depthYawDeg, state.depthChannel),
     depthPitchDeg: normalizeDepthPitchForSource(state.depthPitchDeg, state.depthChannel),
-    depthZoom: clampDepthZoom(state.depthZoom * (DEPTH_KEYBOARD_ZOOM_STEP ** signedStep))
+    depthZoom: clampDepthZoom(state.depthZoom * (THREE_D_KEYBOARD_ZOOM_STEP ** signedStep))
   };
 }
 
-export class DepthKeyboardOrbitController {
-  private readonly callbacks: DepthKeyboardOrbitCallbacks;
+export class ThreeDKeyboardOrbitController {
+  private readonly callbacks: ThreeDKeyboardOrbitCallbacks;
   private readonly scheduleFrame: NonNullable<InteractionDependencies['scheduleFrame']>;
   private readonly cancelFrame: NonNullable<InteractionDependencies['cancelFrame']>;
-  private input = createDepthKeyboardOrbitInput();
+  private input = createThreeDKeyboardOrbitInput();
   private frameId: number | null = null;
   private lastFrameTime: number | null = null;
 
   constructor(
-    callbacks: DepthKeyboardOrbitCallbacks,
+    callbacks: ThreeDKeyboardOrbitCallbacks,
     dependencies: InteractionDependencies = {}
   ) {
     this.callbacks = callbacks;
@@ -111,19 +111,19 @@ export class DepthKeyboardOrbitController {
 
   destroy(): void {
     this.cancelScheduledFrame();
-    this.input = createDepthKeyboardOrbitInput();
+    this.input = createThreeDKeyboardOrbitInput();
     this.lastFrameTime = null;
   }
 
-  handle(direction: DepthKeyboardOrbitDirection): void {
-    this.applyInput(createDepthKeyboardOrbitInput(direction), DEPTH_KEYBOARD_ORBIT_STEP_RATIO);
+  handle(direction: ThreeDKeyboardOrbitDirection): void {
+    this.applyInput(createThreeDKeyboardOrbitInput(direction), THREE_D_KEYBOARD_ORBIT_STEP_RATIO);
   }
 
-  setInput(input: DepthKeyboardOrbitInput): void {
+  setInput(input: ThreeDKeyboardOrbitInput): void {
     const previousInput = this.input;
-    const nextInput = cloneDepthKeyboardOrbitInput(input);
-    if (sameDepthKeyboardOrbitInput(previousInput, nextInput)) {
-      if (hasDepthKeyboardOrbitInput(nextInput)) {
+    const nextInput = cloneThreeDKeyboardOrbitInput(input);
+    if (sameThreeDKeyboardOrbitInput(previousInput, nextInput)) {
+      if (hasThreeDKeyboardOrbitInput(nextInput)) {
         this.ensureScheduledFrame();
       } else {
         this.cancelScheduledFrame();
@@ -133,13 +133,13 @@ export class DepthKeyboardOrbitController {
     }
 
     this.input = nextInput;
-    const newlyPressedInput = getNewlyPressedDepthKeyboardOrbitInput(previousInput, nextInput);
-    if (hasDepthKeyboardOrbitInput(newlyPressedInput)) {
-      this.applyInput(newlyPressedInput, DEPTH_KEYBOARD_ORBIT_STEP_RATIO);
+    const newlyPressedInput = getNewlyPressedThreeDKeyboardOrbitInput(previousInput, nextInput);
+    if (hasThreeDKeyboardOrbitInput(newlyPressedInput)) {
+      this.applyInput(newlyPressedInput, THREE_D_KEYBOARD_ORBIT_STEP_RATIO);
     }
 
-    if (hasDepthKeyboardOrbitInput(nextInput)) {
-      if (!hasDepthKeyboardOrbitInput(previousInput)) {
+    if (hasThreeDKeyboardOrbitInput(nextInput)) {
+      if (!hasThreeDKeyboardOrbitInput(previousInput)) {
         this.lastFrameTime = null;
       }
       this.ensureScheduledFrame();
@@ -150,14 +150,14 @@ export class DepthKeyboardOrbitController {
     this.lastFrameTime = null;
   }
 
-  private applyInput(input: DepthKeyboardOrbitInput, viewportStepRatio: number): void {
+  private applyInput(input: ThreeDKeyboardOrbitInput, viewportStepRatio: number): void {
     const imageSize = this.callbacks.getImageSize();
     if (!imageSize) {
       return;
     }
 
     const state = this.callbacks.getState();
-    if (state.viewerMode !== 'depth') {
+    if (state.viewerMode !== '3d') {
       return;
     }
 
@@ -168,7 +168,7 @@ export class DepthKeyboardOrbitController {
 
     const horizontalDirection = (input.left ? 1 : 0) - (input.right ? 1 : 0);
     const verticalDirection = (input.down ? 1 : 0) - (input.up ? 1 : 0);
-    const nextView = orbitDepthFromDrag(
+    const nextView = orbitThreeDFromDrag(
       state,
       viewport,
       viewport.width * viewportStepRatio * horizontalDirection,
@@ -196,7 +196,7 @@ export class DepthKeyboardOrbitController {
   }
 
   private ensureScheduledFrame(): void {
-    if (this.frameId !== null || !hasDepthKeyboardOrbitInput(this.input)) {
+    if (this.frameId !== null || !hasThreeDKeyboardOrbitInput(this.input)) {
       return;
     }
 
@@ -214,20 +214,20 @@ export class DepthKeyboardOrbitController {
 
   private readonly onFrame = (timestamp: number): void => {
     this.frameId = null;
-    if (!hasDepthKeyboardOrbitInput(this.input)) {
+    if (!hasThreeDKeyboardOrbitInput(this.input)) {
       this.lastFrameTime = null;
       return;
     }
 
     if (this.lastFrameTime !== null) {
       const elapsedMs = Math.min(
-        DEPTH_KEYBOARD_ORBIT_MAX_FRAME_MS,
+        THREE_D_KEYBOARD_ORBIT_MAX_FRAME_MS,
         Math.max(0, timestamp - this.lastFrameTime)
       );
       if (elapsedMs > 0) {
         this.applyInput(
           this.input,
-          DEPTH_KEYBOARD_ORBIT_SPEED_PER_SECOND * (elapsedMs / 1000)
+          THREE_D_KEYBOARD_ORBIT_SPEED_PER_SECOND * (elapsedMs / 1000)
         );
       }
     }
@@ -237,9 +237,9 @@ export class DepthKeyboardOrbitController {
   };
 }
 
-function createDepthKeyboardOrbitInput(
-  direction: DepthKeyboardOrbitDirection | null = null
-): DepthKeyboardOrbitInput {
+function createThreeDKeyboardOrbitInput(
+  direction: ThreeDKeyboardOrbitDirection | null = null
+): ThreeDKeyboardOrbitInput {
   return {
     up: direction === 'up',
     left: direction === 'left',
@@ -248,7 +248,7 @@ function createDepthKeyboardOrbitInput(
   };
 }
 
-function cloneDepthKeyboardOrbitInput(input: DepthKeyboardOrbitInput): DepthKeyboardOrbitInput {
+function cloneThreeDKeyboardOrbitInput(input: ThreeDKeyboardOrbitInput): ThreeDKeyboardOrbitInput {
   return {
     up: input.up,
     left: input.left,
@@ -257,10 +257,10 @@ function cloneDepthKeyboardOrbitInput(input: DepthKeyboardOrbitInput): DepthKeyb
   };
 }
 
-function getNewlyPressedDepthKeyboardOrbitInput(
-  previousInput: DepthKeyboardOrbitInput,
-  nextInput: DepthKeyboardOrbitInput
-): DepthKeyboardOrbitInput {
+function getNewlyPressedThreeDKeyboardOrbitInput(
+  previousInput: ThreeDKeyboardOrbitInput,
+  nextInput: ThreeDKeyboardOrbitInput
+): ThreeDKeyboardOrbitInput {
   return {
     up: nextInput.up && !previousInput.up,
     left: nextInput.left && !previousInput.left,
@@ -269,13 +269,13 @@ function getNewlyPressedDepthKeyboardOrbitInput(
   };
 }
 
-function hasDepthKeyboardOrbitInput(input: DepthKeyboardOrbitInput): boolean {
+function hasThreeDKeyboardOrbitInput(input: ThreeDKeyboardOrbitInput): boolean {
   return input.up || input.left || input.down || input.right;
 }
 
-function sameDepthKeyboardOrbitInput(
-  a: DepthKeyboardOrbitInput,
-  b: DepthKeyboardOrbitInput
+function sameThreeDKeyboardOrbitInput(
+  a: ThreeDKeyboardOrbitInput,
+  b: ThreeDKeyboardOrbitInput
 ): boolean {
   return a.up === b.up && a.left === b.left && a.down === b.down && a.right === b.right;
 }

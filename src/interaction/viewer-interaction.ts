@@ -19,12 +19,12 @@ import {
 } from '../viewer-pane-layout';
 import { imageToScreen } from './image-geometry';
 import {
-  DepthKeyboardOrbitController,
-  orbitDepthFromDrag,
-  zoomDepthByKeyboardStep,
-  zoomDepthFromKeyboard,
-  zoomDepthFromWheel
-} from './depth-mode';
+  ThreeDKeyboardOrbitController,
+  orbitThreeDFromDrag,
+  zoomThreeDByKeyboardStep,
+  zoomThreeDFromKeyboard,
+  zoomThreeDFromWheel
+} from './three-d-mode';
 import {
   ImageKeyboardPanController,
   panImageFromDrag,
@@ -83,7 +83,7 @@ export class ViewerInteraction {
   private readonly callbacks: InteractionCallbacks;
   private readonly imageKeyboardPan: ImageKeyboardPanController;
   private readonly panoramaKeyboardOrbit: PanoramaKeyboardOrbitController;
-  private readonly depthKeyboardOrbit: DepthKeyboardOrbitController;
+  private readonly threeDKeyboardOrbit: ThreeDKeyboardOrbitController;
   private readonly keyboardZoom: ViewerKeyboardZoomController;
   private dragging = false;
   private movedDuringDrag = false;
@@ -120,7 +120,7 @@ export class ViewerInteraction {
       onHoverPixel: callbacks.onHoverPixel,
       getLastPointerInElement: () => this.lastPointerInElement
     }, dependencies);
-    this.depthKeyboardOrbit = new DepthKeyboardOrbitController({
+    this.threeDKeyboardOrbit = new ThreeDKeyboardOrbitController({
       getState: callbacks.getState,
       getViewport: () => this.getActiveViewport(),
       getImageSize: callbacks.getImageSize,
@@ -157,7 +157,7 @@ export class ViewerInteraction {
     this.element.removeEventListener('contextmenu', this.onContextMenu);
     this.imageKeyboardPan.destroy();
     this.panoramaKeyboardOrbit.destroy();
-    this.depthKeyboardOrbit.destroy();
+    this.threeDKeyboardOrbit.destroy();
     this.keyboardZoom.destroy();
   }
 
@@ -181,8 +181,8 @@ export class ViewerInteraction {
       return;
     }
 
-    if (state.viewerMode === 'depth') {
-      this.depthKeyboardOrbit.handle(direction);
+    if (state.viewerMode === '3d') {
+      this.threeDKeyboardOrbit.handle(direction);
     }
   }
 
@@ -218,8 +218,8 @@ export class ViewerInteraction {
       return;
     }
 
-    if (state.viewerMode === 'depth') {
-      const nextView = zoomDepthFromKeyboard(state, direction);
+    if (state.viewerMode === '3d') {
+      const nextView = zoomThreeDFromKeyboard(state, direction);
       const nextState = { ...state, ...nextView };
       this.callbacks.onViewChange(nextView);
       this.callbacks.onHoverPixel(
@@ -258,28 +258,28 @@ export class ViewerInteraction {
     const state = this.callbacks.getState();
     if (state.viewerMode === 'image') {
       this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
-      this.depthKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
+      this.threeDKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.imageKeyboardPan.setInput(input);
       return;
     }
 
     if (state.viewerMode === 'panorama') {
       this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
-      this.depthKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
+      this.threeDKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.panoramaKeyboardOrbit.setInput(input);
       return;
     }
 
-    if (state.viewerMode === 'depth') {
+    if (state.viewerMode === '3d') {
       this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
       this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
-      this.depthKeyboardOrbit.setInput(input);
+      this.threeDKeyboardOrbit.setInput(input);
       return;
     }
 
     this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
     this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
-    this.depthKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
+    this.threeDKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
   }
 
   private readonly onWheel = (event: WheelEvent): void => {
@@ -316,8 +316,8 @@ export class ViewerInteraction {
       return;
     }
 
-    if (state.viewerMode === 'depth') {
-      const nextView = zoomDepthFromWheel(state, event.deltaY);
+    if (state.viewerMode === '3d') {
+      const nextView = zoomThreeDFromWheel(state, event.deltaY);
       const nextState = { ...state, ...nextView };
       this.callbacks.onViewChange(nextView);
       this.callbacks.onHoverPixel(
@@ -530,8 +530,8 @@ export class ViewerInteraction {
         const nextView = orbitPanoramaFromDrag(state, viewport, deltaX, deltaY);
         hoverState = { ...state, ...nextView };
         this.callbacks.onViewChange(nextView);
-      } else if (state.viewerMode === 'depth') {
-        const nextView = orbitDepthFromDrag(state, viewport, deltaX, deltaY);
+      } else if (state.viewerMode === '3d') {
+        const nextView = orbitThreeDFromDrag(state, viewport, deltaX, deltaY);
         hoverState = { ...state, ...nextView };
         this.callbacks.onViewChange(nextView);
         if (this.dragMode === 'pan' && this.movedDuringDrag) {
@@ -1044,8 +1044,8 @@ class ViewerKeyboardZoomController {
       return;
     }
 
-    if (state.viewerMode === 'depth') {
-      const nextView = zoomDepthByKeyboardStep(state, signedDirection * stepRatio);
+    if (state.viewerMode === '3d') {
+      const nextView = zoomThreeDByKeyboardStep(state, signedDirection * stepRatio);
       const nextState = { ...state, ...nextView };
       this.callbacks.onViewChange(nextView);
       this.callbacks.onHoverPixel(

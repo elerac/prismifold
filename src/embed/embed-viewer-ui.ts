@@ -401,7 +401,7 @@ export class EmbedViewerUi implements ViewerRuntimeUi {
   setColormapExposure(_exposureEv: number): void {}
   setColormapGamma(_gamma: number): void {}
   setViewerMode(_mode: ViewerMode): void {}
-  setDepthModeAvailable(_available: boolean): void {}
+  setThreeDModeAvailable(_available: boolean): void {}
   setVisualizationMode(_mode: VisualizationMode): void {}
   setStokesDegreeModulationControl(
     _label: string | null,

@@ -471,7 +471,7 @@ describe('viewer app lanes', () => {
     expect(hasRenderFlag(renderFlags, ViewerRenderInvalidationFlags.RenderImage)).toBe(true);
   });
 
-  it('marks depth mode availability when depth recognition settings change', () => {
+  it('marks 3D mode availability when depth recognition settings change', () => {
     const session = createSession('session-1', createDecodedImage(['R', 'G', 'B', 'Z']));
     const previous = {
       ...createInitialViewerAppState(),
@@ -489,9 +489,9 @@ describe('viewer app lanes', () => {
     };
     const selectUiSnapshot = createViewerUiSnapshotSelector();
 
-    expect(selectUiSnapshot(previous).depthModeAvailable).toBe(true);
-    expect(selectUiSnapshot(next).depthModeAvailable).toBe(false);
-    expect(hasUiFlag(createUiFlags(previous, next), ViewerUiInvalidationFlags.DepthModeAvailability)).toBe(true);
+    expect(selectUiSnapshot(previous).threeDModeAvailable).toBe(true);
+    expect(selectUiSnapshot(next).threeDModeAvailable).toBe(false);
+    expect(hasUiFlag(createUiFlags(previous, next), ViewerUiInvalidationFlags.ThreeDModeAvailability)).toBe(true);
   });
 
   it('keeps channel thumbnails on the committed exposure while live exposure changes', () => {
@@ -777,7 +777,7 @@ describe('viewer app lanes', () => {
     expect(after.renderState).not.toBe(before.renderState);
   });
 
-  it('invalidates the spectral readout when switching into depth mode changes the active spectral pixel', () => {
+  it('invalidates the spectral readout when switching into 3D mode changes the active spectral pixel', () => {
     const decoded: DecodedExrImage = {
       width: 2,
       height: 1,
@@ -804,7 +804,7 @@ describe('viewer app lanes', () => {
     };
     const nextSessionState = {
       ...sessionState,
-      viewerMode: 'depth' as const,
+      viewerMode: '3d' as const,
       depthChannel: 'Z'
     };
     const next: ViewerAppState = {
@@ -834,7 +834,7 @@ describe('viewer app lanes', () => {
     };
     const sessionState = {
       ...buildViewerStateForLayer(createInitialState(), decoded, 0),
-      viewerMode: 'depth' as const,
+      viewerMode: '3d' as const,
       displaySelection: createChannelMonoSelection('400nm'),
       depthChannel: 'depth.Z'
     };
@@ -874,7 +874,7 @@ describe('viewer app lanes', () => {
     };
     const sessionState = {
       ...buildViewerStateForLayer(createInitialState(), decoded, 0),
-      viewerMode: 'depth' as const,
+      viewerMode: '3d' as const,
       displaySelection: createChannelMonoSelection('400nm'),
       depthChannel: 'Z'
     };

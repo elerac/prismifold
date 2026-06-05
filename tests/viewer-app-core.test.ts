@@ -120,7 +120,7 @@ describe('viewer app core', () => {
     });
 
     const snapshot = {
-      viewerMode: 'depth' as const,
+      viewerMode: '3d' as const,
       depthChannel: 'Z',
       depthFocalLengthPx: 960,
       depthPointSizePx: 2,
@@ -134,7 +134,7 @@ describe('viewer app core', () => {
 
     applyEmbedViewerStateSnapshot(core, snapshot);
     expect(core.getState().sessionState).toMatchObject({
-      viewerMode: 'depth',
+      viewerMode: '3d',
       depthChannel: 'Z',
       depthFocalLengthPx: 960,
       depthPointSizePx: 2,
@@ -167,15 +167,15 @@ describe('viewer app core', () => {
     expect(core.getState().sessionState.displaySelection).toEqual(createChannelMonoSelection('Y'));
   });
 
-  it('uses depth recognition settings and name rules to maintain depth mode', () => {
+  it('uses depth recognition settings and name rules to maintain 3D mode', () => {
     const core = new ViewerAppCore();
     core.dispatch({
       type: 'sessionLoaded',
       session: createSession('session-1', createDecodedImage(['R', 'G', 'B', 'Z', 'worldDepth']))
     });
-    core.dispatch({ type: 'viewerModeSet', viewerMode: 'depth' });
+    core.dispatch({ type: 'viewerModeSet', viewerMode: '3d' });
 
-    expect(core.getState().sessionState.viewerMode).toBe('depth');
+    expect(core.getState().sessionState.viewerMode).toBe('3d');
     expect(core.getState().sessionState.depthChannel).toBe('Z');
 
     const customRules = createDefaultChannelRecognitionNameRules();
@@ -184,7 +184,7 @@ describe('viewer app core', () => {
     };
     core.dispatch({ type: 'channelRecognitionNameRulesSet', rules: customRules });
 
-    expect(core.getState().sessionState.viewerMode).toBe('depth');
+    expect(core.getState().sessionState.viewerMode).toBe('3d');
     expect(core.getState().sessionState.depthChannel).toBe('worldDepth');
 
     core.dispatch({
@@ -199,16 +199,16 @@ describe('viewer app core', () => {
     expect(core.getState().sessionState.depthChannel).toBeNull();
   });
 
-  it('activates depth mode for position-only sources', () => {
+  it('activates 3D mode for position-only sources', () => {
     const core = new ViewerAppCore();
     core.dispatch({
       type: 'sessionLoaded',
       session: createSession('session-1', createDecodedImage(['R', 'G', 'B', 'P.X', 'P.Y', 'P.Z']))
     });
 
-    core.dispatch({ type: 'viewerModeSet', viewerMode: 'depth' });
+    core.dispatch({ type: 'viewerModeSet', viewerMode: '3d' });
 
-    expect(core.getState().sessionState.viewerMode).toBe('depth');
+    expect(core.getState().sessionState.viewerMode).toBe('3d');
     expect(core.getState().sessionState.depthChannel).toBe('__position:P');
   });
 
@@ -218,7 +218,7 @@ describe('viewer app core', () => {
       type: 'sessionLoaded',
       session: createSession('session-1', createDecodedImage(['R', 'G', 'B', 'P.X', 'P.Y', 'P.Z']))
     });
-    core.dispatch({ type: 'viewerModeSet', viewerMode: 'depth' });
+    core.dispatch({ type: 'viewerModeSet', viewerMode: '3d' });
 
     core.dispatch({
       type: 'interactionStatePublished',
@@ -261,7 +261,7 @@ describe('viewer app core', () => {
       type: 'sessionLoaded',
       session: createSession('session-1', createDecodedImage(['R', 'G', 'B', 'Z', 'P.X', 'P.Y', 'P.Z']))
     });
-    core.dispatch({ type: 'viewerModeSet', viewerMode: 'depth' });
+    core.dispatch({ type: 'viewerModeSet', viewerMode: '3d' });
     expect(core.getState().sessionState.depthChannel).toBe('__position:P');
 
     core.dispatch({

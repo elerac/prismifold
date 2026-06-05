@@ -62,7 +62,7 @@ export const enum ViewerUiInvalidationFlags {
   InvalidValueWarning = 1 << 25,
   SpectralRgbGrouping = 1 << 26,
   ColormapReverse = 1 << 27,
-  DepthModeAvailability = 1 << 28,
+  ThreeDModeAvailability = 1 << 28,
   ChannelRecognitionSettings = 1 << 29,
   ChannelRecognitionNameRules = 1 << 30,
   ViewerBackground = 1 << 31
@@ -113,7 +113,7 @@ export function createViewerUiSnapshotSelector(): (state: ViewerAppState) => Vie
       colormapExposureEv: state.sessionState.colormapExposureEv,
       colormapGamma: state.sessionState.colormapGamma,
       viewerMode: state.sessionState.viewerMode,
-      depthModeAvailable: Boolean(
+      threeDModeAvailable: Boolean(
         activeSession &&
         hasDepthChannelCandidate(
           activeSession.decoded.layers[state.sessionState.activeLayer]?.channelNames ?? [],
@@ -236,8 +236,8 @@ export function computeViewerUiInvalidation(
     flags |= ViewerUiInvalidationFlags.ViewerMode;
   }
 
-  if (previous.depthModeAvailable !== next.depthModeAvailable) {
-    flags |= ViewerUiInvalidationFlags.DepthModeAvailability;
+  if (previous.threeDModeAvailable !== next.threeDModeAvailable) {
+    flags |= ViewerUiInvalidationFlags.ThreeDModeAvailability;
   }
 
   if (
@@ -262,13 +262,13 @@ export function computeViewerUiInvalidation(
   if (!sameChannelRecognitionSettings(previous.channelRecognitionSettings, next.channelRecognitionSettings)) {
     flags |= ViewerUiInvalidationFlags.ChannelRecognitionSettings |
       ViewerUiInvalidationFlags.RgbGroupOptions |
-      ViewerUiInvalidationFlags.DepthModeAvailability;
+      ViewerUiInvalidationFlags.ThreeDModeAvailability;
   }
 
   if (!sameChannelRecognitionNameRules(previous.channelRecognitionNameRules, next.channelRecognitionNameRules)) {
     flags |= ViewerUiInvalidationFlags.ChannelRecognitionNameRules |
       ViewerUiInvalidationFlags.RgbGroupOptions |
-      ViewerUiInvalidationFlags.DepthModeAvailability;
+      ViewerUiInvalidationFlags.ThreeDModeAvailability;
   }
 
   if (previous.maskInvalidStokesVectors !== next.maskInvalidStokesVectors) {
@@ -573,7 +573,7 @@ function sameViewerUiSnapshot(a: ViewerUiSnapshot, b: ViewerUiSnapshot): boolean
     a.colormapExposureEv === b.colormapExposureEv &&
     a.colormapGamma === b.colormapGamma &&
     a.viewerMode === b.viewerMode &&
-    a.depthModeAvailable === b.depthModeAvailable &&
+    a.threeDModeAvailable === b.threeDModeAvailable &&
     a.visualizationMode === b.visualizationMode &&
     sameStokesControl(a.stokesDegreeModulationControl, b.stokesDegreeModulationControl) &&
     sameStokesColormapDefaultSettings(a.stokesColormapDefaults, b.stokesColormapDefaults) &&

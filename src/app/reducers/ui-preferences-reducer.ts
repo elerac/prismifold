@@ -234,7 +234,7 @@ function applyRecognitionDependentSessionState(
     patch.displaySelection = displaySelection;
   }
 
-  if (state.sessionState.viewerMode === 'depth') {
+  if (state.sessionState.viewerMode === '3d') {
     const depthChannel = resolveDepthChannelForLayer(
       channelNames,
       state.sessionState.depthChannel,

@@ -63,14 +63,14 @@ describe('display revision keys', () => {
     expect(buildDisplayTextureRevisionKey({
       activeLayer: 0,
       displaySelection: createChannelRgbSelection('R', 'G', 'B'),
-      viewerMode: 'depth',
+      viewerMode: '3d',
       depthChannel: 'Z'
     })).toBe('0:channelRgb:R:G:B::depth:Z');
 
     expect(buildDisplayTextureRevisionKey({
       activeLayer: 0,
       displaySelection: createChannelRgbSelection('R', 'G', 'B'),
-      viewerMode: 'depth',
+      viewerMode: '3d',
       depthChannel: '__position:P'
     })).toBe('0:channelRgb:R:G:B::depth:__position:P');
   });

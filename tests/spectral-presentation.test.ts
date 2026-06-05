@@ -142,7 +142,7 @@ describe('spectral readout presentation', () => {
     expect(readout.yAxis).toBeNull();
   });
 
-  it('plots depth mode spectral values for a valid depth probe pixel', () => {
+  it('plots 3D mode spectral values for a valid depth probe pixel', () => {
     const layer = createLayerFromChannels({
       '400nm': [0.1, 0.2, 0.3, 0.4],
       '500nm': [1.1, 1.2, 1.3, 1.4],
@@ -153,7 +153,7 @@ describe('spectral readout presentation', () => {
       activeSession: session,
       activeLayer: layer,
       sessionState: createViewerSessionState({
-        viewerMode: 'depth',
+        viewerMode: '3d',
         depthChannel: 'Z'
       }),
       interactionState: createViewerInteractionState({ hoveredPixel: { ix: 1, iy: 0 } })
@@ -178,7 +178,7 @@ describe('spectral readout presentation', () => {
     expect(readout.points[1]?.intensity).toBeCloseTo(1.2, 6);
   });
 
-  it('keeps the depth mode spectral panel visible without points for invalid depth probe pixels', () => {
+  it('keeps the 3D mode spectral panel visible without points for invalid depth probe pixels', () => {
     const layer = createLayerFromChannels({
       '400nm': [0.1, 0.2, 0.3, 0.4],
       '500nm': [1.1, 1.2, 1.3, 1.4],
@@ -189,7 +189,7 @@ describe('spectral readout presentation', () => {
       activeSession: session,
       activeLayer: layer,
       sessionState: createViewerSessionState({
-        viewerMode: 'depth',
+        viewerMode: '3d',
         depthChannel: 'Z'
       }),
       interactionState: createViewerInteractionState({ hoveredPixel: { ix: 1, iy: 0 } })

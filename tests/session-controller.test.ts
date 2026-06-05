@@ -332,7 +332,7 @@ describe('session controller shim', () => {
     }
   });
 
-  it('loads the Middlebury chess depth sample locally and opens depth mode', async () => {
+  it('loads the Middlebury chess depth sample locally and opens 3D mode', async () => {
     const encodedBytes = new Uint8Array([6, 5, 4]);
     const decodeBytes = vi.fn<(
       bytes: Uint8Array,
@@ -364,7 +364,7 @@ describe('session controller shim', () => {
         kind: 'url',
         url: MIDDLEBURY_CHESS1_RGB_Z_URL
       });
-      expect(core.getState().sessionState.viewerMode).toBe('depth');
+      expect(core.getState().sessionState.viewerMode).toBe('3d');
       expect(core.getState().sessionState.depthChannel).toBe('Z');
     } finally {
       Object.defineProperty(globalThis, 'fetch', {

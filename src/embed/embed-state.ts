@@ -246,7 +246,7 @@ function normalizeDisplaySelection(value: unknown): DisplaySelection | null | un
 }
 
 function isViewerMode(value: unknown): value is ViewerSessionState['viewerMode'] {
-  return value === 'image' || value === 'panorama' || value === 'depth';
+  return value === 'image' || value === 'panorama' || value === '3d';
 }
 
 function isNonNegativeInteger(value: unknown): value is number {

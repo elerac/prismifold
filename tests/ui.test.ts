@@ -1706,7 +1706,7 @@ describe('viewer state inspector', () => {
     const ui = new ViewerUi(createUiCallbacks({ onDepthSettingsChange }));
     ui.setViewerStateReadout({
       hasActiveImage: true,
-      viewerMode: 'depth',
+      viewerMode: '3d',
       view: {
         zoom: 2,
         panX: 10,
@@ -1749,7 +1749,7 @@ describe('viewer state inspector', () => {
     const ui = new ViewerUi(createUiCallbacks({ onDepthSettingsChange }));
     ui.setViewerStateReadout({
       hasActiveImage: true,
-      viewerMode: 'depth',
+      viewerMode: '3d',
       view: {
         zoom: 2,
         panX: 10,
@@ -1784,14 +1784,14 @@ describe('viewer state inspector', () => {
     expect(onDepthSettingsChange).not.toHaveBeenCalled();
   });
 
-  it('renders depth view fields and clamps typed orbit values to the front-facing range', () => {
+  it('renders 3D view fields and clamps typed orbit values to the front-facing range', () => {
     installUiFixture();
 
     const onViewerViewStateChange = vi.fn();
     const ui = new ViewerUi(createUiCallbacks({ onViewerViewStateChange }));
     ui.setViewerStateReadout({
       hasActiveImage: true,
-      viewerMode: 'depth',
+      viewerMode: '3d',
       view: {
         zoom: 2,
         panX: 10,
@@ -1838,7 +1838,7 @@ describe('viewer state inspector', () => {
     const ui = new ViewerUi(createUiCallbacks({ onViewerViewStateChange }));
     ui.setViewerStateReadout({
       hasActiveImage: true,
-      viewerMode: 'depth',
+      viewerMode: '3d',
       view: {
         zoom: 2,
         panX: 10,
@@ -1883,7 +1883,7 @@ describe('viewer state inspector', () => {
     const ui = new ViewerUi(createUiCallbacks({ onDepthSettingsChange }));
     ui.setViewerStateReadout({
       hasActiveImage: true,
-      viewerMode: 'depth',
+      viewerMode: '3d',
       view: {
         zoom: 2,
         panX: 10,
@@ -1916,7 +1916,7 @@ describe('viewer state inspector', () => {
 
     ui.setViewerStateReadout({
       hasActiveImage: true,
-      viewerMode: 'depth',
+      viewerMode: '3d',
       view: {
         zoom: 2,
         panX: 10,
@@ -1955,7 +1955,7 @@ describe('viewer state inspector', () => {
     const ui = new ViewerUi(createUiCallbacks({ onDepthSettingsChange }));
     ui.setViewerStateReadout({
       hasActiveImage: true,
-      viewerMode: 'depth',
+      viewerMode: '3d',
       view: {
         zoom: 2,
         panX: 10,

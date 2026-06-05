@@ -7,7 +7,7 @@ Prismifold is an OpenEXR viewer for Visual Studio Code. It opens `.exr` files in
 - Open `.exr` files directly in VS Code with a readonly custom editor.
 - Decode OpenEXR files locally through the packaged Prismifold viewer and WebAssembly runtime.
 - Inspect RGB, alpha, depth, masks, AOVs, vector channels, spectral channels, Stokes parameters, and Mueller matrix layers.
-- Switch between image, panorama, and depth-oriented viewer modes.
+- Switch between image, panorama, and 3D viewer modes.
 - Adjust exposure, gamma, colormaps, value ranges, zero-center mapping, and invalid-value display.
 - Use pixel probes, metadata inspection, pixel rulers, ROI statistics, and high-zoom pixel labels.
 - Open a folder of EXR files and keep multiple decoded images in one Prismifold session.
@@ -31,7 +31,7 @@ You can also use the Command Palette:
 - `Prismifold: Show Metadata`
 - `Prismifold: Image Viewer`
 - `Prismifold: Panorama Viewer`
-- `Prismifold: Depth Viewer`
+- `Prismifold: 3D Viewer`
 - `Prismifold: Toggle Rulers`
 - `Prismifold: Split Viewer Vertically`
 - `Prismifold: Split Viewer Horizontally`
@@ -58,4 +58,3 @@ Remote sample gallery entries may request HTTPS resources from their source host
 - Prismifold web app: https://elerac.github.io/prismifold/app/
 - Source repository: https://github.com/elerac/openexr_viewer
 - Issues: https://github.com/elerac/openexr_viewer/issues
-

@@ -327,7 +327,7 @@ describe('gl image renderer', () => {
     expect(lastUniform2fValue(gl, 'uViewport')).toEqual([160, 180]);
   });
 
-  it('renders depth mode through the point-cloud pass', () => {
+  it('renders 3D mode through the point-cloud pass', () => {
     const { renderer, gl } = createHarness();
     const layer = createInterleavedLayerFromChannels({
       R: [1, 0, 0, 1],
@@ -337,7 +337,7 @@ describe('gl image renderer', () => {
     });
     const state = {
       ...createInitialState(),
-      viewerMode: 'depth' as const,
+      viewerMode: '3d' as const,
       depthChannel: 'Z',
       depthYawDeg: 120,
       depthPitchDeg: 91,
@@ -399,7 +399,7 @@ describe('gl image renderer', () => {
     });
     const state = {
       ...createInitialState(),
-      viewerMode: 'depth' as const,
+      viewerMode: '3d' as const,
       depthChannel: '__position:P',
       depthYawDeg: 120,
       depthPitchDeg: -120,
@@ -881,7 +881,7 @@ describe('gl image renderer', () => {
     expect(lastUniform1fValue(gl, 'uPanoramaHfovDeg')).toBe(90);
   });
 
-  it('renders screenshot exports through the depth point-cloud pass when depth mode is active', () => {
+  it('renders screenshot exports through the depth point-cloud pass when 3D mode is active', () => {
     const { renderer, gl } = createHarness();
     const layer = createInterleavedLayerFromChannels({
       R: [1, 0, 0, 1],
@@ -891,7 +891,7 @@ describe('gl image renderer', () => {
     });
     const state = {
       ...createInitialState(),
-      viewerMode: 'depth' as const,
+      viewerMode: '3d' as const,
       depthChannel: 'Z',
       depthYawDeg: 17,
       depthPitchDeg: 20,

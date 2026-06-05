@@ -72,7 +72,7 @@ interface NativeMenuState {
   view: {
     image: NativeMenuItemState;
     panorama: NativeMenuItemState;
-    depth: NativeMenuItemState;
+    threeD: NativeMenuItemState;
     rulers: NativeMenuItemState;
   };
   window: {
@@ -530,7 +530,7 @@ async function installNativeMenu(callbacks: DesktopCommandCallbacks, options: { 
     items: [
       await checkedCommandItem('viewerModeImage', menuState.view.image),
       await checkedCommandItem('viewerModePanorama', menuState.view.panorama),
-      await checkedCommandItem('viewerModeDepth', menuState.view.depth),
+      await checkedCommandItem('viewerMode3d', menuState.view.threeD),
       await separator(),
       await checkedCommandItem('toggleRulers', menuState.view.rulers)
     ]
@@ -623,7 +623,7 @@ function readNativeMenuState(): NativeMenuState {
     view: {
       image: readButtonState('image-viewer-menu-item', 'Image viewer'),
       panorama: readButtonState('panorama-viewer-menu-item', 'Panorama viewer'),
-      depth: readButtonState('depth-viewer-menu-item', 'Depth map viewer'),
+      threeD: readButtonState('three-d-viewer-menu-item', '3D viewer'),
       rulers: readButtonState('rulers-menu-item', 'Rulers')
     },
     window: {

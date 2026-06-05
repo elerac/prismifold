@@ -132,7 +132,7 @@ describe('viewer store', () => {
 
     const positionState = buildViewerStateForLayer(
       createViewerState({
-        viewerMode: 'depth',
+        viewerMode: '3d',
         depthChannel: '__position:P',
         depthYawDeg: 120,
         depthPitchDeg: -120
@@ -148,7 +148,7 @@ describe('viewer store', () => {
 
     const scalarState = buildViewerStateForLayer(
       createViewerState({
-        viewerMode: 'depth',
+        viewerMode: '3d',
         depthChannel: 'Z',
         depthYawDeg: 120,
         depthPitchDeg: -120

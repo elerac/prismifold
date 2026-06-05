@@ -61,7 +61,7 @@ describe('probe overlay renderer', () => {
     expect(context.strokeRect).not.toHaveBeenCalled();
   });
 
-  it('renders the probe marker in depth mode using depth projection', () => {
+  it('renders the probe marker in 3D mode using depth projection', () => {
     const { renderer, context } = createProbeOverlayHarness();
     const layer = createLayerFromChannels({
       Z: [2]
@@ -75,7 +75,7 @@ describe('probe overlay renderer', () => {
       { kind: 'scalarDepth', range: { min: 2, max: 2 } }
     );
     renderer.render(createViewerState({
-      viewerMode: 'depth',
+      viewerMode: '3d',
       depthChannel: 'Z',
       hoveredPixel: { ix: 0, iy: 0 }
     }));
@@ -83,7 +83,7 @@ describe('probe overlay renderer', () => {
     expect(context.strokeRect).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the probe marker in depth mode using position projection', () => {
+  it('renders the probe marker in 3D mode using position projection', () => {
     const { renderer, context } = createProbeOverlayHarness();
     const layer = createLayerFromChannels({
       'P.X': [0],
@@ -115,7 +115,7 @@ describe('probe overlay renderer', () => {
       }
     );
     renderer.render(createViewerState({
-      viewerMode: 'depth',
+      viewerMode: '3d',
       depthChannel: '__position:P',
       hoveredPixel: { ix: 0, iy: 0 }
     }));
@@ -137,7 +137,7 @@ describe('probe overlay renderer', () => {
       { kind: 'scalarDepth', range: { min: 1, max: 1 } }
     );
     renderer.render(createViewerState({
-      viewerMode: 'depth',
+      viewerMode: '3d',
       depthChannel: 'Z',
       hoveredPixel: { ix: 0, iy: 0 }
     }));
@@ -177,7 +177,7 @@ describe('probe overlay renderer', () => {
       }
     );
     renderer.render(createViewerState({
-      viewerMode: 'depth',
+      viewerMode: '3d',
       depthChannel: '__position:P',
       hoveredPixel: { ix: 0, iy: 0 }
     }));
@@ -185,13 +185,13 @@ describe('probe overlay renderer', () => {
     expect(context.strokeRect).not.toHaveBeenCalled();
   });
 
-  it('keeps ROI drawing suppressed in depth mode', () => {
+  it('keeps ROI drawing suppressed in 3D mode', () => {
     const { renderer, context } = createProbeOverlayHarness();
 
     renderer.resize(128, 64);
     renderer.setImagePresent(true);
     renderer.render(createViewerState({
-      viewerMode: 'depth',
+      viewerMode: '3d',
       roi: { x0: 0, y0: 0, x1: 1, y1: 1 }
     }));
 

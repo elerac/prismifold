@@ -15,7 +15,7 @@ Prismifold is a multichannel image viewer for computational imaging, rendering, 
 - `File > Export Batch...` exports selected file/channel combinations as a ZIP of PNG images.
 - `File > Export Colormap...` exports any registered colormap as a standalone PNG gradient with configurable colormap, size, orientation, and filename.
 - Right-click `Copy Image` copies the current display image to the clipboard.
-- `View > Image viewer` / `Panorama viewer` switches between the existing 2D image view and an equirectangular panorama projection suitable for 360-degree environment maps and HDRIs.
+- `View > Image viewer` / `Panorama viewer` / `3D viewer` switches between the existing 2D image view, an equirectangular panorama projection suitable for 360-degree environment maps and HDRIs, and a point-cloud view for RGB plus depth data.
 - `View > Rulers` toggles pixel rulers in `Image viewer`.
 - `Window` controls include normal/full-screen preview plus single-pane, vertical split, and horizontal split viewer layouts.
 - Top-bar quick actions include Auto Fit, Auto Exposure, invalid-value warning, screenshot export, Metadata, app fullscreen, and the Settings gear.
@@ -23,7 +23,7 @@ Prismifold is a multichannel image viewer for computational imaging, rendering, 
 - Multi-image sessions:
   - New image opens as active while previously opened images are kept in memory.
   - `Open Files` list allows switching active image by filename; rows show thumbnails/status and support filtering, inline rename, drag reorder, and drag-to-viewer-pane assignment.
-  - Multi-layer EXR state is preserved per opened session. Display channel mapping, the active probe position, and the committed ROI carry across session switches when valid for the target image. The active viewer mode is preserved across session switches, and each session remembers separate image-view and panorama-view camera state.
+  - Multi-layer EXR state is preserved per opened session. Display channel mapping, the active probe position, and the committed ROI carry across session switches when valid for the target image. The active viewer mode is preserved across session switches, and each session remembers separate image-view, panorama-view, and 3D-view camera state.
   - When Auto Fit selected images is enabled, image-mode session switches and new loads fit to the viewer instead of carrying previous pan/zoom; this does not apply in `Panorama viewer`. Colormap state carries only when the display selection remains compatible.
   - Decoded CPU pixels are included in the displayed memory usage. The display cache budget evicts retained display textures and materialized display buffers, so decoded pixels and browser/GPU overhead can exceed the selected cap. `Settings` dialog > `Display Cache Budget` defaults to `Automatic` and also supports fixed presets (`64`, `128`, `256`, `512`, `1024` MB).
   - Per-file row `Reload` action re-decodes the selected session from its original source.

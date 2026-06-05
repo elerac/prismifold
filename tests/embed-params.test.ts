@@ -38,7 +38,7 @@ describe('embed params', () => {
 
   it('round-trips locked pixels and depth inspection settings through serialized state', () => {
     const state = {
-      viewerMode: 'depth' as const,
+      viewerMode: '3d' as const,
       depthChannel: 'Z',
       depthFocalLengthPx: 960,
       depthPointSizePx: 2,

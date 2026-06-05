@@ -235,7 +235,7 @@ export function buildReloadedSessionState(
     currentState.activeLayer,
     { stokesParameterVisibility, spectralRgbGroupingEnabled, channelRecognitionSettings, channelRecognitionNameRules }
   );
-  if (currentState.viewerMode === 'depth') {
+  if (currentState.viewerMode === '3d') {
     const nextLayer = decoded.layers[nextState.activeLayer] ?? null;
     nextState.depthChannel = nextLayer
       ? resolveDepthChannelForLayer(
@@ -305,7 +305,7 @@ export function buildSwitchedSessionState(
         panoramaPitchDeg: nextSession.state.panoramaPitchDeg,
         panoramaHfovDeg: nextSession.state.panoramaHfovDeg
       };
-  const nextDepthCamera = currentState.viewerMode === 'depth'
+  const nextDepthCamera = currentState.viewerMode === '3d'
     ? {
         depthYawDeg: currentState.depthYawDeg,
         depthPitchDeg: currentState.depthPitchDeg,
@@ -346,7 +346,7 @@ export function buildSwitchedSessionState(
       channelRecognitionNameRules: options.channelRecognitionNameRules
     }
   );
-  if (currentState.viewerMode === 'depth') {
+  if (currentState.viewerMode === '3d') {
     const nextLayer = nextSession.decoded.layers[nextState.activeLayer] ?? null;
     nextState.depthChannel = nextLayer
       ? resolveDepthChannelForLayer(

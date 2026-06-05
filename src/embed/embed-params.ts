@@ -91,7 +91,7 @@ function normalizeNonEmpty(value: string | null): string | null {
 }
 
 function parseViewerMode(value: string | null): ViewerSessionState['viewerMode'] | null {
-  return value === 'image' || value === 'panorama' || value === 'depth' ? value : null;
+  return value === 'image' || value === 'panorama' || value === '3d' ? value : null;
 }
 
 function parseEmbedBottomPanelMode(value: string | null): EmbedBottomPanelMode {

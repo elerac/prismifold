@@ -303,7 +303,7 @@ describe('render cache service', () => {
     expect(renderer.setDisplaySelectionBindings).toHaveBeenCalledTimes(3);
   });
 
-  it('uploads XYZ position source channels for depth mode', () => {
+  it('uploads XYZ position source channels for 3D mode', () => {
     const decoded = createDecodedImage(2, 1, {
       R: 1,
       G: 0.5,
@@ -324,7 +324,7 @@ describe('render cache service', () => {
     const session = createSession('session-1', decoded);
     const state = {
       ...session.state,
-      viewerMode: 'depth' as const,
+      viewerMode: '3d' as const,
       depthChannel: '__position:P'
     };
     const ui = createUiMock();

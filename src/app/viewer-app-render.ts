@@ -294,7 +294,7 @@ function selectPaneRenderSources(
         layer.channelNames,
         renderState.depthChannel,
         {
-          allowArbitraryZSuffix: renderState.viewerMode === 'depth',
+          allowArbitraryZSuffix: renderState.viewerMode === '3d',
           channelRecognitionSettings: state.channelRecognitionSettings,
           channelRecognitionNameRules: state.channelRecognitionNameRules
         }
@@ -834,7 +834,7 @@ function buildViewerStateReadout(
         activeLayer.channelNames,
         renderState.depthChannel,
         {
-          allowArbitraryZSuffix: renderState.viewerMode === 'depth',
+          allowArbitraryZSuffix: renderState.viewerMode === '3d',
           channelRecognitionSettings: state.channelRecognitionSettings,
           channelRecognitionNameRules: state.channelRecognitionNameRules
         }

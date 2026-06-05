@@ -79,7 +79,7 @@ function createScenes() {
     lockedPixel: { ix: 2216, iy: 1189 }
   };
   const depthState = {
-    viewerMode: 'depth',
+    viewerMode: '3d',
     depthChannel: 'Z',
     depthFocalLengthPx: 960,
     depthPointSizePx: 2,

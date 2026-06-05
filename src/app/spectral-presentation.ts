@@ -119,7 +119,7 @@ function isSpectralProbePixelActive(
   args: BuildSpectralPresentationArgs,
   targetPixel: NonNullable<ReturnType<typeof resolveActiveProbePixel>>
 ): boolean {
-  if (args.sessionState.viewerMode !== 'depth') {
+  if (args.sessionState.viewerMode !== '3d') {
     return true;
   }
 

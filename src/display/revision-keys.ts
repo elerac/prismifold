@@ -88,7 +88,7 @@ export function buildDisplayTextureRevisionKey(
     state.activeLayer,
     serializeDisplaySelectionRevisionKey(state.displaySelection, state.visualizationMode ?? 'rgb', state)
   ];
-  if (state.viewerMode === 'depth') {
+  if (state.viewerMode === '3d') {
     parts.push(`depth:${state.depthChannel ?? ''}`);
   }
   return parts.join(':');

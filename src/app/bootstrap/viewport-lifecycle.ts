@@ -74,7 +74,7 @@ export function createViewerInteraction({
       );
     },
     resolveDepthProbePixel: (point, state, viewport) => {
-      if (state.viewerMode !== 'depth') {
+      if (state.viewerMode !== '3d') {
         return null;
       }
 

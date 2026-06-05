@@ -87,7 +87,7 @@ export function render(
       };
       if (viewerState.viewerMode === 'panorama') {
         renderPanoramaPass(state, viewerState, options);
-      } else if (viewerState.viewerMode === 'depth') {
+      } else if (viewerState.viewerMode === '3d') {
         renderDepthPass(state, viewerState, options);
       } else {
         renderImagePass(state, viewerState, options);

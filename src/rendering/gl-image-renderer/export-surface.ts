@@ -58,7 +58,7 @@ export function readExportPixels(
     } as const;
     if (exportRender.state.viewerMode === 'panorama') {
       renderPanoramaPass(state, exportRender.state, options);
-    } else if (exportRender.state.viewerMode === 'depth') {
+    } else if (exportRender.state.viewerMode === '3d') {
       renderDepthPass(state, exportRender.state, options);
     } else {
       renderImagePass(state, exportRender.state, options);

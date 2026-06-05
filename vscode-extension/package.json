@@ -107,8 +107,8 @@
         "title": "Prismifold: Panorama Viewer"
       },
       {
-        "command": "prismifold.viewDepth",
-        "title": "Prismifold: Depth Viewer"
+        "command": "prismifold.view3d",
+        "title": "Prismifold: 3D Viewer"
       },
       {
         "command": "prismifold.toggleRulers",

@@ -440,7 +440,7 @@ describe('tauri host', () => {
     expect(nativeViewMenuItemLabels).toEqual([
       'Image viewer',
       'Panorama viewer',
-      'Depth map viewer',
+      '3D viewer',
       'Rulers'
     ]);
     expect(nativeWindowMenuItemLabels).toEqual(['Normal', 'Full Screen Preview']);

@@ -11,9 +11,9 @@ import {
   zoomAroundPoint
 } from '../src/interaction/image-geometry';
 import {
-  orbitDepthFromDrag,
-  zoomDepthFromWheel
-} from '../src/interaction/depth-mode';
+  orbitThreeDFromDrag,
+  zoomThreeDFromWheel
+} from '../src/interaction/three-d-mode';
 import {
   clampPanoramaHfov,
   clampPanoramaPitch,
@@ -477,12 +477,12 @@ describe('interaction math', () => {
     expect(normalizePanoramaYaw(190)).toBe(-170);
   });
 
-  it('orbits depth view in the mouse drag direction', () => {
+  it('orbits 3D view in the mouse drag direction', () => {
     const viewport = { width: 100, height: 100 };
-    const next = orbitDepthFromDrag(
+    const next = orbitThreeDFromDrag(
       {
         ...state,
-        viewerMode: 'depth',
+        viewerMode: '3d',
         depthYawDeg: 0,
         depthPitchDeg: 0
       },
@@ -497,10 +497,10 @@ describe('interaction math', () => {
 
   it('prevents depth orbit from crossing to the backside', () => {
     const viewport = { width: 100, height: 100 };
-    const next = orbitDepthFromDrag(
+    const next = orbitThreeDFromDrag(
       {
         ...state,
-        viewerMode: 'depth',
+        viewerMode: '3d',
         depthYawDeg: 80,
         depthPitchDeg: 80
       },
@@ -515,10 +515,10 @@ describe('interaction math', () => {
 
   it('allows position depth orbit to cross to the backside', () => {
     const viewport = { width: 100, height: 100 };
-    const next = orbitDepthFromDrag(
+    const next = orbitThreeDFromDrag(
       {
         ...state,
-        viewerMode: 'depth',
+        viewerMode: '3d',
         depthChannel: '__position:P',
         depthYawDeg: 80,
         depthPitchDeg: 80
@@ -533,10 +533,10 @@ describe('interaction math', () => {
   });
 
   it('keeps stale depth orbit fields clamped while zooming', () => {
-    const next = zoomDepthFromWheel(
+    const next = zoomThreeDFromWheel(
       {
         ...state,
-        viewerMode: 'depth',
+        viewerMode: '3d',
         depthYawDeg: 180,
         depthPitchDeg: -120,
         depthZoom: 1
@@ -550,10 +550,10 @@ describe('interaction math', () => {
   });
 
   it('keeps stale position depth orbit fields normalized while zooming', () => {
-    const next = zoomDepthFromWheel(
+    const next = zoomThreeDFromWheel(
       {
         ...state,
-        viewerMode: 'depth',
+        viewerMode: '3d',
         depthChannel: '__position:P',
         depthYawDeg: 190,
         depthPitchDeg: -190,

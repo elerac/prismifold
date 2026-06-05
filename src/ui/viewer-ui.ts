@@ -441,7 +441,7 @@ export class ViewerUi implements Disposable {
   private spectralRgbGroupingEnabled = DEFAULT_SPECTRAL_RGB_GROUPING_ENABLED;
   private invalidValueWarningEnabled = DEFAULT_INVALID_VALUE_WARNING_ENABLED;
   private viewerMode: ViewerMode = 'image';
-  private depthModeAvailable = false;
+  private threeDModeAvailable = false;
   private autoFitImageOnSelect = false;
   private autoExposureEnabled = false;
   private autoExposurePercentile = AUTO_EXPOSURE_PERCENTILE;
@@ -1160,16 +1160,16 @@ export class ViewerUi implements Disposable {
     this.viewerMode = mode;
     this.elements.imageViewerMenuItem.setAttribute('aria-checked', mode === 'image' ? 'true' : 'false');
     this.elements.panoramaViewerMenuItem.setAttribute('aria-checked', mode === 'panorama' ? 'true' : 'false');
-    this.elements.depthViewerMenuItem.setAttribute('aria-checked', mode === 'depth' ? 'true' : 'false');
+    this.elements.threeDViewerMenuItem.setAttribute('aria-checked', mode === '3d' ? 'true' : 'false');
     this.updateAutoFitImageButtonDisabled();
   }
 
-  setDepthModeAvailable(available: boolean): void {
+  setThreeDModeAvailable(available: boolean): void {
     if (this.disposed) {
       return;
     }
 
-    this.depthModeAvailable = available;
+    this.threeDModeAvailable = available;
     this.updateViewerModeMenuItemsDisabled();
   }
 
@@ -1891,9 +1891,9 @@ export class ViewerUi implements Disposable {
           this.callbacks.onViewerModeChange('panorama');
         }
         return;
-      case 'viewerModeDepth':
-        if (!this.elements.depthViewerMenuItem.disabled) {
-          this.callbacks.onViewerModeChange('depth');
+      case 'viewerMode3d':
+        if (!this.elements.threeDViewerMenuItem.disabled) {
+          this.callbacks.onViewerModeChange('3d');
         }
         return;
       case 'toggleRulers': {
@@ -1942,7 +1942,7 @@ export class ViewerUi implements Disposable {
       metadata: !this.elements.appMetadataButton.disabled,
       viewerModeImage: !this.elements.imageViewerMenuItem.disabled,
       viewerModePanorama: !this.elements.panoramaViewerMenuItem.disabled,
-      viewerModeDepth: !this.elements.depthViewerMenuItem.disabled,
+      viewerMode3d: !this.elements.threeDViewerMenuItem.disabled,
       toggleRulers: this.openedImageCount > 0 && !this.isViewerLoadBlocked,
       windowPreviewNormal: true,
       windowPreviewFullscreen: !this.elements.windowFullScreenPreviewMenuItem.disabled,
@@ -2455,7 +2455,7 @@ export class ViewerUi implements Disposable {
       };
     }
 
-    if (context.viewerMode === 'depth') {
+    if (context.viewerMode === '3d') {
       return {
         id,
         coordinateSpace: 'viewport',
@@ -2746,7 +2746,7 @@ export class ViewerUi implements Disposable {
     const disabled = this.isViewerLoadBlocked || this.openedImageCount === 0;
     this.elements.imageViewerMenuItem.disabled = disabled;
     this.elements.panoramaViewerMenuItem.disabled = disabled;
-    this.elements.depthViewerMenuItem.disabled = disabled || !this.depthModeAvailable;
+    this.elements.threeDViewerMenuItem.disabled = disabled || !this.threeDModeAvailable;
     this.notifyDesktopCommandStateChanged();
   }
 
@@ -2991,13 +2991,13 @@ export class ViewerUi implements Disposable {
       this.callbacks.onViewerModeChange('panorama');
     });
 
-    this.disposables.addEventListener(this.elements.depthViewerMenuItem, 'click', () => {
-      if (this.elements.depthViewerMenuItem.disabled) {
+    this.disposables.addEventListener(this.elements.threeDViewerMenuItem, 'click', () => {
+      if (this.elements.threeDViewerMenuItem.disabled) {
         return;
       }
 
       this.topMenuController.closeAll();
-      this.callbacks.onViewerModeChange('depth');
+      this.callbacks.onViewerModeChange('3d');
     });
 
     this.disposables.addEventListener(this.elements.rulersMenuItem, 'click', () => {

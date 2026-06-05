@@ -56,7 +56,7 @@ export function activate(context: vscode.ExtensionContext): void {
     registerDesktopCommand('prismifold.openSettings', 'settings', manager),
     registerDesktopCommand('prismifold.viewImage', 'viewerModeImage', manager),
     registerDesktopCommand('prismifold.viewPanorama', 'viewerModePanorama', manager),
-    registerDesktopCommand('prismifold.viewDepth', 'viewerModeDepth', manager),
+    registerDesktopCommand('prismifold.view3d', 'viewerMode3d', manager),
     registerDesktopCommand('prismifold.toggleRulers', 'toggleRulers', manager),
     registerDesktopCommand('prismifold.splitVertical', 'paneSplitVertical', manager),
     registerDesktopCommand('prismifold.splitHorizontal', 'paneSplitHorizontal', manager),

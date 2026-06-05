@@ -385,7 +385,7 @@ export interface ViewerUiSnapshot {
   colormapExposureEv: number;
   colormapGamma: number;
   viewerMode: ViewerSessionState['viewerMode'];
-  depthModeAvailable?: boolean;
+  threeDModeAvailable?: boolean;
   visualizationMode: ViewerSessionState['visualizationMode'];
   stokesDegreeModulationControl: StokesDegreeModulationControlModel | null;
   stokesColormapDefaults: StokesColormapDefaultSettings;

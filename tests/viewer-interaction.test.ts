@@ -752,7 +752,7 @@ describe('viewer interaction depth probe', () => {
   it('resolves depth hover pixels from the depth probe resolver', () => {
     const resolveDepthProbePixel = vi.fn(() => ({ ix: 1, iy: 0 }));
     const harness = createHarness({
-      viewerMode: 'depth'
+      viewerMode: '3d'
     }, {
       resolveDepthProbePixel
     });
@@ -761,7 +761,7 @@ describe('viewer interaction depth probe', () => {
 
     expect(resolveDepthProbePixel).toHaveBeenCalledWith(
       { x: 50, y: 50 },
-      expect.objectContaining({ viewerMode: 'depth' }),
+      expect.objectContaining({ viewerMode: '3d' }),
       { width: 100, height: 100 }
     );
     expect(harness.onHoverPixel).toHaveBeenCalledWith({ ix: 1, iy: 0 });
@@ -769,7 +769,7 @@ describe('viewer interaction depth probe', () => {
 
   it('locks picked depth probe pixels on plain click', () => {
     const harness = createHarness({
-      viewerMode: 'depth'
+      viewerMode: '3d'
     }, {
       resolveDepthProbePixel: () => ({ ix: 2, iy: 1 })
     });
@@ -783,7 +783,7 @@ describe('viewer interaction depth probe', () => {
   it('does not resolve depth probe pixels during mouse orbit drag', () => {
     const resolveDepthProbePixel = vi.fn(() => ({ ix: 1, iy: 1 }));
     const harness = createHarness({
-      viewerMode: 'depth'
+      viewerMode: '3d'
     }, {
       resolveDepthProbePixel
     });
@@ -805,7 +805,7 @@ describe('viewer interaction depth probe', () => {
       iy: Math.round(state.depthPitchDeg)
     }));
     const harness = createHarness({
-      viewerMode: 'depth'
+      viewerMode: '3d'
     }, {
       resolveDepthProbePixel
     });
@@ -820,7 +820,7 @@ describe('viewer interaction depth probe', () => {
     expect(resolveDepthProbePixel).toHaveBeenCalledWith(
       { x: 60, y: 45 },
       expect.objectContaining({
-        viewerMode: 'depth',
+        viewerMode: '3d',
         depthYawDeg: 18,
         depthPitchDeg: -9
       }),
@@ -830,10 +830,10 @@ describe('viewer interaction depth probe', () => {
     expect(harness.onToggleLockPixel).not.toHaveBeenCalled();
   });
 
-  it('recomputes depth hover after depth view changes', () => {
+  it('recomputes depth hover after 3D view changes', () => {
     const resolveDepthProbePixel = vi.fn(() => ({ ix: 3, iy: 1 }));
     const harness = createHarness({
-      viewerMode: 'depth'
+      viewerMode: '3d'
     }, {
       resolveDepthProbePixel
     });

@@ -186,7 +186,7 @@ describe('interaction coordinator', () => {
     expect(harness.cancelFrame).toHaveBeenCalledTimes(0);
   });
 
-  it('clamps depth view patches before publishing and committing interaction state', () => {
+  it('clamps 3D view patches before publishing and committing interaction state', () => {
     const harness = createHarness();
 
     harness.coordinator.enqueueViewPatch({
@@ -215,7 +215,7 @@ describe('interaction coordinator', () => {
     );
   });
 
-  it('preserves position depth view patches before publishing and committing interaction state', () => {
+  it('preserves position 3D view patches before publishing and committing interaction state', () => {
     const harness = createHarness({
       depthChannel: '__position:P'
     });

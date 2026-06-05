@@ -121,10 +121,10 @@ export function displayReducer(
       if (!selectActiveSession(state) || state.sessionState.viewerMode === intent.viewerMode) {
         return state;
       }
-      const depthPatch = intent.viewerMode === 'depth'
-        ? resolveDepthModeActivationPatch(state)
+      const depthPatch = intent.viewerMode === '3d'
+        ? resolveThreeDModeActivationPatch(state)
         : {};
-      if (intent.viewerMode === 'depth' && !depthPatch.depthChannel) {
+      if (intent.viewerMode === '3d' && !depthPatch.depthChannel) {
         return state;
       }
       return patchSessionState(state, {
@@ -152,7 +152,7 @@ export function displayReducer(
         }
       );
       const nextLayer = activeSession.decoded.layers[nextSessionState.activeLayer] ?? null;
-      if (nextLayer && state.sessionState.viewerMode === 'depth') {
+      if (nextLayer && state.sessionState.viewerMode === '3d') {
         nextSessionState.depthChannel = resolveDepthChannelForLayer(
           nextLayer.channelNames,
           state.sessionState.depthChannel,
@@ -475,7 +475,7 @@ export function displayReducer(
   }
 }
 
-function resolveDepthModeActivationPatch(state: ViewerAppState): Partial<ViewerAppState['sessionState']> {
+function resolveThreeDModeActivationPatch(state: ViewerAppState): Partial<ViewerAppState['sessionState']> {
   const activeSession = selectActiveSession(state);
   const activeLayer = activeSession?.decoded.layers[state.sessionState.activeLayer] ?? null;
   if (!activeLayer) {

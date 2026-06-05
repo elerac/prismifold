@@ -347,7 +347,7 @@ export function createViewerUi({
         return resolveVisiblePanoramaRect(renderState.panoramaHfovDeg, viewport);
       }
 
-      if (renderState.viewerMode === 'depth') {
+      if (renderState.viewerMode === '3d') {
         return {
           x: 0,
           y: 0,

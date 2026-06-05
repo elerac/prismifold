@@ -110,7 +110,7 @@ export class ProbeOverlayRenderer implements Disposable {
 
     this.clearOverlay();
 
-    if (!this.hasImage || (state.viewerMode !== 'image' && state.viewerMode !== 'depth')) {
+    if (!this.hasImage || (state.viewerMode !== 'image' && state.viewerMode !== '3d')) {
       return;
     }
 
@@ -129,7 +129,7 @@ export class ProbeOverlayRenderer implements Disposable {
   }
 
   renderPane(state: ViewerState, pane: ViewerPaneRenderInfo): void {
-    if (this.disposed || !this.hasImage || (state.viewerMode !== 'image' && state.viewerMode !== 'depth')) {
+    if (this.disposed || !this.hasImage || (state.viewerMode !== 'image' && state.viewerMode !== '3d')) {
       return;
     }
 
@@ -147,7 +147,7 @@ export class ProbeOverlayRenderer implements Disposable {
       }
 
       const probe = resolveActiveProbePixel(state.lockedPixel, state.hoveredPixel);
-      if (state.viewerMode === 'depth') {
+      if (state.viewerMode === '3d') {
         if (probe) {
           this.drawDepthProbeMarker(state, probe, pane.viewport);
         }

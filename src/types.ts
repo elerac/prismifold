@@ -10,7 +10,7 @@ import type { ViewerBackgroundId } from './viewer-background-settings';
 
 export type VisualizationMode = 'rgb' | 'colormap';
 export type ColormapRangeMode = 'alwaysAuto' | 'oneTime';
-export type ViewerMode = 'image' | 'panorama' | 'depth';
+export type ViewerMode = 'image' | 'panorama' | '3d';
 export type OpenedImageDropPlacement = 'before' | 'after';
 export type ViewerKeyboardNavigationDirection = 'up' | 'left' | 'down' | 'right';
 export type ViewerKeyboardZoomDirection = 'in' | 'out';
@@ -29,8 +29,8 @@ export interface ViewerKeyboardZoomInput {
 
 export type PanoramaKeyboardOrbitDirection = ViewerKeyboardNavigationDirection;
 export type PanoramaKeyboardOrbitInput = ViewerKeyboardNavigationInput;
-export type DepthKeyboardOrbitDirection = ViewerKeyboardNavigationDirection;
-export type DepthKeyboardOrbitInput = ViewerKeyboardNavigationInput;
+export type ThreeDKeyboardOrbitDirection = ViewerKeyboardNavigationDirection;
+export type ThreeDKeyboardOrbitInput = ViewerKeyboardNavigationInput;
 
 export type {
   ChannelMonoSelection,

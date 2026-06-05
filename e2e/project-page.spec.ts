@@ -302,9 +302,9 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     'Select and crop multiple regions from the current view, keep a region active for adjustment, and export pixel exact screenshot crops without interpolation.',
     { exact: true }
   )).toBeVisible();
-  await expect(page.getByText('Depth map view', { exact: true })).toBeVisible();
+  await expect(page.getByText('3D view', { exact: true })).toBeVisible();
   await expect(page.locator('.gallery-item').filter({
-    hasText: /Switch RGB plus Z data into a depth-map view that converts depth into a 3D\s+point cloud/
+    hasText: /Switch RGB plus Z data into a 3D point-cloud view, tune focal length, camera\s+angles/
   })).toHaveCount(1);
   await expect(page.getByRole('link', { name: 'Middlebury Stereo Datasets', exact: true })).toHaveAttribute(
     'href',
@@ -433,7 +433,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     'Screenshot export',
     'Stokes vector visualization',
     'Spectral visualization',
-    'Depth map view',
+    '3D view',
     'Panorama view',
     'HTML embed'
   ]);
@@ -519,13 +519,13 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     }
   });
 
-  await expectGalleryCardLaunch(page, 'Depth map view', {
-    accessibleName: /Prismifold depth map view with focal length 960/,
+  await expectGalleryCardLaunch(page, '3D view', {
+    accessibleName: /Prismifold 3D viewer with focal length 960/,
     src: 'project-page/middlebury-depth-inspection.png'
   }, {
     src: new RegExp(`/${MIDDLEBURY_CHESS1_RGB_Z_URL}$`),
     state: {
-      viewerMode: 'depth',
+      viewerMode: '3d',
       depthChannel: 'Z',
       depthFocalLengthPx: 960,
       depthPointSizePx: 2,

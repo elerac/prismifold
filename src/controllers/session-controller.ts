@@ -125,13 +125,13 @@ const MIDDLEBURY_CHESS1_RGB_Z_GALLERY_IMAGE: GalleryImage = useRemotePackagedGal
       label: 'middlebury_chess1_rgb_z.exr',
       filename: 'middlebury_chess1_rgb_z.exr',
       url: DESKTOP_MIDDLEBURY_CHESS1_RGB_Z_URL,
-      viewerMode: 'depth'
+      viewerMode: '3d'
     }
   : {
       id: 'middlebury-chess1-rgb-z',
       label: 'middlebury_chess1_rgb_z.exr',
       filename: 'middlebury_chess1_rgb_z.exr',
-      viewerMode: 'depth'
+      viewerMode: '3d'
     };
 
 const POLY_HAVEN_GALLERY_IMAGES: GalleryImage[] = POLY_HAVEN_GALLERY_FILES.map(([id, filename]) => ({

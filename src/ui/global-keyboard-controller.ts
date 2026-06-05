@@ -340,7 +340,7 @@ export class GlobalKeyboardController implements Disposable {
     }
 
     const viewerMode = this.callbacks.getViewerMode();
-    if (viewerMode !== 'image' && viewerMode !== 'panorama' && viewerMode !== 'depth') {
+    if (viewerMode !== 'image' && viewerMode !== 'panorama' && viewerMode !== '3d') {
       return false;
     }
 
@@ -379,7 +379,7 @@ export class GlobalKeyboardController implements Disposable {
     }
 
     const viewerMode = this.callbacks.getViewerMode();
-    if (viewerMode !== 'image' && viewerMode !== 'panorama' && viewerMode !== 'depth') {
+    if (viewerMode !== 'image' && viewerMode !== 'panorama' && viewerMode !== '3d') {
       return false;
     }
 

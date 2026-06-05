@@ -67,7 +67,7 @@ export type DesktopCommandId =
   | 'metadata'
   | 'viewerModeImage'
   | 'viewerModePanorama'
-  | 'viewerModeDepth'
+  | 'viewerMode3d'
   | 'toggleRulers'
   | 'windowPreviewNormal'
   | 'windowPreviewFullscreen'

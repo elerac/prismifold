@@ -419,7 +419,7 @@ export class RenderCacheService implements Disposable {
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
       channelRecognitionNameRules: state.channelRecognitionNameRules
     });
-    const depthSource = state.viewerMode === 'depth'
+    const depthSource = state.viewerMode === '3d'
       ? resolveDepthSourceForLayer(layer.channelNames, state.depthChannel, {
           allowArbitraryZSuffix: true,
           channelRecognitionSettings: state.channelRecognitionSettings,
@@ -1679,7 +1679,7 @@ export class RenderCacheService implements Disposable {
       spectralRgbGroupingEnabled: state.spectralRgbGroupingEnabled,
       channelRecognitionNameRules: state.channelRecognitionNameRules
     });
-    const depthSource = state.viewerMode === 'depth'
+    const depthSource = state.viewerMode === '3d'
       ? resolveDepthSourceForLayer(layer.channelNames, state.depthChannel ?? null, {
           allowArbitraryZSuffix: true,
           channelRecognitionSettings: state.channelRecognitionSettings,

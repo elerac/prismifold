@@ -22,7 +22,7 @@ describe('ROI presentation', () => {
     const activeLayer = decoded.layers[0]!;
     const roi = { x0: 0, y0: 0, x1: 1, y1: 0 };
 
-    for (const viewerMode of ['image', 'panorama', 'depth'] as const) {
+    for (const viewerMode of ['image', 'panorama', '3d'] as const) {
       const readout = buildRoiReadoutModel({
         activeSession,
         activeLayer,

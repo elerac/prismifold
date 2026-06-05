@@ -10,7 +10,7 @@ import {
 import type { OpenedImageSession } from '../src/types';
 
 describe('probe presentation', () => {
-  it('shows color-only probe values in depth mode for the picked source pixel', () => {
+  it('shows color-only probe values in 3D mode for the picked source pixel', () => {
     const layer = createLayerFromChannels({
       R: [0.1, 0.2],
       G: [0.3, 0.4],
@@ -18,7 +18,7 @@ describe('probe presentation', () => {
       Z: [1, 2]
     });
     const sessionState = createViewerSessionState({
-      viewerMode: 'depth',
+      viewerMode: '3d',
       displayGamma: DEFAULT_DISPLAY_GAMMA,
       displaySelection: createChannelRgbSelection('R', 'G', 'B'),
       depthChannel: 'Z'
@@ -67,7 +67,7 @@ describe('probe presentation', () => {
     expect(readout.colorPreview?.displayValues.map((item) => item.label)).toEqual(['R', 'G', 'B']);
   });
 
-  it('suppresses depth mode probe readout for pixels outside the visible point cloud', () => {
+  it('suppresses 3D mode probe readout for pixels outside the visible point cloud', () => {
     const layer = createLayerFromChannels({
       R: [0.1],
       G: [0.2],
@@ -75,7 +75,7 @@ describe('probe presentation', () => {
       Z: [0]
     });
     const sessionState = createViewerSessionState({
-      viewerMode: 'depth',
+      viewerMode: '3d',
       displayGamma: DEFAULT_DISPLAY_GAMMA,
       displaySelection: createChannelRgbSelection('R', 'G', 'B'),
       depthChannel: 'Z'

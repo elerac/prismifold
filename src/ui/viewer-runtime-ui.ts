@@ -94,7 +94,7 @@ export interface ViewerRuntimeUi extends Disposable {
   setColormapExposure(exposureEv: number): void;
   setColormapGamma(gamma: number): void;
   setViewerMode(mode: ViewerMode): void;
-  setDepthModeAvailable(available: boolean): void;
+  setThreeDModeAvailable(available: boolean): void;
   setVisualizationMode(mode: VisualizationMode): void;
   setStokesDegreeModulationControl(
     label: string | null,
