@@ -610,9 +610,9 @@ main {
 .gallery-code-frame {
   min-width: 0;
   overflow: hidden;
-  color: #d9e7f6;
-  background: #08101b;
-  border: 1px solid #1d2735;
+  color: var(--text-strong);
+  background: #f8fafc;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   box-shadow: var(--shadow);
 }
