@@ -442,7 +442,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   await expect(htmlEmbedItem).toHaveCount(1);
   await expect(htmlEmbedItem.locator('img')).toHaveCount(0);
   await expect(htmlEmbedItem.getByText(
-    'Add the hosted JavaScript file and a <prismifold-viewer> tag to publish an interactive OpenEXR viewer directly inside documentation, papers, and project pages.',
+    'Add the hosted JavaScript file and a <prismifold-viewer> tag to publish an interactive OpenEXR viewer directly inside HTML pages.',
     { exact: true }
   )).toBeVisible();
   await expect(htmlEmbedItem.locator('figcaption .gallery-code-frame')).toHaveCount(1);
