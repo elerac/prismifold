@@ -87,6 +87,18 @@ export interface DesktopRecentFile {
   openedAt: number;
 }
 
+export type DesktopPlatform = 'macos' | 'windows' | 'linux' | 'unknown';
+
+export interface DesktopWindowChromeHost {
+  getPlatform(): Promise<DesktopPlatform>;
+  startDragging(): Promise<void>;
+  minimize(): Promise<void>;
+  toggleMaximize(): Promise<void>;
+  close(): Promise<void>;
+  isMaximized(): Promise<boolean>;
+  onMaximizedChange(callback: (maximized: boolean) => void): Promise<Disposable>;
+}
+
 export type DesktopCommandId =
   | 'openFile'
   | 'openFolder'
@@ -114,6 +126,7 @@ export type DesktopCommandId =
 export interface DesktopCommandCallbacks {
   onCommand: (commandId: DesktopCommandId) => void;
   onOpenRecent: (entry: DesktopFileEntry) => void;
+  onGalleryImageSelected?: (galleryId: string) => void;
   onError?: (error: DesktopCommandError) => void;
   getCommandState?: () => Partial<Record<DesktopCommandId, boolean>>;
 }
@@ -129,6 +142,7 @@ export interface ViewerHost extends ExportSink {
   kind: 'web' | 'tauri' | 'vscode';
   pathFileProvider: PathFileProvider | null;
   appFullscreen: AppFullscreenHost;
+  desktopWindowChrome?: DesktopWindowChromeHost;
   openFiles(options: HostOpenFileOptions): void;
   openFolder(options: HostOpenFolderOptions): void;
   setupDesktopEvents(callbacks: DesktopEventCallbacks): Promise<Disposable>;

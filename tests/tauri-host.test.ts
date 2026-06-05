@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const {
+  checkMenuItemNewMock,
+  getCurrentWindowMock,
   getCurrentWebviewMock,
   invokeMock,
   listenMock,
@@ -10,6 +14,8 @@ const {
   setAsAppMenuMock,
   submenuNewMock
 } = vi.hoisted(() => ({
+  checkMenuItemNewMock: vi.fn(),
+  getCurrentWindowMock: vi.fn(),
   getCurrentWebviewMock: vi.fn(),
   invokeMock: vi.fn(),
   listenMock: vi.fn(),
@@ -28,6 +34,9 @@ vi.mock('@tauri-apps/api/event', () => ({
 }));
 
 vi.mock('@tauri-apps/api/menu', () => ({
+  CheckMenuItem: {
+    new: checkMenuItemNewMock
+  },
   Menu: {
     new: menuNewMock
   },
@@ -43,12 +52,29 @@ vi.mock('@tauri-apps/api/webview', () => ({
   getCurrentWebview: getCurrentWebviewMock
 }));
 
+vi.mock('@tauri-apps/api/window', () => ({
+  getCurrentWindow: getCurrentWindowMock
+}));
+
 import { tauriHost } from '../src/platform/tauri-host';
 import { normalizeDesktopError, presentDesktopError } from '../src/platform';
 
 type DragDropTestCallback = (event: { payload: { type: string; paths: string[] } }) => void;
 
+interface MockMenuItem {
+  text?: string;
+  enabled?: boolean;
+  checked?: boolean;
+  action?: () => void;
+  items?: MockMenuItem[];
+}
+
+const appHtml = readFileSync(resolve(process.cwd(), 'app/index.html'), 'utf8');
+
 beforeEach(() => {
+  installAppMenuFixture();
+  checkMenuItemNewMock.mockReset();
+  getCurrentWindowMock.mockReset();
   invokeMock.mockReset();
   listenMock.mockReset();
   getCurrentWebviewMock.mockReset();
@@ -61,13 +87,85 @@ beforeEach(() => {
     ...options,
     setAsAppMenu: setAsAppMenuMock
   }));
+  checkMenuItemNewMock.mockImplementation(async (options) => ({ kind: 'check', ...options }));
   predefinedMenuItemNewMock.mockImplementation(async (options) => ({ kind: 'predefined', ...options }));
   submenuNewMock.mockImplementation(async (options) => ({ kind: 'submenu', ...options }));
   listenMock.mockResolvedValue(vi.fn());
   getCurrentWebviewMock.mockReturnValue({
     onDragDropEvent: vi.fn(async () => vi.fn())
   });
+  getCurrentWindowMock.mockReturnValue({
+    close: vi.fn(async () => undefined),
+    isFullscreen: vi.fn(async () => false),
+    isMaximized: vi.fn(async () => false),
+    minimize: vi.fn(async () => undefined),
+    onFocusChanged: vi.fn(async () => vi.fn()),
+    onResized: vi.fn(async () => vi.fn()),
+    setFullscreen: vi.fn(async () => undefined),
+    startDragging: vi.fn(async () => undefined),
+    toggleMaximize: vi.fn(async () => undefined)
+  });
 });
+
+function installAppMenuFixture(): void {
+  const bodyHtml = appHtml.match(/<body[^>]*>([\s\S]*)<\/body>/)?.[1] ?? appHtml;
+  document.body.innerHTML = bodyHtml;
+}
+
+function findCreatedSubmenuOptions(text: string): MockMenuItem {
+  const options = submenuNewMock.mock.calls
+    .map((call) => call[0] as MockMenuItem)
+    .filter((item) => item.text === text)
+    .at(-1);
+  if (!options) {
+    throw new Error(`Expected native submenu "${text}" to be created.`);
+  }
+  return options;
+}
+
+function findMenuItem(menu: MockMenuItem, text: string): MockMenuItem {
+  const item = getMenuItems(menu).find((candidate) => candidate.text === text);
+  if (!item) {
+    throw new Error(`Expected native menu item "${text}" to exist.`);
+  }
+  return item;
+}
+
+function readMenuItemLabels(menu: MockMenuItem): string[] {
+  return getMenuItems(menu)
+    .map((item) => item.text)
+    .filter((text): text is string => typeof text === 'string');
+}
+
+function getMenuItems(menu: MockMenuItem): MockMenuItem[] {
+  if (!menu.items) {
+    throw new Error(`Expected native menu "${menu.text ?? '<unknown>'}" to have items.`);
+  }
+  return menu.items;
+}
+
+function runMenuAction(item: MockMenuItem): void {
+  if (!item.action) {
+    throw new Error(`Expected native menu item "${item.text ?? '<unknown>'}" to have an action.`);
+  }
+  item.action();
+}
+
+function setMenuCheckedState(id: string, checked: boolean): void {
+  const element = document.getElementById(id);
+  if (!element) {
+    throw new Error(`Expected menu item "${id}" to exist.`);
+  }
+  element.setAttribute('aria-checked', checked ? 'true' : 'false');
+}
+
+function findCheckItem(items: MockMenuItem[], text: string): MockMenuItem {
+  const item = items.find((candidate) => candidate.text === text);
+  if (!item) {
+    throw new Error(`Expected check menu item "${text}" to be created.`);
+  }
+  return item;
+}
 
 afterEach(() => {
   vi.useRealTimers();
@@ -124,6 +222,72 @@ describe('tauri host', () => {
     });
     expect(invokeMock).toHaveBeenNthCalledWith(1, 'resolve_exr_paths', { paths: ['/renders/beauty.exr'] });
     expect(invokeMock).toHaveBeenNthCalledWith(2, 'read_exr_file', { grantId: 'grant-1' });
+  });
+
+  it('detects the desktop platform through the Rust command', async () => {
+    invokeMock.mockResolvedValueOnce('macos');
+
+    await expect(tauriHost.desktopWindowChrome!.getPlatform()).resolves.toBe('macos');
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_platform', undefined);
+  });
+
+  it('normalizes unknown desktop platforms', async () => {
+    invokeMock.mockResolvedValueOnce('freebsd');
+
+    await expect(tauriHost.desktopWindowChrome!.getPlatform()).resolves.toBe('unknown');
+  });
+
+  it('routes desktop window chrome controls through the Tauri window API', async () => {
+    const windowApi = {
+      close: vi.fn(async () => undefined),
+      isMaximized: vi.fn(async () => true),
+      minimize: vi.fn(async () => undefined),
+      onFocusChanged: vi.fn(async () => vi.fn()),
+      onResized: vi.fn(async () => vi.fn()),
+      startDragging: vi.fn(async () => undefined),
+      toggleMaximize: vi.fn(async () => undefined)
+    };
+    getCurrentWindowMock.mockReturnValue(windowApi);
+
+    await tauriHost.desktopWindowChrome!.startDragging();
+    await tauriHost.desktopWindowChrome!.minimize();
+    await tauriHost.desktopWindowChrome!.toggleMaximize();
+    await tauriHost.desktopWindowChrome!.close();
+    await expect(tauriHost.desktopWindowChrome!.isMaximized()).resolves.toBe(true);
+
+    expect(windowApi.startDragging).toHaveBeenCalledTimes(1);
+    expect(windowApi.minimize).toHaveBeenCalledTimes(1);
+    expect(windowApi.toggleMaximize).toHaveBeenCalledTimes(1);
+    expect(windowApi.close).toHaveBeenCalledTimes(1);
+    expect(windowApi.isMaximized).toHaveBeenCalledTimes(1);
+  });
+
+  it('subscribes desktop window chrome maximized state changes', async () => {
+    const resizeCallbacks: Array<() => void> = [];
+    const resizeDispose = vi.fn();
+    const focusDispose = vi.fn();
+    const onMaximizedChange = vi.fn();
+    const windowApi = {
+      isMaximized: vi.fn(async () => true),
+      onFocusChanged: vi.fn(async () => focusDispose),
+      onResized: vi.fn(async (callback: () => void) => {
+        resizeCallbacks.push(callback);
+        return resizeDispose;
+      })
+    };
+    getCurrentWindowMock.mockReturnValue(windowApi);
+
+    const subscription = await tauriHost.desktopWindowChrome!.onMaximizedChange(onMaximizedChange);
+    expect(resizeCallbacks).toHaveLength(1);
+    resizeCallbacks[0]!();
+    await Promise.resolve();
+
+    expect(onMaximizedChange).toHaveBeenCalledWith(true);
+
+    subscription.dispose();
+    expect(resizeDispose).toHaveBeenCalledTimes(1);
+    expect(focusDispose).toHaveBeenCalledTimes(1);
   });
 
   it('normalizes structured desktop command errors', () => {
@@ -234,17 +398,15 @@ describe('tauri host', () => {
       onOpenRecent: vi.fn()
     });
 
-    const fileMenuOptions = submenuNewMock.mock.calls
-      .map((call) => call[0])
-      .find((options) => options.text === 'File');
-    const openItem = fileMenuOptions.items.find((item: { text?: string }) => item.text === 'Open...');
-    openItem.action();
+    const fileMenuOptions = findCreatedSubmenuOptions('File');
+    const openItem = findMenuItem(fileMenuOptions, 'Open...');
+    runMenuAction(openItem);
 
     expect(onCommand).toHaveBeenCalledWith('openFile');
     expect(setAsAppMenuMock).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the native Window menu while hiding pane entries', async () => {
+  it('mirrors the visible app, file, view, window, and gallery menu labels', async () => {
     invokeMock.mockResolvedValueOnce([]);
 
     await tauriHost.setupDesktopCommands({
@@ -252,28 +414,139 @@ describe('tauri host', () => {
       onOpenRecent: vi.fn()
     });
 
-    const submenuLabels = submenuNewMock.mock.calls.map((call) => call[0].text);
-    const windowMenuOptions = submenuNewMock.mock.calls
-      .map((call) => call[0])
-      .find((options) => options.text === 'Window');
     const menuOptions = menuNewMock.mock.calls.at(-1)?.[0];
     const nativeMenuLabels = menuOptions.items.map((item: { text?: string }) => item.text);
-    const nativeWindowMenuItemLabels = windowMenuOptions.items
-      .map((item: { text?: string }) => item.text)
-      .filter((text: string | undefined): text is string => text !== undefined);
+    const fileMenuOptions = findCreatedSubmenuOptions('File');
+    const viewMenuOptions = findCreatedSubmenuOptions('View');
+    const windowMenuOptions = findCreatedSubmenuOptions('Window');
+    const galleryMenuOptions = findCreatedSubmenuOptions('Gallery');
+    const nativeFileMenuItemLabels = readMenuItemLabels(fileMenuOptions);
+    const nativeViewMenuItemLabels = readMenuItemLabels(viewMenuOptions);
+    const nativeWindowMenuItemLabels = readMenuItemLabels(windowMenuOptions);
+    const nativeGalleryMenuItemLabels = readMenuItemLabels(galleryMenuOptions);
 
-    expect(nativeMenuLabels).toEqual(['File', 'Edit', 'View', 'Window']);
-    expect(submenuLabels).toContain('Window');
-    expect(nativeWindowMenuItemLabels).toEqual([
-      'Normal Preview',
-      'Full Screen Preview',
-      'Toggle App Fullscreen'
+    expect(nativeMenuLabels).toEqual(['Prismifold', 'File', 'View', 'Window', 'Gallery']);
+    expect(nativeMenuLabels).not.toContain('Edit');
+    expect(nativeFileMenuItemLabels).toEqual([
+      'Open...',
+      'Open Folder...',
+      'Export...',
+      'Export Screenshot...',
+      'Export Batch...',
+      'Export Colormap...',
+      'Reload All',
+      'Close All'
     ]);
+    expect(nativeViewMenuItemLabels).toEqual([
+      'Image viewer',
+      'Panorama viewer',
+      'Depth map viewer',
+      'Rulers'
+    ]);
+    expect(nativeWindowMenuItemLabels).toEqual(['Normal', 'Full Screen Preview']);
     expect(nativeWindowMenuItemLabels).not.toEqual(expect.arrayContaining([
       'Single Pane',
       'Split Vertically',
-      'Split Horizontally'
+      'Split Horizontally',
+      'Toggle App Fullscreen',
+      'Minimize'
     ]));
+    expect(nativeGalleryMenuItemLabels).toEqual([
+      'cbox_rgb.exr',
+      'Beachball',
+      'Middlebury Stereo',
+      'Poly Haven',
+      'KAIST Hyperspectral',
+      'Polanalyser'
+    ]);
+  });
+
+  it('routes native Gallery items through the gallery callback', async () => {
+    invokeMock.mockResolvedValueOnce([]);
+    const onGalleryImageSelected = vi.fn();
+
+    await tauriHost.setupDesktopCommands({
+      onCommand: vi.fn(),
+      onOpenRecent: vi.fn(),
+      onGalleryImageSelected
+    });
+
+    const galleryMenuOptions = findCreatedSubmenuOptions('Gallery');
+    const cboxItem = findMenuItem(galleryMenuOptions, 'cbox_rgb.exr');
+    const polyHavenMenu = findMenuItem(galleryMenuOptions, 'Poly Haven');
+    const kaistMenu = findMenuItem(galleryMenuOptions, 'KAIST Hyperspectral');
+    const polanalyserMenu = findMenuItem(galleryMenuOptions, 'Polanalyser');
+
+    expect(readMenuItemLabels(polyHavenMenu)).toEqual([
+      'artist_workshop_1k.exr',
+      'brown_photostudio_02_1k.exr',
+      'symmetrical_garden_02_1k.exr'
+    ]);
+    expect(readMenuItemLabels(kaistMenu).at(0)).toBe('scene01_reflectance.exr');
+    expect(readMenuItemLabels(kaistMenu).at(-1)).toBe('scene30_reflectance.exr');
+    expect(readMenuItemLabels(polanalyserMenu).at(0)).toBe('avocado.exr');
+    expect(readMenuItemLabels(polanalyserMenu).at(-1)).toBe('spoons.exr');
+
+    runMenuAction(cboxItem);
+    runMenuAction(findMenuItem(polyHavenMenu, 'brown_photostudio_02_1k.exr'));
+
+    expect(onGalleryImageSelected).toHaveBeenCalledTimes(2);
+    expect(onGalleryImageSelected).toHaveBeenNthCalledWith(1, 'cbox-rgb');
+    expect(onGalleryImageSelected).toHaveBeenNthCalledWith(2, 'brown-photostudio-02-1k');
+  });
+
+  it('creates checked native menu items from DOM aria-checked state', async () => {
+    invokeMock.mockResolvedValueOnce([]);
+    setMenuCheckedState('image-viewer-menu-item', false);
+    setMenuCheckedState('panorama-viewer-menu-item', true);
+    setMenuCheckedState('rulers-menu-item', true);
+    setMenuCheckedState('window-normal-menu-item', false);
+    setMenuCheckedState('window-full-screen-preview-menu-item', true);
+
+    await tauriHost.setupDesktopCommands({
+      onCommand: vi.fn(),
+      onOpenRecent: vi.fn()
+    });
+
+    const checkItems = checkMenuItemNewMock.mock.calls.map((call) => call[0]);
+
+    expect(findCheckItem(checkItems, 'Image viewer').checked).toBe(false);
+    expect(findCheckItem(checkItems, 'Panorama viewer').checked).toBe(true);
+    expect(findCheckItem(checkItems, 'Rulers').checked).toBe(true);
+    expect(findCheckItem(checkItems, 'Normal').checked).toBe(false);
+    expect(findCheckItem(checkItems, 'Full Screen Preview').checked).toBe(true);
+  });
+
+  it('includes native Open Recent only when recent files exist', async () => {
+    invokeMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          path: '/renders/beauty.exr',
+          label: 'beauty.exr',
+          displayPath: '/renders/beauty.exr',
+          openedAt: 123
+        }
+      ]);
+
+    await tauriHost.setupDesktopCommands({
+      onCommand: vi.fn(),
+      onOpenRecent: vi.fn()
+    });
+    expect(readMenuItemLabels(findCreatedSubmenuOptions('File'))).not.toContain('Open Recent');
+
+    await tauriHost.setupDesktopCommands({
+      onCommand: vi.fn(),
+      onOpenRecent: vi.fn()
+    });
+
+    const fileMenuOptions = findCreatedSubmenuOptions('File');
+    const recentMenu = findMenuItem(fileMenuOptions, 'Open Recent');
+    expect(readMenuItemLabels(fileMenuOptions)).toContain('Open Recent');
+    expect(readMenuItemLabels(recentMenu)).toEqual([
+      'beauty.exr',
+      'Clear Recent'
+    ]);
   });
 
   it('applies native menu command enabled state', async () => {
@@ -288,11 +561,9 @@ describe('tauri host', () => {
       })
     });
 
-    const fileMenuOptions = submenuNewMock.mock.calls
-      .map((call) => call[0])
-      .find((options) => options.text === 'File');
-    expect(fileMenuOptions.items.find((item: { text?: string }) => item.text === 'Export...').enabled).toBe(false);
-    expect(fileMenuOptions.items.find((item: { text?: string }) => item.text === 'Reload All').enabled).toBe(false);
+    const fileMenuOptions = findCreatedSubmenuOptions('File');
+    expect(findMenuItem(fileMenuOptions, 'Export...').enabled).toBe(false);
+    expect(findMenuItem(fileMenuOptions, 'Reload All').enabled).toBe(false);
   });
 
   it('debounces native menu refreshes and skips unchanged menu state', async () => {
@@ -350,11 +621,9 @@ describe('tauri host', () => {
       onError
     });
 
-    const fileMenuOptions = submenuNewMock.mock.calls
-      .map((call) => call[0])
-      .find((options) => options.text === 'File');
-    const recentMenu = fileMenuOptions.items.find((item: { text?: string }) => item.text === 'Open Recent');
-    recentMenu.items[0].action();
+    const fileMenuOptions = findCreatedSubmenuOptions('File');
+    const recentMenu = findMenuItem(fileMenuOptions, 'Open Recent');
+    runMenuAction(getMenuItems(recentMenu)[0]!);
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 100));

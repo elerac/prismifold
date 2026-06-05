@@ -52,6 +52,36 @@ describe('desktop asset scripts', () => {
       expect(connectSrc).toContain('https://*.hf.co');
     }
   });
+
+  it('configures platform-specific desktop window chrome', async () => {
+    const [macosConfig, windowsConfig, capabilitiesConfig] = await Promise.all([
+      readFile(resolve(rootDir, 'src-tauri/tauri.macos.conf.json'), 'utf8'),
+      readFile(resolve(rootDir, 'src-tauri/tauri.windows.conf.json'), 'utf8'),
+      readFile(resolve(rootDir, 'src-tauri/capabilities/default.json'), 'utf8')
+    ]);
+    const macos = JSON.parse(macosConfig) as {
+      app?: { windows?: Array<{ titleBarStyle?: string; hiddenTitle?: boolean; decorations?: boolean }> };
+    };
+    const windows = JSON.parse(windowsConfig) as {
+      app?: { windows?: Array<{ titleBarStyle?: string; decorations?: boolean }> };
+    };
+    const capabilities = JSON.parse(capabilitiesConfig) as {
+      permissions?: string[];
+    };
+
+    expect(macos.app?.windows?.[0]?.titleBarStyle).toBe('Overlay');
+    expect(macos.app?.windows?.[0]?.hiddenTitle).toBe(true);
+    expect(macos.app?.windows?.[0]?.decorations).toBeUndefined();
+    expect(windows.app?.windows?.[0]?.decorations).toBe(false);
+    expect(windows.app?.windows?.[0]?.titleBarStyle).toBeUndefined();
+    expect(capabilities.permissions).toEqual(expect.arrayContaining([
+      'core:window:allow-close',
+      'core:window:allow-is-maximized',
+      'core:window:allow-minimize',
+      'core:window:allow-start-dragging',
+      'core:window:allow-toggle-maximize'
+    ]));
+  });
 });
 
 function extractCspDirective(policy: string, directiveName: string): string[] {

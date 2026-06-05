@@ -7,7 +7,9 @@ import type {
   DesktopEventCallbacks,
   DesktopFileBytes,
   DesktopFileEntry,
+  DesktopPlatform,
   DesktopRecentFile,
+  DesktopWindowChromeHost,
   ExportFileSaveOptions,
   ExportSaveResult,
   HostOpenFileOptions,
@@ -38,14 +40,61 @@ interface ExportSaveResultWire {
 }
 
 type RawBytes = number[] | Uint8Array | ArrayBuffer;
+type TauriSubmenu = typeof import('@tauri-apps/api/menu').Submenu;
+type TauriSubmenuOptions = Parameters<TauriSubmenu['new']>[0];
+type TauriSubmenuItem = NonNullable<TauriSubmenuOptions['items']>[number];
+
+interface NativeMenuItemState {
+  id: string;
+  text: string;
+  enabled: boolean;
+  checked?: boolean;
+  galleryId?: string;
+  children?: NativeMenuItemState[];
+}
+
+interface NativeMenuState {
+  appTitle: string;
+  fileLabel: string;
+  viewLabel: string;
+  windowLabel: string;
+  galleryLabel: string;
+  file: {
+    openFile: NativeMenuItemState;
+    openFolder: NativeMenuItemState;
+    exportImage: NativeMenuItemState;
+    exportScreenshot: NativeMenuItemState;
+    exportBatch: NativeMenuItemState;
+    exportColormap: NativeMenuItemState;
+    reloadAll: NativeMenuItemState;
+    closeAll: NativeMenuItemState;
+  };
+  view: {
+    image: NativeMenuItemState;
+    panorama: NativeMenuItemState;
+    depth: NativeMenuItemState;
+    rulers: NativeMenuItemState;
+  };
+  window: {
+    normal: NativeMenuItemState;
+    fullscreenPreview: NativeMenuItemState;
+  };
+  gallery: NativeMenuItemState[];
+}
 
 let nativeMenuCallbacks: DesktopCommandCallbacks | null = null;
 let nativeMenuRefreshSerial = 0;
 let nativeMenuRefreshTimer: number | null = null;
+let nativeMenuObserver: MutationObserver | null = null;
 let lastNativeMenuSignature: string | null = null;
 
 async function importTauriCore() {
   return await import('@tauri-apps/api/core');
+}
+
+async function getCurrentTauriWindow() {
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  return getCurrentWindow();
 }
 
 function normalizeEntry(entry: DesktopFileEntryWire): DesktopFileEntry {
@@ -108,6 +157,12 @@ async function invokeDesktop<T>(command: string, args?: Record<string, unknown>)
   }
 }
 
+function normalizeDesktopPlatform(value: unknown): DesktopPlatform {
+  return value === 'macos' || value === 'windows' || value === 'linux'
+    ? value
+    : 'unknown';
+}
+
 const tauriPathFileProvider: PathFileProvider = {
   async readExrFile(grantId: string): Promise<DesktopFileBytes> {
     const bytes = await invokeDesktop<RawBytes>('read_exr_file', { grantId });
@@ -138,19 +193,56 @@ const tauriAppFullscreenHost: AppFullscreenHost = {
     return true;
   },
   async isActive(): Promise<boolean> {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    return await getCurrentWindow().isFullscreen();
+    return await (await getCurrentTauriWindow()).isFullscreen();
   },
   async setActive(active: boolean): Promise<void> {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    await getCurrentWindow().setFullscreen(active);
+    await (await getCurrentTauriWindow()).setFullscreen(active);
   },
   async onChange(callback: () => void): Promise<Disposable> {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    const window = getCurrentWindow();
+    const window = await getCurrentTauriWindow();
     const disposers = await Promise.all([
       window.onResized(callback),
       window.onFocusChanged(callback)
+    ]);
+    return {
+      dispose: () => {
+        for (const dispose of disposers) {
+          dispose();
+        }
+      }
+    };
+  }
+};
+
+const tauriDesktopWindowChromeHost: DesktopWindowChromeHost = {
+  async getPlatform(): Promise<DesktopPlatform> {
+    return normalizeDesktopPlatform(await invokeDesktop<unknown>('desktop_platform'));
+  },
+  async startDragging(): Promise<void> {
+    await (await getCurrentTauriWindow()).startDragging();
+  },
+  async minimize(): Promise<void> {
+    await (await getCurrentTauriWindow()).minimize();
+  },
+  async toggleMaximize(): Promise<void> {
+    await (await getCurrentTauriWindow()).toggleMaximize();
+  },
+  async close(): Promise<void> {
+    await (await getCurrentTauriWindow()).close();
+  },
+  async isMaximized(): Promise<boolean> {
+    return await (await getCurrentTauriWindow()).isMaximized();
+  },
+  async onMaximizedChange(callback: (maximized: boolean) => void): Promise<Disposable> {
+    const window = await getCurrentTauriWindow();
+    const notify = () => {
+      void window.isMaximized()
+        .then(callback)
+        .catch(() => {});
+    };
+    const disposers = await Promise.all([
+      window.onResized(notify),
+      window.onFocusChanged(notify)
     ]);
     return {
       dispose: () => {
@@ -166,6 +258,7 @@ export const tauriHost: ViewerHost = {
   kind: 'tauri',
   pathFileProvider: tauriPathFileProvider,
   appFullscreen: tauriAppFullscreenHost,
+  desktopWindowChrome: tauriDesktopWindowChromeHost,
   openFiles({ fallback, onEntries, onError }: HostOpenFileOptions): void {
     void (async () => {
       try {
@@ -286,8 +379,12 @@ export const tauriHost: ViewerHost = {
   },
   async setupDesktopCommands(callbacks: DesktopCommandCallbacks): Promise<Disposable> {
     nativeMenuCallbacks = callbacks;
+    nativeMenuObserver?.disconnect();
+    nativeMenuObserver = null;
     lastNativeMenuSignature = null;
     await installNativeMenu(callbacks, { force: true });
+    const observer = observeNativeMenuState();
+    nativeMenuObserver = observer;
     const onCommandStateChanged = () => {
       refreshNativeMenu();
     };
@@ -298,6 +395,10 @@ export const tauriHost: ViewerHost = {
         if (nativeMenuCallbacks === callbacks) {
           nativeMenuCallbacks = null;
         }
+        if (nativeMenuObserver === observer) {
+          nativeMenuObserver = null;
+        }
+        observer?.disconnect();
         if (nativeMenuRefreshTimer !== null) {
           window.clearTimeout(nativeMenuRefreshTimer);
           nativeMenuRefreshTimer = null;
@@ -344,10 +445,11 @@ function notifyRecentFilesChanged(): void {
 }
 
 async function installNativeMenu(callbacks: DesktopCommandCallbacks, options: { force?: boolean } = {}): Promise<void> {
-  const { Menu, Submenu, PredefinedMenuItem } = await import('@tauri-apps/api/menu');
+  const { CheckMenuItem, Menu, Submenu, PredefinedMenuItem } = await import('@tauri-apps/api/menu');
   const recents = await tauriHost.refreshRecentFiles();
   const commandState = callbacks.getCommandState?.() ?? {};
-  const signature = buildNativeMenuSignature(commandState, recents);
+  const menuState = readNativeMenuState();
+  const signature = buildNativeMenuSignature(commandState, recents, menuState);
   if (!options.force && signature === lastNativeMenuSignature) {
     return;
   }
@@ -356,83 +458,237 @@ async function installNativeMenu(callbacks: DesktopCommandCallbacks, options: { 
   const command = (id: DesktopCommandId) => () => {
     callbacks.onCommand(id);
   };
-  const openRecentItems = recents.length === 0
-    ? [{ text: 'No Recent Files', enabled: false }]
-    : recents.map((recent) => ({
-        text: recent.label,
-        enabled: true,
-        action: () => {
-          void openRecentFromMenu(recent.path, callbacks);
-        }
-      }));
+  const separator = () => PredefinedMenuItem.new({ item: 'Separator' as const });
+  const commandItem = (
+    id: DesktopCommandId,
+    item: NativeMenuItemState,
+    accelerator?: string
+  ) => ({
+    text: item.text,
+    ...(accelerator ? { accelerator } : {}),
+    enabled: item.enabled && isEnabled(id),
+    action: command(id)
+  });
+  const checkedCommandItem = async (
+    id: DesktopCommandId,
+    item: NativeMenuItemState,
+    accelerator?: string
+  ) => await CheckMenuItem.new({
+    text: item.text,
+    checked: item.checked === true,
+    ...(accelerator ? { accelerator } : {}),
+    enabled: item.enabled && isEnabled(id),
+    action: command(id)
+  });
 
-  const fileMenu = await Submenu.new({
-    text: 'File',
+  const appMenu = await Submenu.new({
+    text: menuState.appTitle,
     items: [
-      { text: 'Open...', accelerator: 'CmdOrCtrl+O', enabled: isEnabled('openFile'), action: command('openFile') },
-      { text: 'Open Folder...', accelerator: 'CmdOrCtrl+Shift+O', enabled: isEnabled('openFolder'), action: command('openFolder') },
-      await Submenu.new({
-        text: 'Open Recent',
-        items: [
-          ...openRecentItems,
-          await PredefinedMenuItem.new({ item: 'Separator' }),
-          { text: 'Clear Recent', enabled: recents.length > 0, action: command('clearRecentFiles') }
-        ]
-      }),
-      await PredefinedMenuItem.new({ item: 'Separator' }),
-      { text: 'Export...', accelerator: 'CmdOrCtrl+E', enabled: isEnabled('exportImage'), action: command('exportImage') },
-      { text: 'Export Screenshot...', accelerator: 'CmdOrCtrl+Shift+E', enabled: isEnabled('exportScreenshot'), action: command('exportScreenshot') },
-      { text: 'Export Batch...', enabled: isEnabled('exportBatch'), action: command('exportBatch') },
-      { text: 'Export Colormap...', enabled: isEnabled('exportColormap'), action: command('exportColormap') },
-      await PredefinedMenuItem.new({ item: 'Separator' }),
-      { text: 'Reload All', accelerator: 'CmdOrCtrl+R', enabled: isEnabled('reloadAll'), action: command('reloadAll') },
-      { text: 'Close All', accelerator: 'CmdOrCtrl+W', enabled: isEnabled('closeAll'), action: command('closeAll') }
+      await PredefinedMenuItem.new({ item: { About: { name: menuState.appTitle } } }),
+      await separator(),
+      await PredefinedMenuItem.new({ item: 'Hide' }),
+      await PredefinedMenuItem.new({ item: 'HideOthers' }),
+      await PredefinedMenuItem.new({ item: 'ShowAll' }),
+      await separator(),
+      await PredefinedMenuItem.new({ item: 'Quit' })
     ]
   });
-  const editMenu = await Submenu.new({
-    text: 'Edit',
+  const openRecentMenu = recents.length > 0
+    ? await Submenu.new({
+        text: 'Open Recent',
+        items: [
+          ...recents.map((recent) => ({
+            text: recent.label,
+            enabled: true,
+            action: () => {
+              void openRecentFromMenu(recent.path, callbacks);
+            }
+          })),
+          await separator(),
+          { text: 'Clear Recent', enabled: true, action: command('clearRecentFiles') }
+        ]
+      })
+    : null;
+  const fileMenu = await Submenu.new({
+    text: menuState.fileLabel,
     items: [
-      await PredefinedMenuItem.new({ item: 'Undo' }),
-      await PredefinedMenuItem.new({ item: 'Redo' }),
-      await PredefinedMenuItem.new({ item: 'Separator' }),
-      await PredefinedMenuItem.new({ item: 'Cut' }),
-      await PredefinedMenuItem.new({ item: 'Copy' }),
-      await PredefinedMenuItem.new({ item: 'Paste' }),
-      await PredefinedMenuItem.new({ item: 'SelectAll' }),
-      await PredefinedMenuItem.new({ item: 'Separator' }),
-      { text: 'Copy Image', accelerator: 'CmdOrCtrl+Shift+C', enabled: isEnabled('copyImage'), action: command('copyImage') }
+      commandItem('openFile', menuState.file.openFile, 'CmdOrCtrl+O'),
+      commandItem('openFolder', menuState.file.openFolder, 'CmdOrCtrl+Shift+O'),
+      ...(openRecentMenu ? [openRecentMenu] : []),
+      await separator(),
+      commandItem('exportImage', menuState.file.exportImage, 'CmdOrCtrl+E'),
+      commandItem('exportScreenshot', menuState.file.exportScreenshot, 'CmdOrCtrl+Shift+E'),
+      commandItem('exportBatch', menuState.file.exportBatch),
+      commandItem('exportColormap', menuState.file.exportColormap),
+      await separator(),
+      commandItem('reloadAll', menuState.file.reloadAll, 'CmdOrCtrl+R'),
+      commandItem('closeAll', menuState.file.closeAll, 'CmdOrCtrl+W')
     ]
   });
   const viewMenu = await Submenu.new({
-    text: 'View',
+    text: menuState.viewLabel,
     items: [
-      { text: 'Image Viewer', enabled: isEnabled('viewerModeImage'), action: command('viewerModeImage') },
-      { text: 'Panorama Viewer', enabled: isEnabled('viewerModePanorama'), action: command('viewerModePanorama') },
-      { text: 'Depth Map Viewer', enabled: isEnabled('viewerModeDepth'), action: command('viewerModeDepth') },
-      await PredefinedMenuItem.new({ item: 'Separator' }),
-      { text: 'Rulers', enabled: isEnabled('toggleRulers'), action: command('toggleRulers') },
-      await PredefinedMenuItem.new({ item: 'Separator' }),
-      { text: 'Settings...', accelerator: 'CmdOrCtrl+,', enabled: isEnabled('settings'), action: command('settings') },
-      { text: 'Metadata...', enabled: isEnabled('metadata'), action: command('metadata') }
+      await checkedCommandItem('viewerModeImage', menuState.view.image),
+      await checkedCommandItem('viewerModePanorama', menuState.view.panorama),
+      await checkedCommandItem('viewerModeDepth', menuState.view.depth),
+      await separator(),
+      await checkedCommandItem('toggleRulers', menuState.view.rulers)
     ]
   });
   const windowMenu = await Submenu.new({
-    text: 'Window',
+    text: menuState.windowLabel,
     items: [
-      { text: 'Normal Preview', enabled: isEnabled('windowPreviewNormal'), action: command('windowPreviewNormal') },
-      { text: 'Full Screen Preview', enabled: isEnabled('windowPreviewFullscreen'), action: command('windowPreviewFullscreen') },
-      await PredefinedMenuItem.new({ item: 'Separator' }),
-      { text: 'Toggle App Fullscreen', accelerator: 'F11', enabled: isEnabled('toggleAppFullscreen'), action: command('toggleAppFullscreen') },
-      await PredefinedMenuItem.new({ item: 'Separator' }),
-      await PredefinedMenuItem.new({ item: 'Minimize' }),
-      await PredefinedMenuItem.new({ item: 'Maximize' }),
-      await PredefinedMenuItem.new({ item: 'CloseWindow' })
+      await checkedCommandItem('windowPreviewNormal', menuState.window.normal),
+      await checkedCommandItem('windowPreviewFullscreen', menuState.window.fullscreenPreview)
     ]
   });
+  const galleryMenu = await Submenu.new({
+    text: menuState.galleryLabel,
+    items: await buildNativeGalleryMenuItems(menuState.gallery, callbacks, Submenu)
+  });
   const menu = await Menu.new({
-    items: [fileMenu, editMenu, viewMenu, windowMenu]
+    items: [appMenu, fileMenu, viewMenu, windowMenu, galleryMenu]
   });
   await menu.setAsAppMenu();
+}
+
+async function buildNativeGalleryMenuItems(
+  items: NativeMenuItemState[],
+  callbacks: DesktopCommandCallbacks,
+  Submenu: TauriSubmenu
+): Promise<TauriSubmenuItem[]> {
+  const nativeItems: TauriSubmenuItem[] = [];
+  for (const item of items) {
+    if (item.children) {
+      nativeItems.push(await Submenu.new({
+        text: item.text,
+        enabled: item.enabled,
+        items: await buildNativeGalleryMenuItems(item.children, callbacks, Submenu)
+      }));
+      continue;
+    }
+
+    const galleryId = item.galleryId;
+    nativeItems.push({
+      text: item.text,
+      enabled: item.enabled && Boolean(galleryId),
+      action: () => {
+        if (galleryId) {
+          callbacks.onGalleryImageSelected?.(galleryId);
+        }
+      }
+    });
+  }
+  return nativeItems;
+}
+
+function observeNativeMenuState(): MutationObserver | null {
+  if (typeof MutationObserver !== 'function') {
+    return null;
+  }
+
+  const root = document.getElementById('app-menu-bar');
+  if (!root) {
+    return null;
+  }
+
+  const observer = new MutationObserver(() => {
+    refreshNativeMenu();
+  });
+  observer.observe(root, {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['aria-checked', 'class', 'disabled', 'hidden']
+  });
+  return observer;
+}
+
+function readNativeMenuState(): NativeMenuState {
+  return {
+    appTitle: readText(document.querySelector('.app-menu-title'), 'Prismifold'),
+    fileLabel: readButtonText('file-menu-button', 'File'),
+    viewLabel: readButtonText('view-menu-button', 'View'),
+    windowLabel: readButtonText('window-menu-button', 'Window'),
+    galleryLabel: readButtonText('gallery-menu-button', 'Gallery'),
+    file: {
+      openFile: readButtonState('open-file-button', 'Open...'),
+      openFolder: readButtonState('open-folder-button', 'Open Folder...'),
+      exportImage: readButtonState('export-image-button', 'Export...'),
+      exportScreenshot: readButtonState('export-screenshot-button', 'Export Screenshot...'),
+      exportBatch: readButtonState('export-image-batch-button', 'Export Batch...'),
+      exportColormap: readButtonState('export-colormap-button', 'Export Colormap...'),
+      reloadAll: readButtonState('reload-all-opened-images-button', 'Reload All'),
+      closeAll: readButtonState('close-all-opened-images-button', 'Close All')
+    },
+    view: {
+      image: readButtonState('image-viewer-menu-item', 'Image viewer'),
+      panorama: readButtonState('panorama-viewer-menu-item', 'Panorama viewer'),
+      depth: readButtonState('depth-viewer-menu-item', 'Depth map viewer'),
+      rulers: readButtonState('rulers-menu-item', 'Rulers')
+    },
+    window: {
+      normal: readButtonState('window-normal-menu-item', 'Normal'),
+      fullscreenPreview: readButtonState('window-full-screen-preview-menu-item', 'Full Screen Preview')
+    },
+    gallery: readGalleryMenuState(document.getElementById('gallery-menu'))
+  };
+}
+
+function readGalleryMenuState(root: HTMLElement | null): NativeMenuItemState[] {
+  if (!root) {
+    return [];
+  }
+
+  return Array.from(root.children)
+    .map((child, index): NativeMenuItemState | null => {
+      if (!(child instanceof HTMLElement) || child.classList.contains('hidden')) {
+        return null;
+      }
+
+      if (child.classList.contains('app-menu-submenu')) {
+        const trigger = child.querySelector<HTMLButtonElement>('.app-menu-submenu-trigger');
+        const submenuId = trigger?.getAttribute('aria-controls');
+        const submenu = submenuId ? document.getElementById(submenuId) : null;
+        return {
+          id: trigger?.id || `gallery-submenu-${index}`,
+          text: readText(trigger, `Gallery ${index + 1}`),
+          enabled: trigger ? !trigger.disabled : true,
+          children: readGalleryMenuState(submenu instanceof HTMLElement ? submenu : null)
+        };
+      }
+
+      if (child instanceof HTMLButtonElement && child.dataset.galleryId) {
+        return {
+          id: child.id || child.dataset.galleryId,
+          text: readText(child, child.dataset.galleryId),
+          enabled: !child.disabled,
+          galleryId: child.dataset.galleryId
+        };
+      }
+
+      return null;
+    })
+    .filter((item): item is NativeMenuItemState => item !== null);
+}
+
+function readButtonState(id: string, fallbackText: string): NativeMenuItemState {
+  const element = document.getElementById(id);
+  const button = element instanceof HTMLButtonElement ? element : null;
+  return {
+    id,
+    text: readText(button, fallbackText),
+    enabled: button ? !button.disabled && !button.classList.contains('hidden') : true,
+    checked: button?.getAttribute('aria-checked') === 'true'
+  };
+}
+
+function readButtonText(id: string, fallbackText: string): string {
+  return readText(document.getElementById(id), fallbackText);
+}
+
+function readText(element: Element | null | undefined, fallbackText: string): string {
+  const text = element?.textContent?.replace(/\s+/g, ' ').trim();
+  return text || fallbackText;
 }
 
 function openRecentFromMenu(path: string, callbacks: DesktopCommandCallbacks | RecentFileCallbacks): void {
@@ -475,7 +731,8 @@ function refreshNativeMenu(): void {
 
 function buildNativeMenuSignature(
   commandState: Partial<Record<DesktopCommandId, boolean>>,
-  recents: DesktopRecentFile[]
+  recents: DesktopRecentFile[],
+  menuState: NativeMenuState
 ): string {
   const sortedCommandState = Object.entries(commandState)
     .sort(([left], [right]) => left.localeCompare(right));
@@ -487,7 +744,8 @@ function buildNativeMenuSignature(
   ]);
   return JSON.stringify({
     commands: sortedCommandState,
-    recents: recentState
+    recents: recentState,
+    menu: menuState
   });
 }
 

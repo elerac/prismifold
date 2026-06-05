@@ -36,6 +36,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(tauri::generate_handler![
+            desktop_platform,
             open_exr_files_dialog,
             open_exr_folder_dialog,
             resolve_exr_paths,
@@ -68,6 +69,16 @@ pub fn run() {
         }
         _ => {}
     });
+}
+
+#[tauri::command]
+fn desktop_platform() -> &'static str {
+    match std::env::consts::OS {
+        "macos" => "macos",
+        "windows" => "windows",
+        "linux" => "linux",
+        _ => "unknown",
+    }
 }
 
 #[tauri::command]

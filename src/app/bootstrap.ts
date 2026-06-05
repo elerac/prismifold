@@ -30,6 +30,7 @@ import { createViewerInteraction, initializeViewportLifecycle } from './bootstra
 import { installE2EHooks } from './e2e-hooks';
 import { selectActiveSession } from './viewer-app-selectors';
 import { createViewerHost, presentDesktopError } from '../platform';
+import type { DesktopPlatform, DesktopWindowChromeHost, ViewerHost } from '../platform';
 import type { ViewerRuntimeUi } from '../ui/viewer-runtime-ui';
 
 export interface BootstrapAppOptions {
@@ -47,6 +48,13 @@ export interface AppHandle {
   openFullViewer(): void;
   dispose(): void;
 }
+
+interface DesktopChromeSetupOptions {
+  onDispose(dispose: () => void): void;
+  onError(error: unknown, fallbackMessage: string): void;
+}
+
+const DESKTOP_CHROME_ERROR_MESSAGE = 'Failed to control desktop window.';
 
 export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<AppHandle> {
   const core = new ViewerAppCore();
@@ -73,6 +81,12 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
     }
     core.dispatch({ type: 'errorSet', message });
   };
+  await configureDesktopChrome(host, {
+    onDispose: (dispose) => {
+      unsubscribers.push(dispose);
+    },
+    onError: reportDesktopError
+  });
   const resolveColormapExportPixels = createColormapExportPixelsResolver({
     core,
     isDisposed
@@ -257,6 +271,9 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
         onOpenRecent: (entry) => {
           void getServices().sessionController.enqueuePathEntries([entry]);
         },
+        onGalleryImageSelected: (galleryId) => {
+          void getServices().sessionController.enqueueGalleryImage(galleryId);
+        },
         onError: (error) => {
           reportDesktopError(error, 'Failed to open recent file.');
         },
@@ -305,6 +322,186 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
   }
 
   return app;
+}
+
+async function configureDesktopChrome(host: ViewerHost, options: DesktopChromeSetupOptions): Promise<void> {
+  if (host.kind !== 'tauri') {
+    return;
+  }
+
+  const appShell = document.getElementById('app');
+  if (!appShell) {
+    return;
+  }
+
+  const chrome = host.desktopWindowChrome;
+  if (!chrome) {
+    appShell.classList.add('is-desktop-native-menu');
+    return;
+  }
+
+  const platform = await readDesktopPlatform(chrome);
+  appShell.dataset.desktopPlatform = platform;
+  if (platform === 'windows') {
+    appShell.classList.add('is-desktop-custom-chrome');
+    installDesktopWindowDragRegion(chrome, {
+      ...options,
+      enableDoubleClickMaximize: true
+    });
+    installDesktopWindowControls(appShell, chrome, options);
+    return;
+  }
+
+  appShell.classList.add('is-desktop-native-menu');
+  if (platform === 'macos') {
+    appShell.classList.add('is-desktop-titlebar-overlay');
+    installDesktopWindowDragRegion(chrome, {
+      ...options,
+      enableDoubleClickMaximize: false
+    });
+  }
+}
+
+async function readDesktopPlatform(chrome: DesktopWindowChromeHost): Promise<DesktopPlatform> {
+  try {
+    return await chrome.getPlatform();
+  } catch {
+    return 'unknown';
+  }
+}
+
+function installDesktopWindowDragRegion(
+  chrome: DesktopWindowChromeHost,
+  options: DesktopChromeSetupOptions & { enableDoubleClickMaximize: boolean }
+): void {
+  const menuBar = document.getElementById('app-menu-bar');
+  if (!menuBar) {
+    return;
+  }
+
+  const onMouseDown = (event: MouseEvent) => {
+    if (event.button !== 0 || isDesktopChromeInteractiveTarget(event.target)) {
+      return;
+    }
+    event.preventDefault();
+    runDesktopChromeAction(() => chrome.startDragging(), options);
+  };
+  const onDoubleClick = (event: MouseEvent) => {
+    if (!options.enableDoubleClickMaximize || event.button !== 0 || isDesktopChromeInteractiveTarget(event.target)) {
+      return;
+    }
+    event.preventDefault();
+    runDesktopChromeAction(() => chrome.toggleMaximize(), options);
+  };
+
+  menuBar.addEventListener('mousedown', onMouseDown);
+  menuBar.addEventListener('dblclick', onDoubleClick);
+  options.onDispose(() => {
+    menuBar.removeEventListener('mousedown', onMouseDown);
+    menuBar.removeEventListener('dblclick', onDoubleClick);
+  });
+}
+
+function installDesktopWindowControls(
+  appShell: HTMLElement,
+  chrome: DesktopWindowChromeHost,
+  options: DesktopChromeSetupOptions
+): void {
+  const minimizeButton = document.getElementById('desktop-window-minimize-button') as HTMLButtonElement | null;
+  const maximizeButton = document.getElementById('desktop-window-maximize-button') as HTMLButtonElement | null;
+  const closeButton = document.getElementById('desktop-window-close-button') as HTMLButtonElement | null;
+  if (!minimizeButton || !maximizeButton || !closeButton) {
+    return;
+  }
+
+  const onMinimize = () => {
+    runDesktopChromeAction(() => chrome.minimize(), options);
+  };
+  const onMaximize = () => {
+    runDesktopChromeAction(async () => {
+      await chrome.toggleMaximize();
+      await refreshDesktopWindowMaximizedState(appShell, maximizeButton, chrome);
+    }, options);
+  };
+  const onClose = () => {
+    runDesktopChromeAction(() => chrome.close(), options);
+  };
+
+  minimizeButton.addEventListener('click', onMinimize);
+  maximizeButton.addEventListener('click', onMaximize);
+  closeButton.addEventListener('click', onClose);
+  options.onDispose(() => {
+    minimizeButton.removeEventListener('click', onMinimize);
+    maximizeButton.removeEventListener('click', onMaximize);
+    closeButton.removeEventListener('click', onClose);
+  });
+
+  void refreshDesktopWindowMaximizedState(appShell, maximizeButton, chrome)
+    .catch((error) => {
+      options.onError(error, DESKTOP_CHROME_ERROR_MESSAGE);
+    });
+
+  let subscription: { dispose(): void } | null = null;
+  let disposed = false;
+  void chrome.onMaximizedChange((maximized) => {
+    applyDesktopWindowMaximizedState(appShell, maximizeButton, maximized);
+  }).then((nextSubscription) => {
+    if (disposed) {
+      nextSubscription.dispose();
+      return;
+    }
+    subscription = nextSubscription;
+  }).catch((error) => {
+    options.onError(error, DESKTOP_CHROME_ERROR_MESSAGE);
+  });
+  options.onDispose(() => {
+    disposed = true;
+    subscription?.dispose();
+    subscription = null;
+  });
+}
+
+async function refreshDesktopWindowMaximizedState(
+  appShell: HTMLElement,
+  maximizeButton: HTMLButtonElement,
+  chrome: DesktopWindowChromeHost
+): Promise<void> {
+  applyDesktopWindowMaximizedState(appShell, maximizeButton, await chrome.isMaximized());
+}
+
+function applyDesktopWindowMaximizedState(
+  appShell: HTMLElement,
+  maximizeButton: HTMLButtonElement,
+  maximized: boolean
+): void {
+  appShell.classList.toggle('is-desktop-window-maximized', maximized);
+  const label = maximized ? 'Restore window' : 'Maximize window';
+  maximizeButton.setAttribute('aria-label', label);
+  maximizeButton.title = label;
+}
+
+function isDesktopChromeInteractiveTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest([
+    'button',
+    'input',
+    'select',
+    'textarea',
+    'a',
+    '[role="menu"]',
+    '.app-menu-actions',
+    '.desktop-window-controls',
+    '.app-menu-dropdown',
+    '.app-icon-tooltip'
+  ].join(',')) !== null;
+}
+
+function runDesktopChromeAction(
+  action: () => Promise<void>,
+  options: DesktopChromeSetupOptions
+): void {
+  void action().catch((error) => {
+    options.onError(error, DESKTOP_CHROME_ERROR_MESSAGE);
+  });
 }
 
 function openFullViewer(core: ViewerAppCore): void {

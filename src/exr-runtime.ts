@@ -1,5 +1,4 @@
 import initRawWasm, { initSync, readExr, type ExrDecoder } from './vendor/exrs_raw_wasm_bindgen.js';
-import wasmUrl from './vendor/exrs_raw_wasm_bindgen_bg.wasm?url';
 
 let initialized = false;
 let initializing: Promise<void> | null = null;
@@ -10,7 +9,7 @@ export function configureExrRuntime(options: { wasmUrl?: string | null }): void 
 }
 
 export function resolveExrRuntimeWasmUrl(
-  assetUrl: string = wasmUrl,
+  assetUrl: string = getDefaultWasmAssetUrl(),
   baseUrl: string = import.meta.url
 ): string {
   return new URL(assetUrl, baseUrl).href;
@@ -55,6 +54,10 @@ async function ensureInitialized(): Promise<void> {
 
 function getWasmModuleUrl(): string {
   return configuredWasmUrl ?? resolveExrRuntimeWasmUrl();
+}
+
+function getDefaultWasmAssetUrl(): string {
+  return new URL('./vendor/exrs_raw_wasm_bindgen_bg.wasm', import.meta.url).href;
 }
 
 function normalizeConfiguredWasmUrl(value: string | null | undefined): string | null {

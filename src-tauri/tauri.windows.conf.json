@@ -1,4 +1,19 @@
 {
+  "app": {
+    "windows": [
+      {
+        "title": "Prismifold",
+        "url": "app/index.html",
+        "width": 1440,
+        "height": 960,
+        "minWidth": 900,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false
+      }
+    ]
+  },
   "bundle": {
     "resources": {
       "target/thumbnail-provider/prismifold_exr_thumbnail.dll": "prismifold_exr_thumbnail.dll"

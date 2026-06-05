@@ -1,4 +1,20 @@
 {
+  "app": {
+    "windows": [
+      {
+        "title": "Prismifold",
+        "url": "app/index.html",
+        "width": 1440,
+        "height": 960,
+        "minWidth": 900,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ]
+  },
   "bundle": {
     "fileAssociations": [
       {

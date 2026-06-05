@@ -443,6 +443,46 @@
             </svg>
           </button>
         </div>
+        <div class="desktop-window-controls" aria-label="Window controls">
+          <button
+            id="desktop-window-minimize-button"
+            class="desktop-window-control-button"
+            type="button"
+            aria-label="Minimize window"
+            title="Minimize window"
+          >
+            <svg class="desktop-window-control-icon" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+              <path d="M2 6.5h8" />
+            </svg>
+          </button>
+          <button
+            id="desktop-window-maximize-button"
+            class="desktop-window-control-button"
+            type="button"
+            aria-label="Maximize window"
+            title="Maximize window"
+          >
+            <svg class="desktop-window-control-icon desktop-window-control-icon--maximize" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+              <rect x="2.5" y="2.5" width="7" height="7" rx="0.8" />
+            </svg>
+            <svg class="desktop-window-control-icon desktop-window-control-icon--restore" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+              <path d="M4 2.5h6.5v6.5" />
+              <rect x="2" y="4" width="6.5" height="6.5" rx="0.8" />
+            </svg>
+          </button>
+          <button
+            id="desktop-window-close-button"
+            class="desktop-window-control-button desktop-window-control-button--close"
+            type="button"
+            aria-label="Close window"
+            title="Close window"
+          >
+            <svg class="desktop-window-control-icon" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+              <path d="M3 3l6 6" />
+              <path d="M9 3 3 9" />
+            </svg>
+          </button>
+        </div>
         <div id="app-icon-tooltip" class="app-icon-tooltip hidden" role="tooltip"></div>
         <input id="file-input" type="file" accept=".exr,image/exr" hidden />
         <input id="folder-input" type="file" accept=".exr,image/exr" webkitdirectory multiple hidden />

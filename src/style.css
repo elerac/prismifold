@@ -71,6 +71,7 @@
   --z-drop-overlay: 7;
   --z-loading-overlay: 8;
   --z-window-preview: 40;
+  --desktop-titlebar-height: 34px;
 }
 
 :root[data-theme='spectrum-lattice'] {
@@ -447,6 +448,77 @@ output {
   gap: 2px;
 }
 
+.app-shell.is-desktop-native-menu .app-menu-title,
+.app-shell.is-desktop-native-menu .app-menu-nav {
+  display: none;
+}
+
+.app-shell.is-desktop-native-menu .app-menu-bar {
+  justify-content: flex-end;
+}
+
+.app-shell.is-desktop-titlebar-overlay {
+  padding-top: var(--desktop-titlebar-height);
+}
+
+.app-shell.is-desktop-titlebar-overlay .app-menu-bar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  min-height: var(--desktop-titlebar-height);
+  border: 0;
+  border-radius: 0;
+  padding: 0 8px 0 80px;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.app-shell.is-desktop-titlebar-overlay .app-menu-actions {
+  align-self: center;
+  min-height: var(--desktop-titlebar-height);
+  pointer-events: auto;
+}
+
+.app-shell.is-desktop-custom-chrome {
+  padding-top: 0;
+}
+
+.app-shell.is-desktop-custom-chrome .app-menu-bar {
+  min-height: var(--desktop-titlebar-height);
+  margin: 0 -4px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  padding: 0 0 0 10px;
+  gap: 8px;
+  user-select: none;
+}
+
+.app-shell.is-desktop-custom-chrome .app-menu-nav {
+  display: none;
+}
+
+.app-shell.is-desktop-custom-chrome .app-menu-title {
+  display: none;
+}
+
+.app-shell.is-desktop-custom-chrome .app-menu-actions {
+  min-height: var(--desktop-titlebar-height);
+  margin-left: auto;
+}
+
+.app-shell.is-window-preview.is-desktop-titlebar-overlay,
+.app-shell.is-window-preview.is-desktop-custom-chrome {
+  padding: 0;
+}
+
+.app-shell.is-window-preview.is-desktop-titlebar-overlay .app-menu-bar,
+.app-shell.is-window-preview.is-desktop-custom-chrome .app-menu-bar {
+  display: none;
+}
+
 .app-menu-actions-separator {
   width: 1px;
   height: 18px;
@@ -525,6 +597,61 @@ output {
   stroke-width: 2.1;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.desktop-window-controls {
+  display: none;
+}
+
+.app-shell.is-desktop-custom-chrome .desktop-window-controls {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: flex;
+  margin-left: 6px;
+}
+
+.desktop-window-control-button {
+  width: 46px;
+  min-height: var(--desktop-titlebar-height);
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.desktop-window-control-button:hover,
+.desktop-window-control-button:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
+}
+
+.desktop-window-control-button--close:hover,
+.desktop-window-control-button--close:focus-visible {
+  background: #c42b1c;
+  color: #fff;
+}
+
+.desktop-window-control-icon {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.desktop-window-control-icon--restore,
+.app-shell.is-desktop-window-maximized .desktop-window-control-icon--maximize {
+  display: none;
+}
+
+.app-shell.is-desktop-window-maximized .desktop-window-control-icon--restore {
+  display: block;
 }
 
 .app-menu-dropdown {
@@ -1571,6 +1698,39 @@ input[type='range'] {
   .app-menu-actions {
     grid-area: actions;
     margin-left: 0;
+  }
+
+  .app-shell.is-desktop-native-menu .app-menu-bar {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .app-shell.is-desktop-native-menu .app-menu-actions {
+    margin-left: auto;
+  }
+
+  .app-shell.is-desktop-titlebar-overlay .app-menu-bar,
+  .app-shell.is-desktop-custom-chrome .app-menu-bar {
+    display: flex;
+    grid-template-columns: none;
+    grid-template-areas: none;
+    align-items: center;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .app-shell.is-desktop-titlebar-overlay .app-menu-actions,
+  .app-shell.is-desktop-custom-chrome .app-menu-actions {
+    grid-area: auto;
+  }
+
+  .app-shell.is-desktop-custom-chrome .desktop-window-controls {
+    display: flex;
+  }
+
+  .app-shell.is-window-preview.is-desktop-titlebar-overlay .app-menu-bar,
+  .app-shell.is-window-preview.is-desktop-custom-chrome .app-menu-bar {
+    display: none;
   }
 
   .app-dialog {

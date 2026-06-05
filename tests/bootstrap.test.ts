@@ -496,6 +496,8 @@ mocks.zipFilesOffMainThread.mockImplementation(async (files: Record<string, Uint
 afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+  vi.doUnmock('../src/platform');
+  document.body.innerHTML = '';
   Reflect.deleteProperty(navigator, 'clipboard');
   vi.resetModules();
   mocks.resetCoreState();
@@ -539,7 +541,186 @@ afterEach(() => {
   mocks.zipFilesOffMainThread.mockImplementation(async (files: Record<string, Uint8Array>) => zipSync(files));
 });
 
+function installDesktopChromeFixture(): void {
+  document.body.innerHTML = `
+    <div id="app" class="app-shell">
+      <header id="app-menu-bar" class="app-menu-bar">
+        <div class="app-menu-title">Prismifold</div>
+        <nav class="app-menu-nav" aria-label="Main menu"></nav>
+        <div class="app-menu-actions" aria-label="Quick actions">
+          <button id="app-screenshot-button" type="button"></button>
+        </div>
+        <div class="desktop-window-controls" aria-label="Window controls">
+          <button id="desktop-window-minimize-button" type="button" aria-label="Minimize window"></button>
+          <button id="desktop-window-maximize-button" type="button" aria-label="Maximize window"></button>
+          <button id="desktop-window-close-button" type="button" aria-label="Close window"></button>
+        </div>
+      </header>
+    </div>
+  `;
+}
+
+function createMockChrome(overrides: Record<string, unknown> = {}) {
+  return {
+    getPlatform: vi.fn(async () => 'unknown'),
+    startDragging: vi.fn(async () => undefined),
+    minimize: vi.fn(async () => undefined),
+    toggleMaximize: vi.fn(async () => undefined),
+    close: vi.fn(async () => undefined),
+    isMaximized: vi.fn(async () => false),
+    onMaximizedChange: vi.fn(async () => ({ dispose: vi.fn() })),
+    ...overrides
+  };
+}
+
+function createMockHost(overrides: Record<string, unknown> = {}) {
+  return {
+    kind: 'web',
+    pathFileProvider: null,
+    appFullscreen: {
+      isSupported: vi.fn(() => false),
+      isActive: vi.fn(() => false),
+      setActive: vi.fn(async () => undefined),
+      onChange: vi.fn(async () => ({ dispose: vi.fn() }))
+    },
+    openFiles: vi.fn(),
+    openFolder: vi.fn(),
+    saveBlob: vi.fn(async () => ({ status: 'saved' })),
+    copyPngBlob: vi.fn(async () => undefined),
+    setupDesktopEvents: vi.fn(async () => ({ dispose: vi.fn() })),
+    setupDesktopCommands: vi.fn(async () => ({ dispose: vi.fn() })),
+    installRecentFilesMenu: vi.fn(() => ({ dispose: vi.fn() })),
+    refreshRecentFiles: vi.fn(async () => []),
+    clearRecentFiles: vi.fn(async () => undefined),
+    recordRecentFile: vi.fn(),
+    recordPathLoadFailure: vi.fn(),
+    ...overrides
+  };
+}
+
+function mockViewerHost(host: Record<string, unknown>): void {
+  vi.doMock('../src/platform', () => ({
+    createViewerHost: () => host,
+    presentDesktopError: (_error: unknown, fallbackMessage = 'Desktop error.') => ({
+      message: fallbackMessage,
+      detail: fallbackMessage
+    })
+  }));
+}
+
 describe('bootstrap app lifecycle', () => {
+  it('applies macOS titlebar overlay chrome before creating the UI', async () => {
+    installDesktopChromeFixture();
+    const chrome = createMockChrome({
+      getPlatform: vi.fn(async () => 'macos')
+    });
+    mockViewerHost(createMockHost({
+      kind: 'tauri',
+      desktopWindowChrome: chrome
+    }));
+
+    const { bootstrapApp } = await import('../src/app/bootstrap');
+    const app = await bootstrapApp();
+    const appShell = document.getElementById('app') as HTMLElement;
+
+    expect(appShell.classList.contains('is-desktop-native-menu')).toBe(true);
+    expect(appShell.classList.contains('is-desktop-titlebar-overlay')).toBe(true);
+    expect(appShell.dataset.desktopPlatform).toBe('macos');
+
+    (document.querySelector('.app-menu-title') as HTMLElement).dispatchEvent(new MouseEvent('mousedown', {
+      bubbles: true,
+      button: 0
+    }));
+    expect(chrome.startDragging).toHaveBeenCalledTimes(1);
+    expect(chrome.toggleMaximize).not.toHaveBeenCalled();
+
+    app.dispose();
+  });
+
+  it('applies Windows custom chrome and routes titlebar controls', async () => {
+    installDesktopChromeFixture();
+    const maximizedCallbacks: Array<(maximized: boolean) => void> = [];
+    const subscriptionDispose = vi.fn();
+    const chrome = createMockChrome({
+      getPlatform: vi.fn(async () => 'windows'),
+      onMaximizedChange: vi.fn(async (callback: (maximized: boolean) => void) => {
+        maximizedCallbacks.push(callback);
+        return { dispose: subscriptionDispose };
+      })
+    });
+    mockViewerHost(createMockHost({
+      kind: 'tauri',
+      desktopWindowChrome: chrome
+    }));
+
+    const { bootstrapApp } = await import('../src/app/bootstrap');
+    const app = await bootstrapApp();
+    await Promise.resolve();
+    const appShell = document.getElementById('app') as HTMLElement;
+    const minimizeButton = document.getElementById('desktop-window-minimize-button') as HTMLButtonElement;
+    const maximizeButton = document.getElementById('desktop-window-maximize-button') as HTMLButtonElement;
+    const closeButton = document.getElementById('desktop-window-close-button') as HTMLButtonElement;
+
+    expect(appShell.classList.contains('is-desktop-custom-chrome')).toBe(true);
+    expect(appShell.classList.contains('is-desktop-native-menu')).toBe(false);
+    expect(appShell.dataset.desktopPlatform).toBe('windows');
+
+    minimizeButton.click();
+    maximizeButton.click();
+    closeButton.click();
+    (document.querySelector('.app-menu-title') as HTMLElement).dispatchEvent(new MouseEvent('mousedown', {
+      bubbles: true,
+      button: 0
+    }));
+    (document.querySelector('.app-menu-title') as HTMLElement).dispatchEvent(new MouseEvent('dblclick', {
+      bubbles: true,
+      button: 0
+    }));
+
+    expect(chrome.minimize).toHaveBeenCalledTimes(1);
+    expect(chrome.toggleMaximize).toHaveBeenCalledTimes(2);
+    expect(chrome.close).toHaveBeenCalledTimes(1);
+    expect(chrome.startDragging).toHaveBeenCalledTimes(1);
+
+    expect(maximizedCallbacks).toHaveLength(1);
+    maximizedCallbacks[0]!(true);
+    expect(appShell.classList.contains('is-desktop-window-maximized')).toBe(true);
+    expect(maximizeButton.getAttribute('aria-label')).toBe('Restore window');
+
+    app.dispose();
+    expect(subscriptionDispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves web chrome classes unchanged', async () => {
+    installDesktopChromeFixture();
+    mockViewerHost(createMockHost({ kind: 'web' }));
+
+    const { bootstrapApp } = await import('../src/app/bootstrap');
+    const app = await bootstrapApp();
+    const appShell = document.getElementById('app') as HTMLElement;
+
+    expect(appShell.classList.contains('is-desktop-native-menu')).toBe(false);
+    expect(appShell.classList.contains('is-desktop-titlebar-overlay')).toBe(false);
+    expect(appShell.classList.contains('is-desktop-custom-chrome')).toBe(false);
+
+    app.dispose();
+  });
+
+  it('leaves VS Code chrome classes unchanged', async () => {
+    installDesktopChromeFixture();
+    mockViewerHost(createMockHost({ kind: 'vscode' }));
+
+    const { bootstrapApp } = await import('../src/app/bootstrap');
+    const app = await bootstrapApp();
+    const appShell = document.getElementById('app') as HTMLElement;
+
+    expect(appShell.classList.contains('is-desktop-native-menu')).toBe(false);
+    expect(appShell.classList.contains('is-desktop-titlebar-overlay')).toBe(false);
+    expect(appShell.classList.contains('is-desktop-custom-chrome')).toBe(false);
+
+    app.dispose();
+  });
+
   it('omits inferred session names when opening the full viewer', async () => {
     class ResizeObserverMock {
       constructor(callback: ResizeObserverCallback) {

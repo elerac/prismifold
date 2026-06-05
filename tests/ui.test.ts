@@ -2667,11 +2667,18 @@ describe('view menu', () => {
     const metadataButton = document.getElementById('app-metadata-button') as HTMLButtonElement;
     const fullscreenButton = document.getElementById('app-fullscreen-button') as HTMLButtonElement;
     const settingsButton = document.getElementById('settings-dialog-button') as HTMLButtonElement;
+    const windowControls = document.querySelector('.desktop-window-controls') as HTMLElement;
 
     expect(screenshotButton.closest('#app-menu-bar')).not.toBeNull();
     expect(metadataButton.closest('#app-menu-bar')).not.toBeNull();
     expect(settingsButton.closest('#app-menu-bar')).not.toBeNull();
     expect(actions).not.toBeNull();
+    expect(windowControls.closest('#app-menu-bar')).not.toBeNull();
+    expect(Array.from(windowControls.children).map((child) => child.id)).toEqual([
+      'desktop-window-minimize-button',
+      'desktop-window-maximize-button',
+      'desktop-window-close-button'
+    ]);
     expect(Array.from(actions.children).map((child) => child.id || child.className)).toEqual([
       'app-auto-fit-image-button',
       'app-auto-exposure-button',
@@ -2722,6 +2729,53 @@ describe('view menu', () => {
     expect(settingsButton.getAttribute('aria-controls')).toBe('settings-dialog');
     expect(settingsButton.dataset.tooltip).toBe('Settings');
     expect(settingsButton.title).toBe('Settings');
+  });
+
+  it('defines macOS desktop titlebar overlay styling that keeps quick actions and removes the bar from layout', () => {
+    installUiFixture();
+
+    const appShell = document.getElementById('app') as HTMLElement;
+    const title = document.querySelector('.app-menu-title') as HTMLElement;
+    const nav = document.querySelector('.app-menu-nav') as HTMLElement;
+    const actions = document.querySelector('.app-menu-actions') as HTMLElement;
+    const css = readStyleSheet();
+
+    appShell.classList.add('is-desktop-native-menu', 'is-desktop-titlebar-overlay');
+
+    expect(title.closest('#app-menu-bar')).not.toBeNull();
+    expect(nav.closest('#app-menu-bar')).not.toBeNull();
+    expect(actions.closest('#app-menu-bar')).not.toBeNull();
+    expect(css).toContain('.app-shell.is-desktop-native-menu .app-menu-title');
+    expect(css).toContain('.app-shell.is-desktop-native-menu .app-menu-nav');
+    expect(css).toContain('.app-shell.is-desktop-titlebar-overlay');
+    expect(css).toContain('.app-shell.is-desktop-titlebar-overlay .app-menu-bar');
+    expect(css).toContain('position: fixed');
+    expect(css).toContain('padding-top: var(--desktop-titlebar-height)');
+  });
+
+  it('defines Windows custom chrome styling that hides the title and keeps quick actions and window controls', () => {
+    installUiFixture();
+
+    const appShell = document.getElementById('app') as HTMLElement;
+    const title = document.querySelector('.app-menu-title') as HTMLElement;
+    const nav = document.querySelector('.app-menu-nav') as HTMLElement;
+    const actions = document.querySelector('.app-menu-actions') as HTMLElement;
+    const windowControls = document.querySelector('.desktop-window-controls') as HTMLElement;
+    const css = readStyleSheet();
+
+    appShell.classList.add('is-desktop-custom-chrome');
+
+    expect(title.closest('#app-menu-bar')).not.toBeNull();
+    expect(nav.closest('#app-menu-bar')).not.toBeNull();
+    expect(actions.closest('#app-menu-bar')).not.toBeNull();
+    expect(windowControls.closest('#app-menu-bar')).not.toBeNull();
+    expect(css).toContain('.app-shell.is-desktop-custom-chrome .app-menu-nav');
+    expect(css).toContain('.app-shell.is-desktop-custom-chrome .app-menu-title');
+    expect(css).toContain(`.app-shell.is-desktop-custom-chrome .app-menu-title {
+  display: none;
+}`);
+    expect(css).toContain('.app-shell.is-desktop-custom-chrome .desktop-window-controls');
+    expect(css).toContain('display: flex');
   });
 
   it('shows short help for top bar icon buttons on hover and focus', () => {
