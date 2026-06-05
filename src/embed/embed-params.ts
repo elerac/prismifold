@@ -7,6 +7,11 @@ import type { ViewerSessionState } from '../types';
 
 export type EmbedBottomPanelMode = 'probe' | 'channels' | 'none';
 
+export interface EmbedPanoramaAnimationConfig {
+  autoRotate: boolean;
+  rotationSpeedDegPerSecond: number;
+}
+
 export interface ViewerBootstrapParams {
   uiMode: 'full' | 'embed';
   src: string | null;
@@ -14,6 +19,7 @@ export interface ViewerBootstrapParams {
   view: ViewerSessionState['viewerMode'] | null;
   autoLoad: boolean;
   bottomPanel: EmbedBottomPanelMode;
+  panoramaAnimation: EmbedPanoramaAnimationConfig;
   handoffId: string | null;
   state: EmbedViewerStateSnapshot | null;
 }
@@ -26,6 +32,10 @@ export interface FullViewerUrlOptions {
   state?: EmbedViewerStateSnapshot | null;
 }
 
+export const DEFAULT_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND = 6;
+export const MIN_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND = -60;
+export const MAX_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND = 60;
+
 export function parseViewerBootstrapParams(location: Pick<Location, 'search' | 'hash'>): ViewerBootstrapParams {
   const params = mergeParams(parseSearchParams(location.search), parseHashParams(location.hash));
   return {
@@ -35,6 +45,14 @@ export function parseViewerBootstrapParams(location: Pick<Location, 'search' | '
     view: parseViewerMode(params.get('view')),
     autoLoad: parseBooleanParam(params.get('autoLoad') ?? params.get('autoload')),
     bottomPanel: parseEmbedBottomPanelMode(params.get('bottomPanel')),
+    panoramaAnimation: {
+      autoRotate: parseFalseDefaultBooleanParam(
+        params.get('panoramaAutoRotate') ?? params.get('panorama-auto-rotate')
+      ),
+      rotationSpeedDegPerSecond: parsePanoramaRotationSpeed(
+        params.get('panoramaRotationSpeed') ?? params.get('panorama-rotation-speed')
+      )
+    },
     handoffId: normalizeNonEmpty(params.get('handoff')),
     state: decodeEmbedViewerState(params.get('state'))
   };
@@ -108,4 +126,28 @@ function parseBooleanParam(value: string | null): boolean {
     return false;
   }
   return true;
+}
+
+function parseFalseDefaultBooleanParam(value: string | null): boolean {
+  if (value === null) {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  return !(normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off');
+}
+
+export function parsePanoramaRotationSpeed(value: string | number | null | undefined): number {
+  if (value === null || value === undefined) {
+    return DEFAULT_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND;
+  }
+
+  const parsed = typeof value === 'number' ? value : Number(String(value).trim());
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND;
+  }
+
+  return Math.min(
+    MAX_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND,
+    Math.max(MIN_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND, parsed)
+  );
 }

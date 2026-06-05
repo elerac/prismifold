@@ -11,6 +11,7 @@ interface E2EStateSnapshot {
   sessionCount: number;
   thumbnailPendingCount: number;
   viewerMode: ViewerAppState['sessionState']['viewerMode'];
+  panoramaYawDeg: number;
 }
 
 interface E2EHooks {
@@ -140,7 +141,8 @@ function createSnapshot(state: ViewerAppState, appReady: boolean): E2EStateSnaps
     selectionTransitionPending: state.pendingSelectionTransitionRequestId !== null,
     sessionCount: state.sessions.length,
     thumbnailPendingCount: countPendingThumbnails(state),
-    viewerMode: state.sessionState.viewerMode
+    viewerMode: state.sessionState.viewerMode,
+    panoramaYawDeg: state.interactionState.view.panoramaYawDeg
   };
 }
 

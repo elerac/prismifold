@@ -34,8 +34,10 @@ import {
   zoomImageFromWheel
 } from './image-mode';
 import {
+  PanoramaAutoRotateController,
   orbitPanoramaFromDrag,
   PanoramaKeyboardOrbitController,
+  type PanoramaAutoRotateConfig,
   zoomPanoramaByKeyboardStep,
   zoomPanoramaFromKeyboard,
   zoomPanoramaFromWheel
@@ -84,6 +86,7 @@ export class ViewerInteraction {
   private readonly callbacks: InteractionCallbacks;
   private readonly imageKeyboardPan: ImageKeyboardPanController;
   private readonly panoramaKeyboardOrbit: PanoramaKeyboardOrbitController;
+  private readonly panoramaAutoRotate: PanoramaAutoRotateController;
   private readonly threeDKeyboardOrbit: ThreeDKeyboardOrbitController;
   private readonly keyboardZoom: ViewerKeyboardZoomController;
   private dragging = false;
@@ -121,6 +124,11 @@ export class ViewerInteraction {
       onHoverPixel: callbacks.onHoverPixel,
       getLastPointerInElement: () => this.lastPointerInElement
     }, dependencies);
+    this.panoramaAutoRotate = new PanoramaAutoRotateController({
+      getState: callbacks.getState,
+      getImageSize: callbacks.getImageSize,
+      onViewChange: callbacks.onViewChange
+    }, dependencies);
     this.threeDKeyboardOrbit = new ThreeDKeyboardOrbitController({
       getState: callbacks.getState,
       getViewport: () => this.getActiveViewport(),
@@ -147,6 +155,7 @@ export class ViewerInteraction {
     this.element.addEventListener('pointerup', this.onPointerUp);
     this.element.addEventListener('pointerleave', this.onPointerLeave);
     this.element.addEventListener('contextmenu', this.onContextMenu);
+    document.addEventListener('visibilitychange', this.onDocumentVisibilityChange);
   }
 
   destroy(): void {
@@ -156,17 +165,37 @@ export class ViewerInteraction {
     this.element.removeEventListener('pointerup', this.onPointerUp);
     this.element.removeEventListener('pointerleave', this.onPointerLeave);
     this.element.removeEventListener('contextmenu', this.onContextMenu);
+    document.removeEventListener('visibilitychange', this.onDocumentVisibilityChange);
     this.imageKeyboardPan.destroy();
     this.panoramaKeyboardOrbit.destroy();
+    this.panoramaAutoRotate.destroy();
     this.threeDKeyboardOrbit.destroy();
     this.keyboardZoom.destroy();
   }
 
+  setPanoramaAutoRotateConfig(config: PanoramaAutoRotateConfig): void {
+    this.panoramaAutoRotate.setConfig(config);
+  }
+
+  refreshPanoramaAutoRotate(): void {
+    this.panoramaAutoRotate.sync();
+  }
+
+  pausePanoramaAutoRotateForUserInput(): void {
+    if (this.callbacks.getState().viewerMode === 'panorama') {
+      this.panoramaAutoRotate.pauseForUserInteraction();
+    }
+  }
+
   handlePanoramaKeyboardOrbit(direction: PanoramaKeyboardOrbitDirection): void {
+    this.pausePanoramaAutoRotateForUserInput();
     this.panoramaKeyboardOrbit.handle(direction);
   }
 
   setPanoramaKeyboardOrbitInput(input: PanoramaKeyboardOrbitInput): void {
+    this.panoramaAutoRotate.setUserInteracting(
+      this.callbacks.getState().viewerMode === 'panorama' && hasViewerKeyboardNavigationInput(input)
+    );
     this.panoramaKeyboardOrbit.setInput(input);
   }
 
@@ -178,6 +207,7 @@ export class ViewerInteraction {
     }
 
     if (state.viewerMode === 'panorama') {
+      this.panoramaAutoRotate.pauseForUserInteraction();
       this.panoramaKeyboardOrbit.handle(direction);
       return;
     }
@@ -204,6 +234,7 @@ export class ViewerInteraction {
     }
 
     if (state.viewerMode === 'panorama') {
+      this.panoramaAutoRotate.pauseForUserInteraction();
       const nextView = zoomPanoramaFromKeyboard(state, direction);
       const nextState = { ...state, ...nextView };
       this.callbacks.onViewChange(nextView);
@@ -252,12 +283,16 @@ export class ViewerInteraction {
   }
 
   setViewerKeyboardZoomInput(input: ViewerKeyboardZoomInput): void {
+    this.panoramaAutoRotate.setUserInteracting(
+      this.callbacks.getState().viewerMode === 'panorama' && hasViewerKeyboardZoomInput(input)
+    );
     this.keyboardZoom.setInput(input);
   }
 
   setViewerKeyboardNavigationInput(input: ViewerKeyboardNavigationInput): void {
     const state = this.callbacks.getState();
     if (state.viewerMode === 'image') {
+      this.panoramaAutoRotate.setUserInteracting(false);
       this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.threeDKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.imageKeyboardPan.setInput(input);
@@ -265,6 +300,7 @@ export class ViewerInteraction {
     }
 
     if (state.viewerMode === 'panorama') {
+      this.panoramaAutoRotate.setUserInteracting(hasViewerKeyboardNavigationInput(input));
       this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
       this.threeDKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.panoramaKeyboardOrbit.setInput(input);
@@ -272,12 +308,14 @@ export class ViewerInteraction {
     }
 
     if (state.viewerMode === '3d') {
+      this.panoramaAutoRotate.setUserInteracting(false);
       this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
       this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
       this.threeDKeyboardOrbit.setInput(input);
       return;
     }
 
+    this.panoramaAutoRotate.setUserInteracting(false);
     this.imageKeyboardPan.setInput(createViewerKeyboardNavigationInput());
     this.panoramaKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
     this.threeDKeyboardOrbit.setInput(createViewerKeyboardNavigationInput());
@@ -308,6 +346,7 @@ export class ViewerInteraction {
     const viewport = panePoint.pane.viewport;
 
     if (state.viewerMode === 'panorama') {
+      this.panoramaAutoRotate.pauseForUserInteraction();
       const nextView = zoomPanoramaFromWheel(state, event.deltaY);
       const nextState = { ...state, ...nextView };
       this.callbacks.onViewChange(nextView);
@@ -396,6 +435,9 @@ export class ViewerInteraction {
     this.lastPointerInElement = point;
 
     const viewport = panePoint.pane.viewport;
+    if (state.viewerMode === 'panorama') {
+      this.panoramaAutoRotate.setUserInteracting(true);
+    }
     if (state.viewerMode === 'image') {
       const handle = state.roi ? resolveRoiAdjustmentHandle(point, state.roi, state, viewport) : null;
       this.setRoiInteractionState(createRoiInteractionState({ hoverHandle: handle }));
@@ -532,6 +574,7 @@ export class ViewerInteraction {
           activeHandle: this.roiAdjustmentDrag.handle
         }));
       } else if (state.viewerMode === 'panorama') {
+        this.panoramaAutoRotate.setUserInteracting(true);
         const nextView = orbitPanoramaFromDrag(state, viewport, deltaX, deltaY);
         hoverState = { ...state, ...nextView };
         this.callbacks.onViewChange(nextView);
@@ -600,6 +643,7 @@ export class ViewerInteraction {
 
     const imageSize = this.callbacks.getImageSize();
     if (!imageSize) {
+      this.panoramaAutoRotate.setUserInteracting(false);
       this.clearDrag(event.pointerId);
       return;
     }
@@ -708,6 +752,7 @@ export class ViewerInteraction {
   };
 
   private clearDrag(pointerId: number): void {
+    const wasDragging = this.dragging;
     const wasScreenshotResize = this.dragMode === 'screenshot' && this.screenshotDrag?.handle !== 'move';
     const wasScreenshotDrag = this.dragMode === 'screenshot';
     if (this.dragging && this.element.hasPointerCapture(pointerId)) {
@@ -728,6 +773,9 @@ export class ViewerInteraction {
     }
     if (wasScreenshotResize) {
       this.callbacks.onScreenshotSelectionResizeActiveChange?.(false);
+    }
+    if (wasDragging) {
+      this.panoramaAutoRotate.setUserInteracting(false);
     }
   }
 
@@ -886,6 +934,10 @@ export class ViewerInteraction {
   private getScreenshotSelection() {
     return this.callbacks.getScreenshotSelection?.() ?? { active: false, rect: null };
   }
+
+  private readonly onDocumentVisibilityChange = (): void => {
+    this.panoramaAutoRotate.sync();
+  };
 }
 
 function resolveScreenshotSelectionHit(
@@ -1156,6 +1208,10 @@ function getNewlyPressedViewerKeyboardZoomInput(
 
 function hasViewerKeyboardZoomInput(input: ViewerKeyboardZoomInput): boolean {
   return input.zoomIn || input.zoomOut;
+}
+
+function hasViewerKeyboardNavigationInput(input: ViewerKeyboardNavigationInput): boolean {
+  return input.up || input.left || input.down || input.right;
 }
 
 function sameViewerKeyboardZoomInput(

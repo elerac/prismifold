@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 const EMBED_LOAD_FILE_MESSAGE = 'prismifold:load-file';
 const EMBED_LOAD_ERROR_MESSAGE = 'prismifold:load-error';
+const EMBED_CONFIG_MESSAGE = 'prismifold:embed-config';
 const EMBED_READY_MESSAGE = 'prismifold:embed-ready';
 const EMBED_DEFERRED_LOAD_MESSAGE = 'prismifold:deferred-load';
 const embedScript = readFileSync(resolve(process.cwd(), 'public/embed/prismifold.js'), 'utf8');
@@ -18,16 +19,42 @@ const originalIframeContentWindow = Object.getOwnPropertyDescriptor(
 interface PrismifoldViewerElementForTest extends HTMLElement {
   viewerOrigin: string;
   viewerTargetOrigin: string;
-  loadFile(file: File, options?: { name?: string; view?: string }): Promise<void>;
-  loadUrl(src: string, options?: { name?: string; sourceOrigin?: string; view?: string }): Promise<void>;
+  loadFile(file: File, options?: {
+    name?: string;
+    view?: string;
+    panoramaAutoRotate?: boolean | string;
+    panoramaRotationSpeed?: number | string;
+  }): Promise<void>;
+  loadUrl(src: string, options?: {
+    name?: string;
+    sourceOrigin?: string;
+    view?: string;
+    panoramaAutoRotate?: boolean | string;
+    panoramaRotationSpeed?: number | string;
+  }): Promise<void>;
   setView(view: string): void;
+  setPanoramaAutoRotate(enabled: boolean | string): void;
+  setPanoramaRotationSpeed(speedDegPerSecond: number | string): void;
 }
 
 interface PrismifoldControllerForTest {
   element: PrismifoldViewerElementForTest;
-  loadFile(file: File, options?: { name?: string; view?: string }): Promise<void>;
-  loadUrl(src: string, options?: { name?: string; sourceOrigin?: string; view?: string }): Promise<void>;
+  loadFile(file: File, options?: {
+    name?: string;
+    view?: string;
+    panoramaAutoRotate?: boolean | string;
+    panoramaRotationSpeed?: number | string;
+  }): Promise<void>;
+  loadUrl(src: string, options?: {
+    name?: string;
+    sourceOrigin?: string;
+    view?: string;
+    panoramaAutoRotate?: boolean | string;
+    panoramaRotationSpeed?: number | string;
+  }): Promise<void>;
   setView(view: string): PrismifoldControllerForTest;
+  setPanoramaAutoRotate(enabled: boolean | string): PrismifoldControllerForTest;
+  setPanoramaRotationSpeed(speedDegPerSecond: number | string): PrismifoldControllerForTest;
   destroy(): void;
 }
 
@@ -42,6 +69,8 @@ interface PrismifoldApiForTest {
     viewerUrl?: string;
     sourceOrigin?: string;
     bottomPanel?: string;
+    panoramaAutoRotate?: boolean | string;
+    panoramaRotationSpeed?: number | string;
     autoLoad?: boolean | string;
   }): PrismifoldControllerForTest;
 }
@@ -99,7 +128,9 @@ describe('embed wrapper public script', () => {
       width: 300,
       height: 240,
       view: 'panorama',
-      bottomPanel: 'channels'
+      bottomPanel: 'channels',
+      panoramaAutoRotate: true,
+      panoramaRotationSpeed: 12.5
     });
 
     const iframe = getViewerIframe(controller.element);
@@ -109,6 +140,8 @@ describe('embed wrapper public script', () => {
     expect(controller.element.style.width).toBe('300px');
     expect(controller.element.getAttribute('name')).toBe('Beauty pass');
     expect(controller.element.getAttribute('bottom-panel')).toBe('channels');
+    expect(controller.element.getAttribute('panorama-auto-rotate')).toBe('true');
+    expect(controller.element.getAttribute('panorama-rotation-speed')).toBe('12.5');
     expect(iframe.style.height).toBe('240px');
     expect(iframe.allowFullscreen).toBe(false);
     expect(iframeUrl.pathname).toBe('/app/');
@@ -117,6 +150,8 @@ describe('embed wrapper public script', () => {
     expect(iframeUrl.searchParams.get('name')).toBe('Beauty pass');
     expect(iframeUrl.searchParams.get('view')).toBe('panorama');
     expect(iframeUrl.searchParams.get('bottomPanel')).toBe('channels');
+    expect(iframeUrl.searchParams.get('panoramaAutoRotate')).toBe('true');
+    expect(iframeUrl.searchParams.get('panoramaRotationSpeed')).toBe('12.5');
   });
 
   it('passes bottom-panel markup through and omits the default probe query param', () => {
@@ -364,6 +399,74 @@ describe('embed wrapper public script', () => {
 
     controller.destroy();
     expect(document.querySelector('prismifold-viewer')).toBeNull();
+  });
+
+  it('live-updates panorama animation config without replacing the iframe', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const controller = getPrismifold().create('#target', {
+      src: 'https://example.com/pano.exr',
+      view: 'panorama',
+      panoramaAutoRotate: true
+    });
+    const iframe = getViewerIframe(controller.element);
+    const postMessage = spyOnIframePostMessage(iframe);
+    dispatchEmbedReady(controller.element, iframe);
+
+    const returned = controller
+      .setPanoramaRotationSpeed(100)
+      .setPanoramaAutoRotate(false);
+
+    expect(returned).toBe(controller);
+    expect(getViewerIframe(controller.element)).toBe(iframe);
+    expect(controller.element.getAttribute('panorama-rotation-speed')).toBe('60');
+    expect(controller.element.getAttribute('panorama-auto-rotate')).toBe('false');
+
+    const configMessages = postMessage.mock.calls
+      .map((call) => call[0] as { type?: string; panoramaAutoRotate?: boolean; panoramaRotationSpeed?: number })
+      .filter((message) => message.type === EMBED_CONFIG_MESSAGE);
+    expect(configMessages).toEqual([
+      {
+        type: EMBED_CONFIG_MESSAGE,
+        panoramaAutoRotate: true,
+        panoramaRotationSpeed: 60
+      },
+      {
+        type: EMBED_CONFIG_MESSAGE,
+        panoramaAutoRotate: false,
+        panoramaRotationSpeed: 60
+      }
+    ]);
+  });
+
+  it('posts panorama animation config before file loads when file options provide it', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const controller = getPrismifold().create('#target', {
+      height: 200
+    });
+    const iframe = getViewerIframe(controller.element);
+    const postMessage = spyOnIframePostMessage(iframe);
+
+    dispatchEmbedReady(controller.element, iframe);
+    await controller.loadFile(new File(['pixels'], 'pano.exr'), {
+      name: 'Local panorama',
+      view: 'panorama',
+      panoramaAutoRotate: true,
+      panoramaRotationSpeed: -8
+    });
+
+    expect(getViewerIframe(controller.element)).toBe(iframe);
+    expect(postMessage.mock.calls[0]?.[0]).toEqual({
+      type: EMBED_CONFIG_MESSAGE,
+      panoramaAutoRotate: true,
+      panoramaRotationSpeed: -8
+    });
+    expect(postMessage.mock.calls[1]?.[0]).toMatchObject({
+      type: EMBED_LOAD_FILE_MESSAGE,
+      name: 'Local panorama',
+      state: {
+        viewerMode: 'panorama'
+      }
+    });
   });
 });
 

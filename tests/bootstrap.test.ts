@@ -91,6 +91,9 @@ const mocks = vi.hoisted(() => {
   const interactionDestroy = vi.fn();
   const interactionSetViewerKeyboardNavigationInput = vi.fn();
   const interactionSetViewerKeyboardZoomInput = vi.fn();
+  const interactionSetPanoramaAutoRotateConfig = vi.fn();
+  const interactionRefreshPanoramaAutoRotate = vi.fn();
+  const interactionPausePanoramaAutoRotateForUserInput = vi.fn();
   const interactionCoordinatorDispose = vi.fn();
   const sessionDispose = vi.fn();
   const sessionResetActiveSessionViewState = vi.fn();
@@ -172,6 +175,9 @@ const mocks = vi.hoisted(() => {
     interactionDestroy,
     interactionSetViewerKeyboardNavigationInput,
     interactionSetViewerKeyboardZoomInput,
+    interactionSetPanoramaAutoRotateConfig,
+    interactionRefreshPanoramaAutoRotate,
+    interactionPausePanoramaAutoRotateForUserInput,
     interactionCoordinatorDispose,
     sessionDispose,
     displayDispose,
@@ -388,6 +394,9 @@ vi.mock('../src/interaction/viewer-interaction', () => ({
     readonly destroy = mocks.interactionDestroy;
     readonly setViewerKeyboardNavigationInput = mocks.interactionSetViewerKeyboardNavigationInput;
     readonly setViewerKeyboardZoomInput = mocks.interactionSetViewerKeyboardZoomInput;
+    readonly setPanoramaAutoRotateConfig = mocks.interactionSetPanoramaAutoRotateConfig;
+    readonly refreshPanoramaAutoRotate = mocks.interactionRefreshPanoramaAutoRotate;
+    readonly pausePanoramaAutoRotateForUserInput = mocks.interactionPausePanoramaAutoRotateForUserInput;
   }
 }));
 
@@ -831,7 +840,7 @@ describe('bootstrap app lifecycle', () => {
 
     beforeUnload?.(new Event('beforeunload'));
 
-    expect(mocks.unsubscribe).toHaveBeenCalledTimes(3);
+    expect(mocks.unsubscribe).toHaveBeenCalledTimes(4);
     expect(mocks.interactionCoordinatorDispose).toHaveBeenCalledTimes(1);
     expect(mocks.interactionDestroy).toHaveBeenCalledTimes(1);
     expect(resizeDisconnect).toHaveBeenCalledTimes(1);
@@ -1145,6 +1154,34 @@ describe('bootstrap app lifecycle', () => {
     expect(mocks.coreDispatch).toHaveBeenCalledWith({
       type: 'viewerStateEdited',
       patch: { zoom: 3 }
+    });
+
+    app.dispose();
+  });
+
+  it('routes embed panorama animation config to viewer interaction', async () => {
+    const { bootstrapApp } = await import('../src/app/bootstrap');
+    const app = await bootstrapApp({
+      mode: 'embed',
+      embedPanoramaAnimation: {
+        autoRotate: true,
+        rotationSpeedDegPerSecond: 12
+      }
+    });
+
+    expect(mocks.interactionSetPanoramaAutoRotateConfig).toHaveBeenCalledWith({
+      autoRotate: true,
+      rotationSpeedDegPerSecond: 12
+    });
+
+    app.setEmbedPanoramaAnimationConfig({
+      autoRotate: true,
+      rotationSpeedDegPerSecond: 100
+    });
+
+    expect(mocks.interactionSetPanoramaAutoRotateConfig).toHaveBeenLastCalledWith({
+      autoRotate: true,
+      rotationSpeedDegPerSecond: 60
     });
 
     app.dispose();

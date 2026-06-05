@@ -223,8 +223,10 @@ Common attributes:
 | `viewer-url` | Viewer deployment URL, needed if the wrapper script is served from another location. |
 | `source-origin` | Loading policy: `auto`, `parent`, or `viewer`. |
 | `bottom-panel` | Embed bottom content: `probe`, `channels`, or `none`. Defaults to `probe`. |
+| `panorama-auto-rotate` | Set to `true` on panorama embeds to rotate the yaw automatically. Defaults to `false`. |
+| `panorama-rotation-speed` | Signed panorama rotation speed in degrees per second. Defaults to `6`; values are clamped to `-60` to `60`. |
 
-The embed supports pan, zoom, hover probe or compact channel selection, and an `Open full viewer` button.
+The embed supports pan, zoom, hover probe or compact channel selection, panorama auto-rotation, and an `Open full viewer` button.
 
 ### JavaScript API
 
@@ -250,9 +252,11 @@ Controller methods:
 
 | Method | Description |
 | --- | --- |
-| `loadUrl(src, options)` | Load an EXR URL; options include `name`, `view`, and `sourceOrigin`. |
-| `loadFile(file, options)` | Load a browser `File` from user-selected or dropped files. |
+| `loadUrl(src, options)` | Load an EXR URL; options include `name`, `view`, `sourceOrigin`, `panoramaAutoRotate`, and `panoramaRotationSpeed`. |
+| `loadFile(file, options)` | Load a browser `File`; options include `name`, `view`, `panoramaAutoRotate`, and `panoramaRotationSpeed`. |
 | `setView(view)` | Switch to `image`, `panorama`, or `depth`. |
+| `setPanoramaAutoRotate(enabled)` | Enable or disable panorama auto-rotation without replacing the iframe. |
+| `setPanoramaRotationSpeed(speedDegPerSecond)` | Set signed panorama rotation speed in degrees per second without replacing the iframe. |
 | `destroy()` | Remove the embedded viewer. |
 
 ### Source loading and CORS

@@ -9,7 +9,13 @@ import {
   createEmbedViewerStateSnapshot,
   type EmbedViewerStateSnapshot
 } from '../embed/embed-state';
-import { buildFullViewerUrl, type EmbedBottomPanelMode } from '../embed/embed-params';
+import {
+  DEFAULT_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND,
+  buildFullViewerUrl,
+  parsePanoramaRotationSpeed,
+  type EmbedBottomPanelMode,
+  type EmbedPanoramaAnimationConfig
+} from '../embed/embed-params';
 import {
   createLocalFileHandoffId,
   startLocalFileHandoffSender
@@ -36,6 +42,7 @@ import type { ViewerRuntimeUi } from '../ui/viewer-runtime-ui';
 export interface BootstrapAppOptions {
   mode?: 'full' | 'embed';
   embedBottomPanel?: EmbedBottomPanelMode;
+  embedPanoramaAnimation?: EmbedPanoramaAnimationConfig;
 }
 
 export interface AppHandle {
@@ -44,6 +51,7 @@ export interface AppHandle {
   loadFile(file: File, options?: { name?: string; state?: EmbedViewerStateSnapshot | null }): Promise<void>;
   applyState(state: EmbedViewerStateSnapshot | null | undefined): void;
   setError(message: string | null): void;
+  setEmbedPanoramaAnimationConfig(config: EmbedPanoramaAnimationConfig): void;
   deferInitialLoad(load: () => void | Promise<void>): void;
   openFullViewer(): void;
   dispose(): void;
@@ -61,6 +69,7 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
 
   let services: BootstrapServices | null = null;
   let interaction: ViewerInteraction | null = null;
+  let embedPanoramaAnimationConfig = normalizeEmbedPanoramaAnimationConfig(options.embedPanoramaAnimation);
   let resizeObserver: ResizeObserver | null = null;
   let cleanupE2EHooks: () => void = () => {};
   const unsubscribers: Array<() => void> = [];
@@ -171,6 +180,10 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
     },
     setError: (message) => {
       core.dispatch({ type: 'errorSet', message });
+    },
+    setEmbedPanoramaAnimationConfig: (config) => {
+      embedPanoramaAnimationConfig = normalizeEmbedPanoramaAnimationConfig(config);
+      interaction?.setPanoramaAutoRotateConfig(embedPanoramaAnimationConfig);
     },
     deferInitialLoad: (load) => {
       if (!ui.setDeferredLoad) {
@@ -302,6 +315,16 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
       ui,
       interactionCoordinator: services.interactionCoordinator
     });
+    interaction.setPanoramaAutoRotateConfig(embedPanoramaAnimationConfig);
+    unsubscribers.push(core.subscribeState((transition) => {
+      if (disposed) {
+        return;
+      }
+      if (transition.intent.type === 'viewerStateEdited') {
+        interaction?.pausePanoramaAutoRotateForUserInput();
+      }
+      interaction?.refreshPanoramaAutoRotate();
+    }));
     resizeObserver = initializeViewportLifecycle({
       core,
       ui,
@@ -323,6 +346,17 @@ export async function bootstrapApp(options: BootstrapAppOptions = {}): Promise<A
   }
 
   return app;
+}
+
+function normalizeEmbedPanoramaAnimationConfig(
+  config: EmbedPanoramaAnimationConfig | null | undefined
+): EmbedPanoramaAnimationConfig {
+  return {
+    autoRotate: config?.autoRotate === true,
+    rotationSpeedDegPerSecond: parsePanoramaRotationSpeed(
+      config?.rotationSpeedDegPerSecond ?? DEFAULT_PANORAMA_ROTATION_SPEED_DEG_PER_SECOND
+    )
+  };
 }
 
 async function configureDesktopChrome(host: ViewerHost, options: DesktopChromeSetupOptions): Promise<void> {

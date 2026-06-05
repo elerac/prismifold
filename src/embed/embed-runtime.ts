@@ -5,6 +5,7 @@ import {
   EMBED_READY_MESSAGE,
   LOCAL_HANDOFF_READY_MESSAGE,
   deleteExpiredLocalFileHandoffs,
+  isEmbedConfigMessage,
   isEmbedLoadErrorMessage,
   isEmbedLoadFileMessage,
   isLocalFileHandoffFileMessage,
@@ -28,6 +29,13 @@ export function registerEmbedMessageBridge(app: AppHandle): () => void {
     }
     if (isEmbedLoadErrorMessage(event.data)) {
       app.setError(event.data.message);
+      return;
+    }
+    if (isEmbedConfigMessage(event.data)) {
+      app.setEmbedPanoramaAnimationConfig({
+        autoRotate: event.data.panoramaAutoRotate,
+        rotationSpeedDegPerSecond: event.data.panoramaRotationSpeed
+      });
     }
   };
 

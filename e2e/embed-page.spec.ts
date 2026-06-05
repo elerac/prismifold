@@ -112,6 +112,8 @@ test('serves the embed guide with live examples and reference content @smoke', a
   await expect(panoramaCode).toContainText(`src="${POLYHAVEN_BROWN_PHOTOSTUDIO_URL}"`);
   await expect(panoramaCode).toContainText(`name="${POLYHAVEN_BROWN_PHOTOSTUDIO_NAME}"`);
   await expect(panoramaCode).toContainText('view="panorama"');
+  await expect(panoramaCode).toContainText('panorama-auto-rotate="true"');
+  await expect(panoramaCode).toContainText('panorama-rotation-speed="6"');
   await expect(panoramaCode).toContainText('bottom-panel="none"');
   await expect(panoramaCode).toContainText('source-origin="viewer"');
 
@@ -149,6 +151,8 @@ test('serves the embed guide with live examples and reference content @smoke', a
   const panoramaUrl = await expectEmbedIframeUiMode(page, 'Panorama view');
   expect(panoramaUrl.searchParams.get('src')).toBe(POLYHAVEN_BROWN_PHOTOSTUDIO_URL);
   expect(panoramaUrl.searchParams.get('view')).toBe('panorama');
+  expect(panoramaUrl.searchParams.get('panoramaAutoRotate')).toBe('true');
+  expect(panoramaUrl.searchParams.get('panoramaRotationSpeed')).toBe('6');
   expect(panoramaUrl.searchParams.get('bottomPanel')).toBe('none');
   expect(panoramaUrl.searchParams.get('name')).toBe(POLYHAVEN_BROWN_PHOTOSTUDIO_NAME);
   const threeDUrl = await expectEmbedIframeUiMode(page, '3D view');

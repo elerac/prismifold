@@ -1,9 +1,9 @@
 import type { EmbedViewerStateSnapshot } from './embed-state';
-
 export const EMBED_READY_MESSAGE = 'prismifold:embed-ready';
 export const EMBED_LOAD_FILE_MESSAGE = 'prismifold:load-file';
 export const EMBED_DEFERRED_LOAD_MESSAGE = 'prismifold:deferred-load';
 export const EMBED_LOAD_ERROR_MESSAGE = 'prismifold:load-error';
+export const EMBED_CONFIG_MESSAGE = 'prismifold:embed-config';
 export const LOCAL_HANDOFF_READY_MESSAGE = 'prismifold:local-handoff-ready';
 export const LOCAL_HANDOFF_FILE_MESSAGE = 'prismifold:local-handoff-file';
 
@@ -30,6 +30,12 @@ export interface EmbedDeferredLoadMessage {
 export interface EmbedLoadErrorMessage {
   type: typeof EMBED_LOAD_ERROR_MESSAGE;
   message: string;
+}
+
+export interface EmbedConfigMessage {
+  type: typeof EMBED_CONFIG_MESSAGE;
+  panoramaAutoRotate: boolean;
+  panoramaRotationSpeed: number;
 }
 
 export interface LocalFileHandoffReadyMessage {
@@ -86,6 +92,17 @@ export function isEmbedLoadErrorMessage(value: unknown): value is EmbedLoadError
   }
   const record = value as Record<string, unknown>;
   return record.type === EMBED_LOAD_ERROR_MESSAGE && typeof record.message === 'string';
+}
+
+export function isEmbedConfigMessage(value: unknown): value is EmbedConfigMessage {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return record.type === EMBED_CONFIG_MESSAGE &&
+    typeof record.panoramaAutoRotate === 'boolean' &&
+    typeof record.panoramaRotationSpeed === 'number' &&
+    Number.isFinite(record.panoramaRotationSpeed);
 }
 
 export function isLocalFileHandoffReadyMessage(value: unknown): value is LocalFileHandoffReadyMessage {

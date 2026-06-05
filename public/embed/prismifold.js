@@ -3,9 +3,13 @@
   const EMBED_LOAD_FILE_MESSAGE = 'prismifold:load-file';
   const EMBED_DEFERRED_LOAD_MESSAGE = 'prismifold:deferred-load';
   const EMBED_LOAD_ERROR_MESSAGE = 'prismifold:load-error';
+  const EMBED_CONFIG_MESSAGE = 'prismifold:embed-config';
   const SOURCE_ORIGIN_AUTO = 'auto';
   const SOURCE_ORIGIN_PARENT = 'parent';
   const SOURCE_ORIGIN_VIEWER = 'viewer';
+  const DEFAULT_PANORAMA_ROTATION_SPEED = 6;
+  const MIN_PANORAMA_ROTATION_SPEED = -60;
+  const MAX_PANORAMA_ROTATION_SPEED = 60;
   const observedAttributes = [
     'src',
     'view',
@@ -15,6 +19,8 @@
     'viewer-url',
     'source-origin',
     'bottom-panel',
+    'panorama-auto-rotate',
+    'panorama-rotation-speed',
     'auto-load',
     'autoload'
   ];
@@ -34,6 +40,7 @@
       this.ready = false;
       this.pendingFileLoads = [];
       this.pendingLoadErrors = [];
+      this.pendingEmbedConfig = null;
       this.defaultViewerBaseUrl = resolveViewerBaseUrl(currentScriptUrl);
       this.viewerBaseUrl = this.defaultViewerBaseUrl;
       this.viewerOrigin = new URL(this.viewerBaseUrl).origin;
@@ -55,8 +62,12 @@
       this.sourceLoadId += 1;
     }
 
-    attributeChangedCallback() {
+    attributeChangedCallback(name) {
       if (this.isConnected && !this.updatingAttributes) {
+        if (isPanoramaAnimationAttribute(name)) {
+          this.queueEmbedConfig();
+          return;
+        }
         this.render();
         void this.loadAttributeSource();
       }
@@ -75,6 +86,12 @@
         src: sourceUrl,
         name: hasOwn(options, 'name') ? options.name : undefined,
         view: hasOwn(options, 'view') ? options.view : undefined,
+        'panorama-auto-rotate': hasOwn(options, 'panoramaAutoRotate')
+          ? serializeFalseDefaultBoolean(options.panoramaAutoRotate)
+          : undefined,
+        'panorama-rotation-speed': hasOwn(options, 'panoramaRotationSpeed')
+          ? serializePanoramaRotationSpeed(options.panoramaRotationSpeed)
+          : undefined,
         'source-origin': hasOwn(options, 'sourceOrigin') ? nextSourceOrigin : undefined,
         'auto-load': 'true'
       });
@@ -95,6 +112,18 @@
       if (!(file instanceof File)) {
         return Promise.reject(new TypeError('prismifold-viewer.loadFile(file) expects a File.'));
       }
+      const hasPanoramaAnimationOptions = hasOwn(options, 'panoramaAutoRotate') || hasOwn(options, 'panoramaRotationSpeed');
+      this.updateAttributes({
+        'panorama-auto-rotate': hasOwn(options, 'panoramaAutoRotate')
+          ? serializeFalseDefaultBoolean(options.panoramaAutoRotate)
+          : undefined,
+        'panorama-rotation-speed': hasOwn(options, 'panoramaRotationSpeed')
+          ? serializePanoramaRotationSpeed(options.panoramaRotationSpeed)
+          : undefined
+      }, { render: false });
+      if (hasPanoramaAnimationOptions) {
+        this.queueEmbedConfig();
+      }
       this.deferredFileLoad = null;
       this.sourceLoadId += 1;
       return this.enqueueFileLoad(file, {
@@ -109,6 +138,20 @@
       this.updateAttributes({
         view: normalizeNonEmpty(view)
       });
+    }
+
+    setPanoramaAutoRotate(enabled) {
+      this.updateAttributes({
+        'panorama-auto-rotate': serializeFalseDefaultBoolean(enabled)
+      }, { render: false });
+      this.queueEmbedConfig();
+    }
+
+    setPanoramaRotationSpeed(speedDegPerSecond) {
+      this.updateAttributes({
+        'panorama-rotation-speed': serializePanoramaRotationSpeed(speedDegPerSecond)
+      }, { render: false });
+      this.queueEmbedConfig();
     }
 
     render() {
@@ -151,6 +194,8 @@
       const name = normalizeNonEmpty(this.getAttribute('name'));
       const autoLoad = this.getAutoLoad();
       const bottomPanel = normalizeEmbedBottomPanel(this.getAttribute('bottom-panel'));
+      const panoramaAutoRotate = this.getPanoramaAutoRotate();
+      const panoramaRotationSpeed = this.getPanoramaRotationSpeed();
       const srcUsesParentFetch = src && shouldParentFetchSource(src, this.getSourceOrigin());
 
       url.searchParams.set('ui', 'embed');
@@ -169,6 +214,12 @@
       if (bottomPanel !== 'probe') {
         url.searchParams.set('bottomPanel', bottomPanel);
       }
+      if (panoramaAutoRotate) {
+        url.searchParams.set('panoramaAutoRotate', 'true');
+      }
+      if (panoramaAutoRotate || this.hasAttribute('panorama-rotation-speed')) {
+        url.searchParams.set('panoramaRotationSpeed', String(panoramaRotationSpeed));
+      }
       return url.toString();
     }
 
@@ -181,6 +232,7 @@
       }
       if (event.data?.type === EMBED_READY_MESSAGE) {
         this.ready = true;
+        this.postPendingEmbedConfig();
         this.postPendingFiles();
         this.postPendingLoadErrors();
         return;
@@ -209,11 +261,26 @@
       return parseAutoLoad(this.getAttribute('autoload'));
     }
 
+    getPanoramaAutoRotate() {
+      return parseFalseDefaultBoolean(this.getAttribute('panorama-auto-rotate'));
+    }
+
+    getPanoramaRotationSpeed() {
+      return normalizePanoramaRotationSpeed(this.getAttribute('panorama-rotation-speed'));
+    }
+
     createAttributeViewerState() {
       return createViewerModeState(this.getAttribute('view'));
     }
 
-    updateAttributes(attributes) {
+    createEmbedConfig() {
+      return {
+        panoramaAutoRotate: this.getPanoramaAutoRotate(),
+        panoramaRotationSpeed: this.getPanoramaRotationSpeed()
+      };
+    }
+
+    updateAttributes(attributes, options = {}) {
       this.updatingAttributes = true;
       try {
         for (const [key, value] of Object.entries(attributes)) {
@@ -231,7 +298,7 @@
         this.updatingAttributes = false;
       }
 
-      if (this.isConnected) {
+      if (this.isConnected && options.render !== false) {
         this.render();
       }
     }
@@ -317,6 +384,9 @@
           ? createViewerModeState(options.view)
           : this.createAttributeViewerState()
       };
+      if (this.hasAttribute('panorama-auto-rotate') || this.hasAttribute('panorama-rotation-speed')) {
+        this.queueEmbedConfig();
+      }
     }
 
     enqueueFileLoad(file, options = {}) {
@@ -371,6 +441,23 @@
         }, this.viewerTargetOrigin);
       }
     }
+
+    queueEmbedConfig() {
+      this.pendingEmbedConfig = this.createEmbedConfig();
+      this.postPendingEmbedConfig();
+    }
+
+    postPendingEmbedConfig() {
+      if (!this.ready || !this.iframe?.contentWindow || !this.pendingEmbedConfig) {
+        return;
+      }
+
+      this.iframe.contentWindow.postMessage({
+        type: EMBED_CONFIG_MESSAGE,
+        ...this.pendingEmbedConfig
+      }, this.viewerTargetOrigin);
+      this.pendingEmbedConfig = null;
+    }
   }
 
   function createPrismifoldViewer(target, options = {}) {
@@ -401,20 +488,35 @@
         element.setView(view);
         return controller;
       },
+      setPanoramaAutoRotate: (enabled) => {
+        element.setPanoramaAutoRotate(enabled);
+        return controller;
+      },
+      setPanoramaRotationSpeed: (speedDegPerSecond) => {
+        element.setPanoramaRotationSpeed(speedDegPerSecond);
+        return controller;
+      },
       destroy: () => {
         element.remove();
       }
     };
 
     if (autoLoad && options.file) {
-      void controller.loadFile(options.file, { name: options.name, view: options.view }).catch((error) => {
+      void controller.loadFile(options.file, {
+        name: options.name,
+        view: options.view,
+        panoramaAutoRotate: options.panoramaAutoRotate,
+        panoramaRotationSpeed: options.panoramaRotationSpeed
+      }).catch((error) => {
         logEmbedError('Failed to load the provided Prismifold file.', error);
       });
     } else if (autoLoad && options.src) {
       void controller.loadUrl(options.src, {
         name: options.name,
         view: options.view,
-        sourceOrigin: options.sourceOrigin
+        sourceOrigin: options.sourceOrigin,
+        panoramaAutoRotate: options.panoramaAutoRotate,
+        panoramaRotationSpeed: options.panoramaRotationSpeed
       }).catch((error) => {
         logEmbedError(`Failed to load ${options.src}.`, error);
       });
@@ -432,6 +534,12 @@
       'viewer-url': options.viewerUrl,
       'source-origin': options.sourceOrigin,
       'bottom-panel': hasOwn(options, 'bottomPanel') ? normalizeEmbedBottomPanel(options.bottomPanel) : undefined,
+      'panorama-auto-rotate': hasOwn(options, 'panoramaAutoRotate')
+        ? serializeFalseDefaultBoolean(options.panoramaAutoRotate)
+        : undefined,
+      'panorama-rotation-speed': hasOwn(options, 'panoramaRotationSpeed')
+        ? serializePanoramaRotationSpeed(options.panoramaRotationSpeed)
+        : undefined,
       'auto-load': hasOwn(options, 'autoLoad') ? serializeAutoLoad(options.autoLoad) : undefined
     };
 
@@ -531,6 +639,41 @@
     return !(lower === 'false' || lower === '0' || lower === 'no' || lower === 'off');
   }
 
+  function serializeFalseDefaultBoolean(value) {
+    return parseFalseDefaultBoolean(value) ? 'true' : 'false';
+  }
+
+  function parseFalseDefaultBoolean(value) {
+    if (value === true || value === 1) {
+      return true;
+    }
+    if (value === false || value === 0 || value === null || value === undefined) {
+      return false;
+    }
+    const normalized = normalizeNonEmpty(value);
+    if (normalized === null) {
+      return true;
+    }
+
+    const lower = normalized.toLowerCase();
+    return !(lower === 'false' || lower === '0' || lower === 'no' || lower === 'off');
+  }
+
+  function serializePanoramaRotationSpeed(value) {
+    return String(normalizePanoramaRotationSpeed(value));
+  }
+
+  function normalizePanoramaRotationSpeed(value) {
+    if (value === null || value === undefined) {
+      return DEFAULT_PANORAMA_ROTATION_SPEED;
+    }
+    const parsed = typeof value === 'number' ? value : Number(String(value).trim());
+    if (!Number.isFinite(parsed)) {
+      return DEFAULT_PANORAMA_ROTATION_SPEED;
+    }
+    return Math.min(MAX_PANORAMA_ROTATION_SPEED, Math.max(MIN_PANORAMA_ROTATION_SPEED, parsed));
+  }
+
   function normalizePostMessageTargetOrigin(origin) {
     return origin === 'null' ? '*' : origin;
   }
@@ -566,6 +709,10 @@
 
   function hasOwn(value, key) {
     return Object.prototype.hasOwnProperty.call(value, key);
+  }
+
+  function isPanoramaAnimationAttribute(name) {
+    return name === 'panorama-auto-rotate' || name === 'panorama-rotation-speed';
   }
 
   function logEmbedError(message, error) {

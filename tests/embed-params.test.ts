@@ -30,6 +30,10 @@ describe('embed params', () => {
       view: 'image',
       autoLoad: true,
       bottomPanel: 'probe',
+      panoramaAnimation: {
+        autoRotate: false,
+        rotationSpeedDegPerSecond: 6
+      },
       handoffId: 'local-1',
       state
     });
@@ -121,5 +125,48 @@ describe('embed params', () => {
       search: '?bottomPanel=unexpected',
       hash: ''
     }).bottomPanel).toBe('probe');
+  });
+
+  it('parses panorama auto-rotation as false by default and for false-ish values', () => {
+    expect(parseViewerBootstrapParams({ search: '', hash: '' }).panoramaAnimation).toEqual({
+      autoRotate: false,
+      rotationSpeedDegPerSecond: 6
+    });
+
+    for (const value of ['false', '0', 'no', 'off']) {
+      expect(parseViewerBootstrapParams({
+        search: `?panoramaAutoRotate=${encodeURIComponent(value)}`,
+        hash: ''
+      }).panoramaAnimation.autoRotate).toBe(false);
+    }
+  });
+
+  it('parses panorama auto-rotation true-ish values and signed clamped speeds', () => {
+    for (const value of ['', 'true', '1', 'yes', 'on', 'unexpected']) {
+      expect(parseViewerBootstrapParams({
+        search: `?panoramaAutoRotate=${encodeURIComponent(value)}`,
+        hash: ''
+      }).panoramaAnimation.autoRotate).toBe(true);
+    }
+
+    expect(parseViewerBootstrapParams({
+      search: '?panoramaAutoRotate=true&panoramaRotationSpeed=12.5',
+      hash: ''
+    }).panoramaAnimation).toEqual({
+      autoRotate: true,
+      rotationSpeedDegPerSecond: 12.5
+    });
+    expect(parseViewerBootstrapParams({
+      search: '?panoramaRotationSpeed=100',
+      hash: ''
+    }).panoramaAnimation.rotationSpeedDegPerSecond).toBe(60);
+    expect(parseViewerBootstrapParams({
+      search: '?panoramaRotationSpeed=-100',
+      hash: ''
+    }).panoramaAnimation.rotationSpeedDegPerSecond).toBe(-60);
+    expect(parseViewerBootstrapParams({
+      search: '?panoramaRotationSpeed=not-a-number',
+      hash: ''
+    }).panoramaAnimation.rotationSpeedDegPerSecond).toBe(6);
   });
 });

@@ -115,6 +115,43 @@ test('shows compact channel selection in the embed bottom panel', async ({ page 
   await expect(page.locator('.embed-channel-panel [role="option"]').first()).toBeVisible();
 });
 
+test('auto-rotates panorama embeds and ramps resume after user interaction', async ({ page }) => {
+  const rotationSpeedDegPerSecond = 30;
+  await page.setViewportSize({ width: 640, height: 360 });
+  await gotoEmbed(
+    page,
+    `/app/?ui=embed&src=%2Fcbox_rgb.exr&view=panorama&panoramaAutoRotate=true&panoramaRotationSpeed=${rotationSpeedDegPerSecond}`
+  );
+
+  const initialYaw = await readEmbedPanoramaYaw(page);
+  await expect.poll(async () => {
+    return Math.abs(normalizeYawDelta((await readEmbedPanoramaYaw(page)) - initialYaw));
+  }, { timeout: 5000 }).toBeGreaterThan(1);
+
+  const viewer = page.locator('#viewer-container');
+  const box = await viewer.boundingBox();
+  if (!box) {
+    throw new Error('Embed viewer was not visible.');
+  }
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 120);
+
+  const resumeStartYaw = await readEmbedPanoramaYaw(page);
+  const resumeStartTime = await page.evaluate(() => performance.now());
+  await page.waitForTimeout(450);
+  const earlyResumeYaw = await readEmbedPanoramaYaw(page);
+  const earlyResumeTime = await page.evaluate(() => performance.now());
+  const earlyResumeDelta = Math.abs(normalizeYawDelta(earlyResumeYaw - resumeStartYaw));
+  const fullSpeedDelta = rotationSpeedDegPerSecond * ((earlyResumeTime - resumeStartTime) / 1000);
+
+  expect(earlyResumeDelta).toBeGreaterThan(0.1);
+  expect(earlyResumeDelta).toBeLessThan(fullSpeedDelta * 0.75);
+
+  await expect.poll(async () => {
+    return Math.abs(normalizeYawDelta((await readEmbedPanoramaYaw(page)) - resumeStartYaw));
+  }, { timeout: 2000 }).toBeGreaterThan(1);
+});
+
 async function gotoEmbed(page: Page, path: string): Promise<void> {
   await page.goto(path);
   await expect(page.locator('#gl-canvas')).toBeVisible();
@@ -162,4 +199,22 @@ async function expectNoToolbarOverlap(page: Page): Promise<void> {
   expect(layout.sourceLeft).toBeGreaterThanOrEqual(EMBED_RIGHT_INSET_PX - 1);
   expect(layout.sourceRight).toBeLessThanOrEqual(layout.buttonLeft - EMBED_RIGHT_INSET_PX + 1);
   expect(layout.buttonRight).toBeLessThanOrEqual(layout.viewportRight - EMBED_RIGHT_INSET_PX + 1);
+}
+
+async function readEmbedPanoramaYaw(page: Page): Promise<number> {
+  return await page.evaluate(() => {
+    const hooks = (window as unknown as {
+      __openExrViewerE2E?: {
+        snapshot(): { panoramaYawDeg: number };
+      };
+    }).__openExrViewerE2E;
+    if (!hooks) {
+      throw new Error('Prismifold E2E hooks are not available.');
+    }
+    return hooks.snapshot().panoramaYawDeg;
+  });
+}
+
+function normalizeYawDelta(deltaDeg: number): number {
+  return ((deltaDeg + 180) % 360 + 360) % 360 - 180;
 }
