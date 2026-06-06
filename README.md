@@ -7,7 +7,6 @@ Prismifold is a multichannel image viewer for computational imaging, rendering, 
 ## Features
 
 - OpenEXR decode via a browser-safe `exrs` WASM adapter with full layer/channel extraction.
-- Gallery samples: local `Gallery > cbox_rgb.exr` and `Gallery > Middlebury Stereo > middlebury_chess1_rgb_p.exr`, plus remote `Gallery > Beachball > multipart.0001.exr`, Poly Haven HDRIs under `Gallery > Poly Haven`, KAIST hyperspectral samples under `Gallery > KAIST Hyperspectral`, and Polanalyser Stokes samples under `Gallery > Polanalyser`; remote samples require network access.
 - Local EXR load via `File > Open...` or drag/drop (drag-and-drop supports multiple files and recursive folder drops in one action).
 - Recursive folder EXR load via `File > Open Folder...`; all `.exr` files under the selected folder are appended as sessions.
 - `File > Export...` exports the full active display to PNG at display image size with configurable PNG compression and current channel/stokes, exposure/gamma, colormap, and alpha settings applied.
