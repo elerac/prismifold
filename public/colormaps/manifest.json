@@ -1,7 +1,7 @@
 {
   "colormaps": [
     {
-      "label": "Viridis",
+      "label": "viridis",
       "file": "viridis.npy"
     },
     {

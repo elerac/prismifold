@@ -12,7 +12,7 @@ def main():
     _ = pa
 
     colormap_defs = [
-        {"name": "viridis", "label": "Viridis", "file": "viridis.npy"},
+        {"name": "viridis", "label": "viridis", "file": "viridis.npy"},
         {"name": "plasma", "label": "plasma", "file": "plasma.npy"},
         {"name": "inferno", "label": "inferno", "file": "inferno.npy"},
         {"name": "magma", "label": "magma", "file": "magma.npy"},
