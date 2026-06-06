@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "plenoview-exr-thumbnail"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "exr",
  "windows",

@@ -3,7 +3,7 @@
   "displayName": "Plenoview",
   "description": "OpenEXR viewer for computational imaging, rendering, and vision workflows.",
   "icon": "icon.png",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "elerac",
   "license": "MIT",
   "homepage": "https://elerac.github.io/plenoview/app/",

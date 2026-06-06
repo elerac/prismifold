@@ -1,6 +1,6 @@
 [package]
 name = "plenoview-exr-thumbnail"
-version = "0.1.0"
+version = "0.2.0"
 description = "Windows Explorer thumbnail provider for Plenoview OpenEXR files"
 authors = ["Ryota Maeda"]
 license = "MIT"
