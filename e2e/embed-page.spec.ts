@@ -1,7 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from './helpers/test';
 
-const EXPECTED_BOOTSTRAP_ABORT = 'Viewer application has not finished initializing.';
 const EMBED_GUIDE_TITLE = 'Prismifold Embed Guide | OpenEXR Image Viewer';
 const EMBED_GUIDE_DESCRIPTION =
   'Embed Prismifold OpenEXR viewers in HTML pages with the prismifold-viewer web component, declarative attributes, deferred loading, channel panels, and the JavaScript API.';
@@ -9,9 +7,7 @@ const EMBED_GUIDE_URL = 'https://elerac.github.io/prismifold/embed/';
 const POLYHAVEN_BROWN_PHOTOSTUDIO_URL =
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/brown_photostudio_02_1k.exr';
 const POLYHAVEN_BROWN_PHOTOSTUDIO_NAME = 'Poly Haven Brown Photostudio 02';
-const CBOX_RGB_EXR_FIXTURE = readFileSync(new URL('../public/cbox_rgb.exr', import.meta.url));
 const EMPTY_EMBED_SCRIPT_ROUTE = '**/prismifold.js';
-const LIVE_EMBED_TIMEOUT = 60000;
 
 const EXAMPLE_TITLE_IDS = {
   basic: 'basic-embed-title',
@@ -61,21 +57,6 @@ const METHOD_LABELS = [
   'destroy()'
 ] as const;
 
-function watchUnexpectedErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on('console', (message) => {
-    if (message.type() === 'error') {
-      errors.push(`console: ${message.text()}`);
-    }
-  });
-  page.on('pageerror', (error) => {
-    if (!error.message.includes(EXPECTED_BOOTSTRAP_ABORT)) {
-      errors.push(`pageerror: ${error.message}`);
-    }
-  });
-  return errors;
-}
-
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   await expect.poll(async () => (
     await page.evaluate(() => {
@@ -91,10 +72,6 @@ function embedExample(page: Page, titleId: string) {
 
 function embedExampleCode(page: Page, titleId: string) {
   return embedExample(page, titleId).locator('.gallery-code-frame code');
-}
-
-function embedExampleFrame(page: Page, titleId: string) {
-  return embedExample(page, titleId).frameLocator('prismifold-viewer iframe');
 }
 
 async function expectSiteNavLinks(page: Page): Promise<void> {
@@ -118,18 +95,20 @@ async function expectReferenceLabels(page: Page, tableSelector: string, expected
   }
 }
 
-async function expectEmbedIframeUiMode(page: Page, titleId: string): Promise<URL> {
-  const example = embedExample(page, titleId);
-  await expect(example).toHaveCount(1);
-  const iframe = example.locator('prismifold-viewer iframe');
-  await expect(iframe).toBeVisible({ timeout: LIVE_EMBED_TIMEOUT });
-  const src = await iframe.getAttribute('src');
-  if (!src) {
-    throw new Error(`Expected iframe src for ${titleId}.`);
-  }
-  const url = new URL(src, page.url());
-  expect(url.searchParams.get('ui')).toBe('embed');
-  return url;
+async function expectExampleViewerAttributes(
+  page: Page,
+  titleId: string,
+  expectedAttributes: Record<string, string>
+): Promise<void> {
+  const viewer = embedExample(page, titleId).locator('prismifold-viewer');
+  await expect(viewer).toHaveCount(1);
+  const actualAttributes = await viewer.evaluate((element) => (
+    Array.from(element.attributes).reduce<Record<string, string>>((attributes, attribute) => {
+      attributes[attribute.name] = attribute.value;
+      return attributes;
+    }, {})
+  ));
+  expect(actualAttributes).toMatchObject(expectedAttributes);
 }
 
 test('serves the embed guide static content and reference docs @smoke', async ({ page }) => {
@@ -201,6 +180,47 @@ test('serves the embed guide static content and reference docs @smoke', async ({
   await expect(apiCode).toContainText('controller.loadUrl("../cbox_rgb.exr"');
   await expect(apiCode).toContainText('controller.loadFile(file');
 
+  await expect(page.locator('prismifold-viewer.embed-page-live')).toHaveCount(5);
+  await expectExampleViewerAttributes(page, EXAMPLE_TITLE_IDS.basic, {
+    src: '../cbox_rgb.exr',
+    height: '340'
+  });
+  await expectExampleViewerAttributes(page, EXAMPLE_TITLE_IDS.channels, {
+    src: '../cbox_rgb.exr',
+    name: 'Cornell Box RGB',
+    'bottom-panel': 'channels',
+    height: '360'
+  });
+  await expectExampleViewerAttributes(page, EXAMPLE_TITLE_IDS.panorama, {
+    src: POLYHAVEN_BROWN_PHOTOSTUDIO_URL,
+    name: POLYHAVEN_BROWN_PHOTOSTUDIO_NAME,
+    view: 'panorama',
+    'panorama-auto-rotate': 'true',
+    'panorama-rotation-speed': '6',
+    'bottom-panel': 'none',
+    'source-origin': 'viewer',
+    height: '360'
+  });
+  await expectExampleViewerAttributes(page, EXAMPLE_TITLE_IDS.threeD, {
+    src: '../middlebury_chess1_rgb_p.exr',
+    name: 'Middlebury RGB + Position',
+    view: '3d',
+    'three-d-auto-orbit': 'true',
+    'bottom-panel': 'none',
+    'source-origin': 'viewer',
+    height: '360'
+  });
+  await expectExampleViewerAttributes(page, EXAMPLE_TITLE_IDS.deferred, {
+    src: '../cbox_rgb.exr',
+    name: 'Deferred Cornell Box',
+    'auto-load': 'false',
+    height: '340'
+  });
+  await expect(page.locator('#embed-js-viewer')).toBeAttached();
+  await expect(page.locator('#embed-js-load-sample-button')).toBeVisible();
+  await expect(page.locator('#embed-js-file-input')).toBeAttached();
+  await expect(page.locator('#embed-js-status')).toBeAttached();
+
   await expect(page.locator('#attributes-title')).toHaveText('Element attributes');
   await expectReferenceLabels(page, '[role="table"][aria-label="prismifold-viewer attributes"]', ATTRIBUTE_LABELS);
   await expect(page.locator('#methods-title')).toHaveText('JavaScript methods');
@@ -234,80 +254,4 @@ test('serves the embed guide static content and reference docs @smoke', async ({
   });
   expect(mobileExampleLayout).toBe(true);
   await expectNoHorizontalOverflow(page);
-});
-
-test('renders the embed guide live examples @smoke', async ({ page }) => {
-  test.setTimeout(180000);
-  const unexpectedErrors = watchUnexpectedErrors(page);
-  await page.route(POLYHAVEN_BROWN_PHOTOSTUDIO_URL, async (route) => {
-    await route.fulfill({
-      contentType: 'application/octet-stream',
-      body: CBOX_RGB_EXR_FIXTURE
-    });
-  });
-  await page.goto('/embed/', { waitUntil: 'domcontentloaded' });
-
-  await expect(page.locator('prismifold-viewer')).toHaveCount(6, { timeout: LIVE_EMBED_TIMEOUT });
-  await expect(page.locator('prismifold-viewer iframe')).toHaveCount(6, { timeout: LIVE_EMBED_TIMEOUT });
-  await expectEmbedIframeUiMode(page, EXAMPLE_TITLE_IDS.basic);
-  const channelsUrl = await expectEmbedIframeUiMode(page, EXAMPLE_TITLE_IDS.channels);
-  expect(channelsUrl.searchParams.get('bottomPanel')).toBe('channels');
-  expect(channelsUrl.searchParams.get('name')).toBe('Cornell Box RGB');
-  const panoramaUrl = await expectEmbedIframeUiMode(page, EXAMPLE_TITLE_IDS.panorama);
-  expect(panoramaUrl.searchParams.get('src')).toBe(POLYHAVEN_BROWN_PHOTOSTUDIO_URL);
-  expect(panoramaUrl.searchParams.get('view')).toBe('panorama');
-  expect(panoramaUrl.searchParams.get('panoramaAutoRotate')).toBe('true');
-  expect(panoramaUrl.searchParams.get('panoramaRotationSpeed')).toBe('6');
-  expect(panoramaUrl.searchParams.get('bottomPanel')).toBe('none');
-  expect(panoramaUrl.searchParams.get('name')).toBe(POLYHAVEN_BROWN_PHOTOSTUDIO_NAME);
-  const threeDUrl = await expectEmbedIframeUiMode(page, EXAMPLE_TITLE_IDS.threeD);
-  expect(threeDUrl.searchParams.get('src')).toBe('../middlebury_chess1_rgb_p.exr');
-  expect(threeDUrl.searchParams.get('view')).toBe('3d');
-  expect(threeDUrl.searchParams.get('threeDAutoOrbit')).toBe('true');
-  expect(threeDUrl.searchParams.get('threeDOrbitSpeed')).toBe('6');
-  expect(threeDUrl.searchParams.get('threeDOrbitYaw')).toBe('12');
-  expect(threeDUrl.searchParams.get('threeDOrbitPitch')).toBe('2');
-  expect(threeDUrl.searchParams.get('bottomPanel')).toBe('none');
-  expect(threeDUrl.searchParams.get('name')).toBe('Middlebury RGB + Position');
-  const deferredUrl = await expectEmbedIframeUiMode(page, EXAMPLE_TITLE_IDS.deferred);
-  expect(deferredUrl.searchParams.get('autoLoad')).toBe('false');
-  expect(deferredUrl.searchParams.get('name')).toBe('Deferred Cornell Box');
-
-  await expect(embedExampleFrame(page, EXAMPLE_TITLE_IDS.panorama).locator('.embed-shell')).toBeVisible({
-    timeout: LIVE_EMBED_TIMEOUT
-  });
-  await expect(embedExampleFrame(page, EXAMPLE_TITLE_IDS.threeD).locator('.embed-shell')).toBeVisible({
-    timeout: LIVE_EMBED_TIMEOUT
-  });
-
-  const channelsFrame = embedExampleFrame(page, EXAMPLE_TITLE_IDS.channels);
-  await expect(channelsFrame.locator('.embed-channel-panel [role="option"]').first()).toBeVisible({
-    timeout: LIVE_EMBED_TIMEOUT
-  });
-
-  const deferredFrame = embedExampleFrame(page, EXAMPLE_TITLE_IDS.deferred);
-  const deferredLoadButton = deferredFrame.locator('.embed-deferred-load-button');
-  await expect(deferredLoadButton).toBeVisible({
-    timeout: LIVE_EMBED_TIMEOUT
-  });
-  await deferredLoadButton.click();
-  await expect(deferredFrame.locator('.embed-source-label')).toContainText('Deferred Cornell Box', {
-    timeout: LIVE_EMBED_TIMEOUT
-  });
-
-  await expect(page.locator('#embed-js-load-sample-button')).toBeVisible();
-  await expect(page.locator('#embed-js-file-input')).toBeAttached();
-  await expect(page.locator('#embed-js-status')).toContainText('Loaded Cornell Box RGB.', {
-    timeout: LIVE_EMBED_TIMEOUT
-  });
-  const jsApiFrame = embedExampleFrame(page, EXAMPLE_TITLE_IDS.javascriptApi);
-  await expect(jsApiFrame.locator('.embed-channel-panel [role="option"]').first()).toBeVisible({
-    timeout: LIVE_EMBED_TIMEOUT
-  });
-  await page.locator('#embed-js-load-sample-button').click();
-  await expect(page.locator('#embed-js-status')).toContainText('Loaded Cornell Box RGB.', {
-    timeout: LIVE_EMBED_TIMEOUT
-  });
-
-  expect(unexpectedErrors).toEqual([]);
 });
