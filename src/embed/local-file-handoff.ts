@@ -1,13 +1,13 @@
 import type { EmbedViewerStateSnapshot } from './embed-state';
-export const EMBED_READY_MESSAGE = 'prismifold:embed-ready';
-export const EMBED_LOAD_FILE_MESSAGE = 'prismifold:load-file';
-export const EMBED_DEFERRED_LOAD_MESSAGE = 'prismifold:deferred-load';
-export const EMBED_LOAD_ERROR_MESSAGE = 'prismifold:load-error';
-export const EMBED_CONFIG_MESSAGE = 'prismifold:embed-config';
-export const LOCAL_HANDOFF_READY_MESSAGE = 'prismifold:local-handoff-ready';
-export const LOCAL_HANDOFF_FILE_MESSAGE = 'prismifold:local-handoff-file';
+export const EMBED_READY_MESSAGE = 'plenoview:embed-ready';
+export const EMBED_LOAD_FILE_MESSAGE = 'plenoview:load-file';
+export const EMBED_DEFERRED_LOAD_MESSAGE = 'plenoview:deferred-load';
+export const EMBED_LOAD_ERROR_MESSAGE = 'plenoview:load-error';
+export const EMBED_CONFIG_MESSAGE = 'plenoview:embed-config';
+export const LOCAL_HANDOFF_READY_MESSAGE = 'plenoview:local-handoff-ready';
+export const LOCAL_HANDOFF_FILE_MESSAGE = 'plenoview:local-handoff-file';
 
-const DB_NAME = 'prismifold-local-handoffs';
+const DB_NAME = 'plenoview-local-handoffs';
 const STORE_NAME = 'handoffs';
 const DB_VERSION = 1;
 const HANDOFF_TTL_MS = 60 * 60 * 1000;

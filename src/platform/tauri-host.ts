@@ -388,10 +388,10 @@ export const tauriHost: ViewerHost = {
     const onCommandStateChanged = () => {
       refreshNativeMenu();
     };
-    window.addEventListener('prismifold:desktop-command-state-changed', onCommandStateChanged);
+    window.addEventListener('plenoview:desktop-command-state-changed', onCommandStateChanged);
     return {
       dispose: () => {
-        window.removeEventListener('prismifold:desktop-command-state-changed', onCommandStateChanged);
+        window.removeEventListener('plenoview:desktop-command-state-changed', onCommandStateChanged);
         if (nativeMenuCallbacks === callbacks) {
           nativeMenuCallbacks = null;
         }
@@ -440,7 +440,7 @@ function isTauriApiUnavailable(error: Error): boolean {
 }
 
 function notifyRecentFilesChanged(): void {
-  window.dispatchEvent(new Event('prismifold:desktop-recent-files-changed'));
+  window.dispatchEvent(new Event('plenoview:desktop-recent-files-changed'));
   refreshNativeMenu();
 }
 
@@ -605,7 +605,7 @@ function observeNativeMenuState(): MutationObserver | null {
 
 function readNativeMenuState(): NativeMenuState {
   return {
-    appTitle: readText(document.querySelector('.app-menu-title'), 'Prismifold'),
+    appTitle: readText(document.querySelector('.app-menu-title'), 'Plenoview'),
     fileLabel: readButtonText('file-menu-button', 'File'),
     viewLabel: readButtonText('view-menu-button', 'View'),
     windowLabel: readButtonText('window-menu-button', 'Window'),
@@ -811,13 +811,13 @@ function installRustRecentFilesMenu(callbacks: RecentFileCallbacks): Disposable 
     });
   };
 
-  window.addEventListener('prismifold:desktop-recent-files-changed', render);
+  window.addEventListener('plenoview:desktop-recent-files-changed', render);
   clearButton.addEventListener('click', onClear);
   render();
 
   return {
     dispose: () => {
-      window.removeEventListener('prismifold:desktop-recent-files-changed', render);
+      window.removeEventListener('plenoview:desktop-recent-files-changed', render);
       clearButton.removeEventListener('click', onClear);
       section.remove();
     }

@@ -19,7 +19,7 @@ use windows_core::{implement, ComObject, Error, IUnknown, Interface, Result, GUI
 
 use crate::thumbnail::decode_exr_thumbnail;
 
-const CLSID_EXR_THUMBNAIL_PROVIDER: GUID = GUID::from_u128(0x4d64b0f7_4e7e_49e2_8f8c_1db4b1ef6c15);
+const CLSID_EXR_THUMBNAIL_PROVIDER: GUID = GUID::from_u128(0x5a8746cb_b2d1_46c9_ad52_f5df15da71d9);
 const MAX_EXR_STREAM_BYTES: usize = 2 * 1024 * 1024 * 1024;
 
 static OBJECT_COUNT: AtomicU32 = AtomicU32::new(0);

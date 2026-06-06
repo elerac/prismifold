@@ -1,8 +1,8 @@
-# Prismifold
+# Plenoview
 
-Prismifold is a multichannel image viewer for computational imaging, rendering, and vision workflows. It reveals the rich structure of images that contain more than color, including polarization, spectral, panoramas, depth, and AOVs.
+Plenoview is a multichannel image viewer for computational imaging, rendering, and vision workflows. It reveals the rich structure of images that contain more than color, including polarization, spectral, panoramas, depth, and AOVs.
 
-[![Prismifold thumbnail](https://elerac.github.io/prismifold/thumbnail.jpg)](https://elerac.github.io/prismifold/app/)
+[![Plenoview thumbnail](https://elerac.github.io/plenoview/thumbnail.jpg)](https://elerac.github.io/plenoview/app/)
 
 ## Features
 
@@ -125,11 +125,11 @@ Output is generated in `dist/` and is static-hosting ready.
 
 ## VS Code Extension
 
-Prismifold is available as a Visual Studio Code extension for opening `.exr` files directly inside VS Code as readonly custom editors.
+Plenoview is available as a Visual Studio Code extension for opening `.exr` files directly inside VS Code as readonly custom editors.
 
-Marketplace: https://marketplace.visualstudio.com/items?itemName=elerac.prismifold-vscode
+Marketplace: https://marketplace.visualstudio.com/items?itemName=elerac.plenoview-vscode
 
-The extension reuses the Prismifold viewer UI and supports local EXR file/folder loading, metadata inspection, viewer modes, rulers, pane layouts, and derived PNG/ZIP exports. Source `.exr` files are not modified.
+The extension reuses the Plenoview viewer UI and supports local EXR file/folder loading, metadata inspection, viewer modes, rulers, pane layouts, and derived PNG/ZIP exports. Source `.exr` files are not modified.
 
 ## Desktop App
 
@@ -148,16 +148,16 @@ npm run desktop:build
 
 On macOS, the local unsigned app and DMG are generated under `src-tauri/target/release/bundle/`. Generated desktop bundles and build outputs should stay uncommitted.
 
-On Windows, the installed executable is `Prismifold.exe`. The installer registers Prismifold as an OpenEXR `.exr` handler candidate, but Windows requires the user to choose the default app: open **Settings > Apps > Default apps > Choose defaults by file type > .exr** and select Prismifold, or right-click an `.exr` file and use **Open with**. Older builds may not appear automatically; browse to the installed `Prismifold.exe` if needed.
+On Windows, the installed executable is `Plenoview.exe`. The installer registers Plenoview as an OpenEXR `.exr` handler candidate, but Windows requires the user to choose the default app: open **Settings > Apps > Default apps > Choose defaults by file type > .exr** and select Plenoview, or right-click an `.exr` file and use **Open with**. Older builds may not appear automatically; browse to the installed `Plenoview.exe` if needed.
 
 Stable desktop installers are published from tagged GitHub Releases. Push a tag named `vX.Y.Z` where `X.Y.Z` matches `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`; the desktop workflow builds the Windows x64 NSIS installer and macOS Apple Silicon DMG, attaches checksums, and publishes the release.
 
 Latest desktop download URLs:
 
 ```text
-Windows x64: https://github.com/elerac/prismifold/releases/latest/download/Prismifold-windows-x64-setup.exe
-macOS arm64: https://github.com/elerac/prismifold/releases/latest/download/Prismifold-macos-arm64.dmg
-Releases:    https://github.com/elerac/prismifold/releases/latest
+Windows x64: https://github.com/elerac/plenoview/releases/latest/download/Plenoview-windows-x64-setup.exe
+macOS arm64: https://github.com/elerac/plenoview/releases/latest/download/Plenoview-macos-arm64.dmg
+Releases:    https://github.com/elerac/plenoview/releases/latest
 ```
 
 ## GitHub Pages
@@ -165,13 +165,13 @@ Releases:    https://github.com/elerac/prismifold/releases/latest
 This project is prepared for GitHub Pages with a project page and app route:
 
 ```text
-Project page: https://elerac.github.io/prismifold/
-Viewer app:   https://elerac.github.io/prismifold/app/
+Project page: https://elerac.github.io/plenoview/
+Viewer app:   https://elerac.github.io/plenoview/app/
 ```
 
-Open a remote EXR directly with `?src=<exr-url>`, for example `https://elerac.github.io/prismifold/app/?src=https://elerac.github.io/prismifold/cbox_rgb.exr`. The EXR host must allow browser CORS requests.
+Open a remote EXR directly with `?src=<exr-url>`, for example `https://elerac.github.io/plenoview/app/?src=https://elerac.github.io/plenoview/cbox_rgb.exr`. The EXR host must allow browser CORS requests.
 
-GitHub Pages should use GitHub Actions as the publishing source. The repository now uses a dedicated `CI` workflow for lint, typecheck, coverage, Playwright, and build checks on pushes, and the Pages workflow deploys only after `CI` succeeds on `main` or when triggered manually. The Pages build runs with `GITHUB_PAGES=true`, which sets the Vite base path to `/prismifold/`, builds the landing page at the project root and the viewer at `/app/`, uploads the generated `dist/` directory as the Pages artifact, and deploys it. Keep `dist/` uncommitted; it is generated by the action.
+GitHub Pages should use GitHub Actions as the publishing source. The repository now uses a dedicated `CI` workflow for lint, typecheck, coverage, Playwright, and build checks on pushes, and the Pages workflow deploys only after `CI` succeeds on `main` or when triggered manually. The Pages build runs with `GITHUB_PAGES=true`, which sets the Vite base path to `/plenoview/`, builds the landing page at the project root and the viewer at `/app/`, uploads the generated `dist/` directory as the Pages artifact, and deploys it. Keep `dist/` uncommitted; it is generated by the action.
 
 ## Tests
 
@@ -193,21 +193,21 @@ npm run test:e2e
 
 ## HTML and JS Embeds
 
-The embed wrapper registers `<prismifold-viewer>` and `window.Prismifold`.
+The embed wrapper registers `<plenoview-viewer>` and `window.Plenoview`.
 
 ### HTML custom element
 
 Load the deployed wrapper script, then add the custom element:
 
 ```html
-<script src="https://elerac.github.io/prismifold/embed/prismifold.js"></script>
+<script src="https://elerac.github.io/plenoview/embed/plenoview.js"></script>
 
-<prismifold-viewer
-  src="https://elerac.github.io/prismifold/cbox_rgb.exr"
+<plenoview-viewer
+  src="https://elerac.github.io/plenoview/cbox_rgb.exr"
   name="Cornell Box"
   width="640"
   height="420">
-</prismifold-viewer>
+</plenoview-viewer>
 ```
 
 Common attributes:
@@ -233,20 +233,20 @@ The embed supports pan, zoom, hover probe or compact channel selection, panorama
 
 ### JavaScript API
 
-Use `Prismifold.create(target, options)` for dynamic sources:
+Use `Plenoview.create(target, options)` for dynamic sources:
 
 ```html
 <div id="viewer"></div>
-<script src="https://elerac.github.io/prismifold/embed/prismifold.js"></script>
+<script src="https://elerac.github.io/plenoview/embed/plenoview.js"></script>
 <script>
-  const viewer = Prismifold.create('#viewer', {
+  const viewer = Plenoview.create('#viewer', {
     src: './public/cbox_rgb.exr',
     name: 'Cornell Box',
     width: 640,
     height: 420,
     bottomPanel: 'channels',
     autoLoad: true,
-    viewerUrl: 'https://elerac.github.io/prismifold/app/'
+    viewerUrl: 'https://elerac.github.io/plenoview/app/'
   });
 </script>
 ```

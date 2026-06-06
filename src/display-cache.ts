@@ -7,7 +7,7 @@ import {
 import type { ResidentResourceKind } from './memory/memory-manager';
 import type { DecodedExrImage, DisplayLuminanceRange, ImageStats } from './types';
 
-export const DISPLAY_CACHE_BUDGET_STORAGE_KEY = 'prismifold:display-cache-budget-mb:v1';
+export const DISPLAY_CACHE_BUDGET_STORAGE_KEY = 'plenoview:display-cache-budget-mb:v1';
 export const DISPLAY_CACHE_BUDGET_OPTIONS_MB = [64, 128, 256, 512, 1024] as const;
 export const MIN_DISPLAY_CACHE_BUDGET_MB = DISPLAY_CACHE_BUDGET_OPTIONS_MB[0];
 export const MAX_DISPLAY_CACHE_BUDGET_MB =

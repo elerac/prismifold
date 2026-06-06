@@ -581,7 +581,7 @@ main {
   box-shadow: var(--shadow);
 }
 
-.exr-embed-frame prismifold-viewer {
+.exr-embed-frame plenoview-viewer {
   display: block;
   width: 100%;
 }
@@ -785,7 +785,7 @@ main {
   min-width: 0;
 }
 
-.embed-example-view prismifold-viewer,
+.embed-example-view plenoview-viewer,
 .embed-page-live {
   display: block;
   width: 100%;

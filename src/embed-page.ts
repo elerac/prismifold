@@ -1,14 +1,14 @@
 import './project-page.css';
 
-interface PrismifoldController {
+interface PlenoviewController {
   element: HTMLElement;
   loadUrl(src: string, options?: { name?: string; view?: string; sourceOrigin?: string }): Promise<void>;
   loadFile(file: File, options?: { name?: string; view?: string }): Promise<void>;
-  setView(view: string): PrismifoldController;
+  setView(view: string): PlenoviewController;
   destroy(): void;
 }
 
-interface PrismifoldApi {
+interface PlenoviewApi {
   create(target: string | HTMLElement, options?: {
     src?: string;
     file?: File;
@@ -20,12 +20,12 @@ interface PrismifoldApi {
     sourceOrigin?: string;
     bottomPanel?: string;
     autoLoad?: boolean | string;
-  }): PrismifoldController;
+  }): PlenoviewController;
 }
 
 declare global {
   interface Window {
-    Prismifold?: PrismifoldApi;
+    Plenoview?: PlenoviewApi;
   }
 }
 
@@ -55,7 +55,7 @@ syncEmbedViewerHeights();
 mobileEmbedHeightQuery.addEventListener('change', syncEmbedViewerHeights);
 
 if (jsViewerHost && loadSampleButton && fileInput) {
-  const controller = window.Prismifold?.create(jsViewerHost, {
+  const controller = window.Plenoview?.create(jsViewerHost, {
     height: mobileEmbedHeightQuery.matches ? 280 : 360,
     bottomPanel: 'channels'
   });
@@ -99,6 +99,6 @@ if (jsViewerHost && loadSampleButton && fileInput) {
   } else {
     loadSampleButton.disabled = true;
     fileInput.disabled = true;
-    setStatus('Prismifold embed script was not available.');
+    setStatus('Plenoview embed script was not available.');
   }
 }

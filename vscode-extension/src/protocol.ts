@@ -1,4 +1,4 @@
-export const VSCODE_BRIDGE_CHANNEL = 'prismifold:vscode';
+export const VSCODE_BRIDGE_CHANNEL = 'plenoview:vscode';
 
 export interface VscodeBridgeBinaryPayload {
   encoding: 'base64';
@@ -234,7 +234,7 @@ export function decodeBytesFromVscodeBridge(value: unknown): Uint8Array {
   if (isRecord(value) && Array.isArray(value.data)) {
     return new Uint8Array(value.data);
   }
-  throw new Error('Received invalid binary data from Prismifold webview.');
+  throw new Error('Received invalid binary data from Plenoview webview.');
 }
 
 export function createErrorPayload(error: unknown): VscodeBridgeErrorPayload {

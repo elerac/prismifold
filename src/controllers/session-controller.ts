@@ -41,9 +41,9 @@ interface GalleryImage {
   viewerMode?: ViewerMode;
 }
 
-const DESKTOP_CBOX_RGB_URL = 'https://raw.githubusercontent.com/elerac/prismifold/main/public/cbox_rgb.exr';
+const DESKTOP_CBOX_RGB_URL = 'https://raw.githubusercontent.com/elerac/plenoview/main/public/cbox_rgb.exr';
 const DESKTOP_MIDDLEBURY_CHESS1_RGB_P_URL =
-  'https://raw.githubusercontent.com/elerac/prismifold/main/public/middlebury_chess1_rgb_p.exr';
+  'https://raw.githubusercontent.com/elerac/plenoview/main/public/middlebury_chess1_rgb_p.exr';
 const POLANALYSER_STOKES_BASE_URL =
   'https://huggingface.co/datasets/elerac/polanalyser/resolve/main/data/stokes/imx250mzr/stokes/';
 const KAIST_HYPERSPECTRAL_BASE_URL =

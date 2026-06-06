@@ -2,11 +2,11 @@ import crypto from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import * as vscode from 'vscode';
 
-export async function buildPrismifoldWebviewHtml(
+export async function buildPlenoviewWebviewHtml(
   context: vscode.ExtensionContext,
   webview: vscode.Webview
 ): Promise<string> {
-  const mediaRoot = vscode.Uri.joinPath(context.extensionUri, 'media', 'prismifold');
+  const mediaRoot = vscode.Uri.joinPath(context.extensionUri, 'media', 'plenoview');
   const appIndex = vscode.Uri.joinPath(mediaRoot, 'app', 'index.html');
   const appBase = ensureTrailingSlash(webview.asWebviewUri(vscode.Uri.joinPath(mediaRoot, 'app')).toString());
   const nonce = crypto.randomBytes(16).toString('base64');

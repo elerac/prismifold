@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 import type { DesktopCommandId } from './protocol';
-import { createStandalonePanel, PrismifoldSession } from './prismifoldSession';
+import { createStandalonePanel, PlenoviewSession } from './plenoviewSession';
 import { isExrUri, UriGrantStore } from './uriGrants';
 
-export class PrismifoldSessionManager {
+export class PlenoviewSessionManager {
   private readonly context: vscode.ExtensionContext;
   private readonly grants = new UriGrantStore();
-  private readonly sessions = new Set<PrismifoldSession>();
-  private activeSession: PrismifoldSession | null = null;
+  private readonly sessions = new Set<PlenoviewSession>();
+  private activeSession: PlenoviewSession | null = null;
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
@@ -20,7 +20,7 @@ export class PrismifoldSessionManager {
     });
   }
 
-  async createPanelSession(initialUris: readonly vscode.Uri[], title = 'Prismifold'): Promise<void> {
+  async createPanelSession(initialUris: readonly vscode.Uri[], title = 'Plenoview'): Promise<void> {
     const panel = createStandalonePanel(this.context, title);
     await this.createSession({
       host: panel,
@@ -82,12 +82,12 @@ export class PrismifoldSessionManager {
       void vscode.window.showWarningMessage('No OpenEXR files found in the selected folder.');
       return;
     }
-    await this.createPanelSession(entries.map((entry) => vscode.Uri.parse(entry.path)), 'Prismifold Folder');
+    await this.createPanelSession(entries.map((entry) => vscode.Uri.parse(entry.path)), 'Plenoview Folder');
   }
 
   postDesktopCommand(commandId: DesktopCommandId): void {
     if (!this.activeSession) {
-      void vscode.window.showInformationMessage('Open an EXR in Prismifold before running this command.');
+      void vscode.window.showInformationMessage('Open an EXR in Plenoview before running this command.');
       return;
     }
     const state = this.activeSession.getCommandState();
@@ -99,21 +99,21 @@ export class PrismifoldSessionManager {
 
   private async openUris(uris: readonly vscode.Uri[]): Promise<void> {
     if (uris.length === 1) {
-      await vscode.commands.executeCommand('vscode.openWith', uris[0], 'prismifold.exrViewer');
+      await vscode.commands.executeCommand('vscode.openWith', uris[0], 'plenoview.exrViewer');
       return;
     }
     if (this.activeSession) {
       await this.activeSession.postOpenUris(uris);
       return;
     }
-    await this.createPanelSession(uris, 'Prismifold Files');
+    await this.createPanelSession(uris, 'Plenoview Files');
   }
 
   private async createSession(options: {
     host: vscode.WebviewPanel;
     initialUris: readonly vscode.Uri[];
   }): Promise<void> {
-    const session = new PrismifoldSession({
+    const session = new PlenoviewSession({
       context: this.context,
       host: options.host,
       grants: this.grants,

@@ -13,7 +13,7 @@ const distAppIndex = resolve(distDir, 'app', 'index.html');
 const defaultOutputDir = resolve(repoRoot, 'public', 'project-page');
 const host = '127.0.0.1';
 const port = Number(process.env.PROJECT_PAGE_CAPTURE_PORT ?? 4175);
-const appPath = normalizePath(process.env.PLAYWRIGHT_APP_PATH ?? '/prismifold/app/');
+const appPath = normalizePath(process.env.PLAYWRIGHT_APP_PATH ?? '/plenoview/app/');
 const siteBasePath = resolveSiteBasePath(appPath);
 const appUrl = `http://${host}:${port}${appPath}`;
 const siteBaseUrl = `http://${host}:${port}${siteBasePath}`;
@@ -213,7 +213,7 @@ async function captureScene(browser, scene) {
       window.localStorage.clear();
       window.sessionStorage.clear();
       if (storage.rulers) {
-        window.localStorage.setItem('prismifold:rulers-visible:v1', 'true');
+        window.localStorage.setItem('plenoview:rulers-visible:v1', 'true');
       }
     }, scene.initStorage ?? {});
 
@@ -693,7 +693,7 @@ Options:
 Examples:
   npm run capture:project-page
   npm run capture:project-page -- --only=rgb
-  npm run capture:project-page -- --only=rgb,depth --out-dir=/tmp/prismifold-shots
+  npm run capture:project-page -- --only=rgb,depth --out-dir=/tmp/plenoview-shots
 `);
 }
 

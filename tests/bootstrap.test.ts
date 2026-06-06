@@ -582,7 +582,7 @@ function installDesktopChromeFixture(): void {
   document.body.innerHTML = `
     <div id="app" class="app-shell">
       <header id="app-menu-bar" class="app-menu-bar">
-        <div class="app-menu-title">Prismifold</div>
+        <div class="app-menu-title">Plenoview</div>
         <nav class="app-menu-nav" aria-label="Main menu"></nav>
         <div class="app-menu-actions" aria-label="Quick actions">
           <button id="app-screenshot-button" type="button"></button>

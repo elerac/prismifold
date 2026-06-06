@@ -4,19 +4,19 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-const EMBED_LOAD_FILE_MESSAGE = 'prismifold:load-file';
-const EMBED_LOAD_ERROR_MESSAGE = 'prismifold:load-error';
-const EMBED_CONFIG_MESSAGE = 'prismifold:embed-config';
-const EMBED_READY_MESSAGE = 'prismifold:embed-ready';
-const EMBED_DEFERRED_LOAD_MESSAGE = 'prismifold:deferred-load';
-const embedScript = readFileSync(resolve(process.cwd(), 'public/embed/prismifold.js'), 'utf8');
+const EMBED_LOAD_FILE_MESSAGE = 'plenoview:load-file';
+const EMBED_LOAD_ERROR_MESSAGE = 'plenoview:load-error';
+const EMBED_CONFIG_MESSAGE = 'plenoview:embed-config';
+const EMBED_READY_MESSAGE = 'plenoview:embed-ready';
+const EMBED_DEFERRED_LOAD_MESSAGE = 'plenoview:deferred-load';
+const embedScript = readFileSync(resolve(process.cwd(), 'public/embed/plenoview.js'), 'utf8');
 const originalFetch = window.fetch;
 const originalIframeContentWindow = Object.getOwnPropertyDescriptor(
   HTMLIFrameElement.prototype,
   'contentWindow'
 );
 
-interface PrismifoldViewerElementForTest extends HTMLElement {
+interface PlenoviewViewerElementForTest extends HTMLElement {
   viewerOrigin: string;
   viewerTargetOrigin: string;
   loadFile(file: File, options?: {
@@ -49,8 +49,8 @@ interface PrismifoldViewerElementForTest extends HTMLElement {
   setThreeDOrbitPitch(pitchAmplitudeDeg: number | string): void;
 }
 
-interface PrismifoldControllerForTest {
-  element: PrismifoldViewerElementForTest;
+interface PlenoviewControllerForTest {
+  element: PlenoviewViewerElementForTest;
   loadFile(file: File, options?: {
     name?: string;
     view?: string;
@@ -72,17 +72,17 @@ interface PrismifoldControllerForTest {
     threeDOrbitYaw?: number | string;
     threeDOrbitPitch?: number | string;
   }): Promise<void>;
-  setView(view: string): PrismifoldControllerForTest;
-  setPanoramaAutoRotate(enabled: boolean | string): PrismifoldControllerForTest;
-  setPanoramaRotationSpeed(speedDegPerSecond: number | string): PrismifoldControllerForTest;
-  setThreeDAutoOrbit(enabled: boolean | string): PrismifoldControllerForTest;
-  setThreeDOrbitSpeed(speedDegPerSecond: number | string): PrismifoldControllerForTest;
-  setThreeDOrbitYaw(yawAmplitudeDeg: number | string): PrismifoldControllerForTest;
-  setThreeDOrbitPitch(pitchAmplitudeDeg: number | string): PrismifoldControllerForTest;
+  setView(view: string): PlenoviewControllerForTest;
+  setPanoramaAutoRotate(enabled: boolean | string): PlenoviewControllerForTest;
+  setPanoramaRotationSpeed(speedDegPerSecond: number | string): PlenoviewControllerForTest;
+  setThreeDAutoOrbit(enabled: boolean | string): PlenoviewControllerForTest;
+  setThreeDOrbitSpeed(speedDegPerSecond: number | string): PlenoviewControllerForTest;
+  setThreeDOrbitYaw(yawAmplitudeDeg: number | string): PlenoviewControllerForTest;
+  setThreeDOrbitPitch(pitchAmplitudeDeg: number | string): PlenoviewControllerForTest;
   destroy(): void;
 }
 
-interface PrismifoldApiForTest {
+interface PlenoviewApiForTest {
   create(target: string | HTMLElement, options?: {
     src?: string;
     file?: File;
@@ -100,11 +100,11 @@ interface PrismifoldApiForTest {
     threeDOrbitYaw?: number | string;
     threeDOrbitPitch?: number | string;
     autoLoad?: boolean | string;
-  }): PrismifoldControllerForTest;
+  }): PlenoviewControllerForTest;
 }
 
-interface PrismifoldWindowForTest extends Window {
-  Prismifold: PrismifoldApiForTest;
+interface PlenoviewWindowForTest extends Window {
+  Plenoview: PlenoviewApiForTest;
 }
 
 beforeAll(() => {
@@ -139,8 +139,8 @@ afterEach(() => {
 
 describe('embed wrapper public script', () => {
   it('registers the custom element and global JS API', () => {
-    expect(customElements.get('prismifold-viewer')).toEqual(expect.any(Function));
-    expect(getPrismifold().create).toEqual(expect.any(Function));
+    expect(customElements.get('plenoview-viewer')).toEqual(expect.any(Function));
+    expect(getPlenoview().create).toEqual(expect.any(Function));
     const legacyElementName = ['openexr', 'viewer'].join('-');
     const legacyGlobalName = ['Open', 'Exr', 'Viewer'].join('');
     expect(customElements.get(legacyElementName)).toBeUndefined();
@@ -150,7 +150,7 @@ describe('embed wrapper public script', () => {
   it('creates iframe-backed viewers with expected attributes', () => {
     document.body.innerHTML = '<div id="target"></div>';
 
-    const controller = getPrismifold().create('#target', {
+    const controller = getPlenoview().create('#target', {
       src: 'https://example.com/render.exr',
       name: 'Beauty pass',
       width: 300,
@@ -185,7 +185,7 @@ describe('embed wrapper public script', () => {
   it('creates iframe-backed 3D orbit viewers with expected params', () => {
     document.body.innerHTML = '<div id="target"></div>';
 
-    const controller = getPrismifold().create('#target', {
+    const controller = getPlenoview().create('#target', {
       src: 'https://example.com/depth.exr',
       name: 'Depth pass',
       view: '3d',
@@ -209,13 +209,13 @@ describe('embed wrapper public script', () => {
   });
 
   it('passes bottom-panel markup through and omits the default probe query param', () => {
-    const defaultElement = document.createElement('prismifold-viewer');
+    const defaultElement = document.createElement('plenoview-viewer');
     defaultElement.setAttribute('src', 'https://example.com/default.exr');
     document.body.append(defaultElement);
 
     expect(new URL(getViewerIframe(defaultElement).src).searchParams.get('bottomPanel')).toBeNull();
 
-    const noneElement = document.createElement('prismifold-viewer');
+    const noneElement = document.createElement('plenoview-viewer');
     noneElement.setAttribute('src', 'https://example.com/hidden.exr');
     noneElement.setAttribute('bottom-panel', 'none');
     document.body.append(noneElement);
@@ -227,7 +227,7 @@ describe('embed wrapper public script', () => {
     document.body.innerHTML = '<div id="target"></div>';
     const fetchMock = stubFetchOk();
 
-    const controller = getPrismifold().create('#target', {
+    const controller = getPlenoview().create('#target', {
       src: './public/cbox_rgb.exr',
       name: 'Cornell Box',
       width: 300,
@@ -265,7 +265,7 @@ describe('embed wrapper public script', () => {
     document.body.innerHTML = '<div id="target"></div>';
     const fetchMock = stubFetchOk();
 
-    const controller = getPrismifold().create('#target', {
+    const controller = getPlenoview().create('#target', {
       src: './public/cbox_rgb.exr',
       name: 'Deferred Cornell Box',
       view: 'panorama',
@@ -310,7 +310,7 @@ describe('embed wrapper public script', () => {
     const fetchMock = stubFetchNotFound();
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    const controller = getPrismifold().create('#target', {
+    const controller = getPlenoview().create('#target', {
       src: './public/missing.exr',
       autoLoad: false
     });
@@ -336,7 +336,7 @@ describe('embed wrapper public script', () => {
     document.body.innerHTML = '<div id="target"></div>';
     const fetchMock = stubFetchOk();
 
-    const controller = getPrismifold().create('#target', {
+    const controller = getPlenoview().create('#target', {
       src: 'https://example.com/render.exr',
       name: 'Remote render'
     });
@@ -351,7 +351,7 @@ describe('embed wrapper public script', () => {
     document.body.innerHTML = '<div id="target"></div>';
     const fetchMock = stubFetchOk();
 
-    const controller = getPrismifold().create('#target', {
+    const controller = getPlenoview().create('#target', {
       src: 'https://example.com/render.exr',
       name: 'Deferred remote render',
       autoLoad: false
@@ -365,7 +365,7 @@ describe('embed wrapper public script', () => {
   });
 
   it('accepts autoload as a markup alias for auto-load', () => {
-    const element = document.createElement('prismifold-viewer');
+    const element = document.createElement('plenoview-viewer');
     element.setAttribute('src', 'https://example.com/render.exr');
     element.setAttribute('autoload', 'false');
     document.body.append(element);
@@ -377,7 +377,7 @@ describe('embed wrapper public script', () => {
   it('forces parent fetch when sourceOrigin is parent', async () => {
     document.body.innerHTML = '<div id="target"></div>';
     const fetchMock = stubFetchOk();
-    const controller = getPrismifold().create('#target');
+    const controller = getPlenoview().create('#target');
 
     const loadPromise = controller.loadUrl('https://example.com/render.exr', {
       name: 'Parent fetched',
@@ -408,7 +408,7 @@ describe('embed wrapper public script', () => {
 
   it('supports controller loadFile, loadUrl, setView, and destroy', async () => {
     document.body.innerHTML = '<div id="target"></div>';
-    const controller = getPrismifold().create('#target', {
+    const controller = getPlenoview().create('#target', {
       height: 200
     });
     const initialIframe = getViewerIframe(controller.element);
@@ -452,12 +452,12 @@ describe('embed wrapper public script', () => {
     expect(panoramaUrl.searchParams.get('view')).toBe('panorama');
 
     controller.destroy();
-    expect(document.querySelector('prismifold-viewer')).toBeNull();
+    expect(document.querySelector('plenoview-viewer')).toBeNull();
   });
 
   it('normalizes 3D and legacy depth view values for posted file state', async () => {
     document.body.innerHTML = '<div id="target"></div>';
-    const controller = getPrismifold().create('#target');
+    const controller = getPlenoview().create('#target');
     const iframe = getViewerIframe(controller.element);
     const postMessage = spyOnIframePostMessage(iframe);
 
@@ -499,7 +499,7 @@ describe('embed wrapper public script', () => {
 
   it('live-updates panorama animation config without replacing the iframe', async () => {
     document.body.innerHTML = '<div id="target"></div>';
-    const controller = getPrismifold().create('#target', {
+    const controller = getPlenoview().create('#target', {
       src: 'https://example.com/pano.exr',
       view: 'panorama',
       panoramaAutoRotate: true
@@ -552,7 +552,7 @@ describe('embed wrapper public script', () => {
 
   it('live-updates 3D orbit config without replacing the iframe', async () => {
     document.body.innerHTML = '<div id="target"></div>';
-    const controller = getPrismifold().create('#target', {
+    const controller = getPlenoview().create('#target', {
       src: 'https://example.com/depth.exr',
       view: '3d',
       threeDAutoOrbit: true
@@ -617,7 +617,7 @@ describe('embed wrapper public script', () => {
 
   it('posts panorama animation config before file loads when file options provide it', async () => {
     document.body.innerHTML = '<div id="target"></div>';
-    const controller = getPrismifold().create('#target', {
+    const controller = getPlenoview().create('#target', {
       height: 200
     });
     const iframe = getViewerIframe(controller.element);
@@ -651,8 +651,8 @@ describe('embed wrapper public script', () => {
   });
 });
 
-function getPrismifold(): PrismifoldApiForTest {
-  return (window as unknown as PrismifoldWindowForTest).Prismifold;
+function getPlenoview(): PlenoviewApiForTest {
+  return (window as unknown as PlenoviewWindowForTest).Plenoview;
 }
 
 function getViewerIframe(element: HTMLElement): HTMLIFrameElement {
@@ -661,7 +661,7 @@ function getViewerIframe(element: HTMLElement): HTMLIFrameElement {
   return iframe as HTMLIFrameElement;
 }
 
-function dispatchEmbedReady(element: PrismifoldViewerElementForTest, iframe: HTMLIFrameElement): void {
+function dispatchEmbedReady(element: PlenoviewViewerElementForTest, iframe: HTMLIFrameElement): void {
   window.dispatchEvent(new MessageEvent('message', {
     source: iframe.contentWindow,
     origin: element.viewerOrigin,
@@ -671,7 +671,7 @@ function dispatchEmbedReady(element: PrismifoldViewerElementForTest, iframe: HTM
   }));
 }
 
-function dispatchEmbedDeferredLoad(element: PrismifoldViewerElementForTest, iframe: HTMLIFrameElement): void {
+function dispatchEmbedDeferredLoad(element: PlenoviewViewerElementForTest, iframe: HTMLIFrameElement): void {
   window.dispatchEvent(new MessageEvent('message', {
     source: iframe.contentWindow,
     origin: element.viewerOrigin,

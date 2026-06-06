@@ -13,7 +13,7 @@ import type {
 } from '../types';
 
 const SCREENSHOT_REPRODUCTION_METADATA_SCHEMA_VERSION = 3;
-const APP_NAME = 'prismifold';
+const APP_NAME = 'plenoview';
 
 export interface ScreenshotReproductionMetadataBatchContext {
   archiveFilename: string;

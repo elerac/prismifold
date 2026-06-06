@@ -23,9 +23,9 @@ describe('exr runtime', () => {
   it('leaves absolute wasm asset URLs unchanged', () => {
     expect(
       resolveExrRuntimeWasmUrl(
-        'https://example.com/prismifold/assets/exrs_raw_wasm_bindgen_bg.wasm',
+        'https://example.com/plenoview/assets/exrs_raw_wasm_bindgen_bg.wasm',
         'http://127.0.0.1:4173/assets/app.js'
       )
-    ).toBe('https://example.com/prismifold/assets/exrs_raw_wasm_bindgen_bg.wasm');
+    ).toBe('https://example.com/plenoview/assets/exrs_raw_wasm_bindgen_bg.wasm');
   });
 });

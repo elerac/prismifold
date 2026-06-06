@@ -1,14 +1,14 @@
 [package]
-name = "prismifold-exr-thumbnail"
+name = "plenoview-exr-thumbnail"
 version = "0.1.0"
-description = "Windows Explorer thumbnail provider for Prismifold OpenEXR files"
+description = "Windows Explorer thumbnail provider for Plenoview OpenEXR files"
 authors = ["Ryota Maeda"]
 license = "MIT"
 edition = "2021"
 rust-version = "1.77.2"
 
 [lib]
-name = "prismifold_exr_thumbnail"
+name = "plenoview_exr_thumbnail"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]

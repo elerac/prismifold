@@ -1,9 +1,9 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Prismifold",
+  "productName": "Plenoview",
   "version": "0.1.0",
-  "identifier": "com.elerac.prismifold",
-  "mainBinaryName": "Prismifold",
+  "identifier": "com.elerac.plenoview",
+  "mainBinaryName": "Plenoview",
   "build": {
     "frontendDist": "../dist-desktop",
     "devUrl": "http://localhost:5173/app/",
@@ -13,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "Prismifold",
+        "title": "Plenoview",
         "url": "app/index.html",
         "width": 1440,
         "height": 960,

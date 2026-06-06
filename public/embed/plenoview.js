@@ -1,9 +1,9 @@
 (() => {
-  const EMBED_READY_MESSAGE = 'prismifold:embed-ready';
-  const EMBED_LOAD_FILE_MESSAGE = 'prismifold:load-file';
-  const EMBED_DEFERRED_LOAD_MESSAGE = 'prismifold:deferred-load';
-  const EMBED_LOAD_ERROR_MESSAGE = 'prismifold:load-error';
-  const EMBED_CONFIG_MESSAGE = 'prismifold:embed-config';
+  const EMBED_READY_MESSAGE = 'plenoview:embed-ready';
+  const EMBED_LOAD_FILE_MESSAGE = 'plenoview:load-file';
+  const EMBED_DEFERRED_LOAD_MESSAGE = 'plenoview:deferred-load';
+  const EMBED_LOAD_ERROR_MESSAGE = 'plenoview:load-error';
+  const EMBED_CONFIG_MESSAGE = 'plenoview:embed-config';
   const SOURCE_ORIGIN_AUTO = 'auto';
   const SOURCE_ORIGIN_PARENT = 'parent';
   const SOURCE_ORIGIN_VIEWER = 'viewer';
@@ -41,7 +41,7 @@
     ? document.currentScript.src
     : '';
 
-  class PrismifoldViewerElement extends HTMLElement {
+  class PlenoviewViewerElement extends HTMLElement {
     static get observedAttributes() {
       return observedAttributes;
     }
@@ -89,7 +89,7 @@
     loadUrl(src, options = {}) {
       const sourceUrl = normalizeNonEmpty(src);
       if (!sourceUrl) {
-        return Promise.reject(new TypeError('prismifold-viewer.loadUrl(src) expects a non-empty string.'));
+        return Promise.reject(new TypeError('plenoview-viewer.loadUrl(src) expects a non-empty string.'));
       }
 
       const nextSourceOrigin = hasOwn(options, 'sourceOrigin')
@@ -135,7 +135,7 @@
 
     loadFile(file, options = {}) {
       if (!(file instanceof File)) {
-        return Promise.reject(new TypeError('prismifold-viewer.loadFile(file) expects a File.'));
+        return Promise.reject(new TypeError('plenoview-viewer.loadFile(file) expects a File.'));
       }
       const hasAnimationOptions = hasOwn(options, 'panoramaAutoRotate') ||
         hasOwn(options, 'panoramaRotationSpeed') ||
@@ -231,7 +231,7 @@
 
       const iframe = document.createElement('iframe');
       iframe.src = this.buildIframeUrl();
-      iframe.title = this.getAttribute('name') || 'Prismifold viewer';
+      iframe.title = this.getAttribute('name') || 'Plenoview viewer';
       iframe.loading = 'lazy';
       iframe.allow = 'clipboard-write';
       this.style.width = normalizeCssSize(this.getAttribute('width') || '100%');
@@ -575,9 +575,9 @@
     }
   }
 
-  function createPrismifoldViewer(target, options = {}) {
+  function createPlenoviewViewer(target, options = {}) {
     const container = resolveTargetElement(target);
-    const element = document.createElement('prismifold-viewer');
+    const element = document.createElement('plenoview-viewer');
     const autoLoad = hasOwn(options, 'autoLoad') ? parseAutoLoad(options.autoLoad) : true;
 
     applyCreateOptions(element, options);
@@ -638,7 +638,7 @@
         view: options.view
       }, options);
       void controller.loadFile(options.file, loadOptions).catch((error) => {
-        logEmbedError('Failed to load the provided Prismifold file.', error);
+        logEmbedError('Failed to load the provided Plenoview file.', error);
       });
     } else if (autoLoad && options.src) {
       const loadOptions = withAnimationOptions({
@@ -713,7 +713,7 @@
       ? document.querySelector(target)
       : target;
     if (!(element instanceof HTMLElement)) {
-      throw new TypeError('Prismifold.create(target, options) expects a selector or HTMLElement target.');
+      throw new TypeError('Plenoview.create(target, options) expects a selector or HTMLElement target.');
     }
     return element;
   }
@@ -931,14 +931,14 @@
   }
 
   function logEmbedError(message, error) {
-    console.error(`[prismifold] ${message}`, error);
+    console.error(`[plenoview] ${message}`, error);
   }
 
-  if (!customElements.get('prismifold-viewer')) {
-    customElements.define('prismifold-viewer', PrismifoldViewerElement);
+  if (!customElements.get('plenoview-viewer')) {
+    customElements.define('plenoview-viewer', PlenoviewViewerElement);
   }
 
-  window.Prismifold = {
-    create: createPrismifoldViewer
+  window.Plenoview = {
+    create: createPlenoviewViewer
   };
 })();

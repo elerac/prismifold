@@ -14,31 +14,31 @@ import {
   type VscodeBridgeRequestMessage
 } from './protocol';
 import { UriGrantStore } from './uriGrants';
-import { buildPrismifoldWebviewHtml } from './webviewHtml';
+import { buildPlenoviewWebviewHtml } from './webviewHtml';
 
 type WebviewHost = vscode.WebviewPanel | { webview: vscode.Webview };
 
-interface PrismifoldSessionOptions {
+interface PlenoviewSessionOptions {
   context: vscode.ExtensionContext;
   host: WebviewHost;
   grants: UriGrantStore;
   initialUris?: readonly vscode.Uri[];
-  onDidBecomeActive?: (session: PrismifoldSession) => void;
-  onDidDispose?: (session: PrismifoldSession) => void;
+  onDidBecomeActive?: (session: PlenoviewSession) => void;
+  onDidDispose?: (session: PlenoviewSession) => void;
 }
 
-export class PrismifoldSession {
+export class PlenoviewSession {
   private readonly context: vscode.ExtensionContext;
   private readonly host: WebviewHost;
   private readonly grants: UriGrantStore;
   private readonly initialUris: readonly vscode.Uri[];
-  private readonly onDidBecomeActive: (session: PrismifoldSession) => void;
-  private readonly onDidDispose: (session: PrismifoldSession) => void;
+  private readonly onDidBecomeActive: (session: PlenoviewSession) => void;
+  private readonly onDidDispose: (session: PlenoviewSession) => void;
   private readonly disposables: vscode.Disposable[] = [];
   private ready = false;
   private commandState: Partial<Record<DesktopCommandId, boolean>> = {};
 
-  constructor(options: PrismifoldSessionOptions) {
+  constructor(options: PlenoviewSessionOptions) {
     this.context = options.context;
     this.host = options.host;
     this.grants = options.grants;
@@ -52,10 +52,10 @@ export class PrismifoldSession {
     webview.options = {
       enableScripts: true,
       localResourceRoots: [
-        vscode.Uri.joinPath(this.context.extensionUri, 'media', 'prismifold')
+        vscode.Uri.joinPath(this.context.extensionUri, 'media', 'plenoview')
       ]
     };
-    webview.html = await buildPrismifoldWebviewHtml(this.context, webview);
+    webview.html = await buildPlenoviewWebviewHtml(this.context, webview);
 
     this.disposables.push(webview.onDidReceiveMessage((message) => {
       void this.handleMessage(message);
@@ -217,16 +217,16 @@ export class PrismifoldSession {
   }
 }
 
-export function createStandalonePanel(context: vscode.ExtensionContext, title = 'Prismifold'): vscode.WebviewPanel {
+export function createStandalonePanel(context: vscode.ExtensionContext, title = 'Plenoview'): vscode.WebviewPanel {
   return vscode.window.createWebviewPanel(
-    'prismifold.viewer',
+    'plenoview.viewer',
     title,
     vscode.ViewColumn.Active,
     {
       enableScripts: true,
       retainContextWhenHidden: true,
       localResourceRoots: [
-        vscode.Uri.joinPath(context.extensionUri, 'media', 'prismifold')
+        vscode.Uri.joinPath(context.extensionUri, 'media', 'plenoview')
       ]
     }
   );

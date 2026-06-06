@@ -16,17 +16,17 @@ const OWL_SPHERES_LINEAR_STOKES_URL =
 const KAIST_SCENE27_REFLECTANCE_URL =
   'https://huggingface.co/datasets/danaroth/kaist-hyperspectral/resolve/main/exr/scene27_reflectance.exr';
 const WINDOWS_DESKTOP_URL =
-  'https://github.com/elerac/prismifold/releases/latest/download/Prismifold-windows-x64-setup.exe';
+  'https://github.com/elerac/plenoview/releases/latest/download/Plenoview-windows-x64-setup.exe';
 const MACOS_DESKTOP_URL =
-  'https://github.com/elerac/prismifold/releases/latest/download/Prismifold-macos-arm64.dmg';
-const VSCODE_MARKETPLACE_URL = 'https://marketplace.visualstudio.com/items?itemName=elerac.prismifold-vscode';
+  'https://github.com/elerac/plenoview/releases/latest/download/Plenoview-macos-arm64.dmg';
+const VSCODE_MARKETPLACE_URL = 'https://marketplace.visualstudio.com/items?itemName=elerac.plenoview-vscode';
 const OPENEXR_IO_SKILL_URL = 'skills/openexr-io/SKILL.md';
 const EXPECTED_BOOTSTRAP_ABORT = 'Viewer application has not finished initializing.';
-const PROJECT_PAGE_TITLE = 'Prismifold | OpenEXR Image Viewer';
+const PROJECT_PAGE_TITLE = 'Plenoview | OpenEXR Image Viewer';
 const PROJECT_PAGE_DESCRIPTION =
-  'Prismifold is an OpenEXR image viewer for computational imaging, rendering, and vision workflows, with spectral, polarization, panorama, depth, and AOV inspection.';
-const PROJECT_PAGE_URL = 'https://elerac.github.io/prismifold/';
-const PROJECT_PAGE_IMAGE_URL = 'https://elerac.github.io/prismifold/project-page/social-preview.jpg';
+  'Plenoview is an OpenEXR image viewer for computational imaging, rendering, and vision workflows, with spectral, polarization, panorama, depth, and AOV inspection.';
+const PROJECT_PAGE_URL = 'https://elerac.github.io/plenoview/';
+const PROJECT_PAGE_IMAGE_URL = 'https://elerac.github.io/plenoview/project-page/social-preview.jpg';
 const PROJECT_PAGE_IMAGE_ALT =
   'Luminous glass prism splitting RGB light beams on a dark technical viewer backdrop';
 
@@ -71,7 +71,7 @@ async function expectGalleryCardLaunch(
 ): Promise<void> {
   const item = page.locator('.gallery-item').filter({ hasText: title });
   await expect(item).toHaveCount(1);
-  await expect(item.locator('prismifold-viewer')).toHaveCount(0);
+  await expect(item.locator('plenoview-viewer')).toHaveCount(0);
 
   const screenshot = item.getByRole('img', { name: image.accessibleName });
   await expect(screenshot).toBeVisible();
@@ -116,7 +116,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', PROJECT_PAGE_DESCRIPTION);
   await expect(page.locator('head meta[name="robots"]')).toHaveAttribute('content', 'index,follow');
   await expect(page.locator('head meta[name="theme-color"]')).toHaveAttribute('content', '#0b0f14');
-  await expect(page.locator('head meta[name="application-name"]')).toHaveAttribute('content', 'Prismifold');
+  await expect(page.locator('head meta[name="application-name"]')).toHaveAttribute('content', 'Plenoview');
   await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute('href', PROJECT_PAGE_URL);
   await expect(page.locator('head link[rel="icon"]')).toHaveAttribute('href', 'project-page/app-icon.png');
   await expect(page.locator('head link[rel="apple-touch-icon"]')).toHaveAttribute(
@@ -124,7 +124,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     'project-page/app-icon.png'
   );
   await expect(page.locator('head meta[property="og:type"]')).toHaveAttribute('content', 'website');
-  await expect(page.locator('head meta[property="og:site_name"]')).toHaveAttribute('content', 'Prismifold');
+  await expect(page.locator('head meta[property="og:site_name"]')).toHaveAttribute('content', 'Plenoview');
   await expect(page.locator('head meta[property="og:title"]')).toHaveAttribute('content', PROJECT_PAGE_TITLE);
   await expect(page.locator('head meta[property="og:description"]')).toHaveAttribute(
     'content',
@@ -153,18 +153,18 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   expect(JSON.parse(structuredDataText ?? '{}')).toMatchObject({
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'Prismifold',
+    name: 'Plenoview',
     applicationCategory: 'MultimediaApplication',
     operatingSystem: 'Web, Windows, macOS',
     url: PROJECT_PAGE_URL,
     image: PROJECT_PAGE_IMAGE_URL,
     description: PROJECT_PAGE_DESCRIPTION,
-    downloadUrl: 'https://github.com/elerac/prismifold/releases/latest',
+    downloadUrl: 'https://github.com/elerac/plenoview/releases/latest',
     softwareVersion: '0.1.0',
-    license: 'https://github.com/elerac/prismifold/blob/main/LICENSE',
+    license: 'https://github.com/elerac/plenoview/blob/main/LICENSE',
     sameAs: [
-      'https://github.com/elerac/prismifold',
-      'https://marketplace.visualstudio.com/items?itemName=elerac.prismifold-vscode'
+      'https://github.com/elerac/plenoview',
+      'https://marketplace.visualstudio.com/items?itemName=elerac.plenoview-vscode'
     ],
     offers: {
       '@type': 'Offer',
@@ -186,7 +186,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   expect(sitemapResponse.ok()).toBe(true);
   const sitemapXml = await sitemapResponse.text();
   expect(sitemapXml).toContain(`<loc>${PROJECT_PAGE_URL}</loc>`);
-  expect(sitemapXml).toContain('<loc>https://elerac.github.io/prismifold/embed/</loc>');
+  expect(sitemapXml).toContain('<loc>https://elerac.github.io/plenoview/embed/</loc>');
   expect(sitemapXml).not.toContain('/app/');
 
   const brandIcon = page.locator('.brand-mark');
@@ -195,16 +195,16 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     await brandIcon.evaluate((image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0)
   )).toBe(true);
 
-  await expect(page.getByRole('heading', { name: 'Prismifold', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Plenoview', level: 1 })).toBeVisible();
   await expect(page.getByText('A reader for folded light.', { exact: true })).toHaveCount(0);
   await expect(page.getByText(
-    'Prismifold is an OpenEXR image viewer for computational imaging, rendering, and vision workflows. It reveals the rich structure of images that contain more than color, including polarization, spectral, panoramas, depth, and AOVs.',
+    'Plenoview is an OpenEXR image viewer for computational imaging, rendering, and vision workflows. It reveals the rich structure of images that contain more than color, including polarization, spectral, panoramas, depth, and AOVs.',
     { exact: true }
   )).toBeVisible();
   await expect(page.getByText(
     'The name evokes a prism not merely as a symbol of color, but as a way of unfolding the manifold structure hidden inside high-dimensional image data.',
     { exact: true }
-  )).toBeVisible();
+  )).toHaveCount(0);
 
   const heroAppLink = page.getByRole('link', { name: 'Open Web App', exact: true }).first();
   await expect(heroAppLink).toBeVisible();
@@ -223,7 +223,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   await expect(page.locator('.site-nav').getByRole('link', { name: 'Embed', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Guidance', exact: true })).toHaveAttribute('href', '#openexr-io');
 
-  const preview = page.getByRole('img', { name: /Prismifold interface/ });
+  const preview = page.getByRole('img', { name: /Plenoview interface/ });
   await expect(preview).toBeVisible();
   await expect(preview).toHaveAttribute('decoding', 'async');
   await expect(preview).toHaveAttribute('fetchpriority', 'high');
@@ -237,15 +237,15 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     'Desktop installers are published from the latest GitHub Release, and the VS Code extension is available from the Visual Studio Marketplace. Unsigned desktop builds may show Windows or macOS security prompts.',
     { exact: true }
   )).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Download Prismifold for Windows x64', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Download Plenoview for Windows x64', exact: true })).toHaveAttribute(
     'href',
     WINDOWS_DESKTOP_URL
   );
-  await expect(page.getByRole('link', { name: 'Download Prismifold for macOS ARM64', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Download Plenoview for macOS ARM64', exact: true })).toHaveAttribute(
     'href',
     MACOS_DESKTOP_URL
   );
-  await expect(page.getByRole('link', { name: 'Install Prismifold VS Code extension', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Install Plenoview VS Code extension', exact: true })).toHaveAttribute(
     'href',
     VSCODE_MARKETPLACE_URL
   );
@@ -280,7 +280,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   await expect(page.getByRole('heading', { name: 'Measure', level: 3 })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Export', level: 3 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Embed', level: 3 })).toBeVisible();
-  await expect(page.getByText('Add <prismifold-viewer> to HTML pages.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Add <plenoview-viewer> to HTML pages.', { exact: true })).toBeVisible();
   await expect(page.getByText(
     'Load the viewer with the hosted JavaScript web component.',
     { exact: true }
@@ -424,7 +424,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     );
   });
   expect(desktopGalleryLayout).toBe(true);
-  const embeds = page.locator('prismifold-viewer');
+  const embeds = page.locator('plenoview-viewer');
   await expect(embeds).toHaveCount(1);
   await expect(page.getByRole('link', { name: 'Try Web App', exact: true })).toHaveCount(6);
   await expect.poll(async () => (
@@ -449,7 +449,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     { exact: true }
   )).toBeVisible();
   await expect(htmlEmbedItem.locator('figcaption .gallery-code-frame')).toHaveCount(1);
-  await expect(htmlEmbedItem.locator('figcaption prismifold-viewer')).toHaveCount(0);
+  await expect(htmlEmbedItem.locator('figcaption plenoview-viewer')).toHaveCount(0);
   expect(await htmlEmbedItem.evaluate((item) => {
     const caption = item.querySelector('figcaption');
     const copy = caption?.querySelector('.gallery-caption-copy');
@@ -462,16 +462,16 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   })).toBe(true);
   const embedCode = htmlEmbedItem.locator('figcaption .gallery-code-frame code');
   await expect(embedCode).toContainText(
-    '<script src="https://elerac.github.io/prismifold/embed/prismifold.js"></script>'
+    '<script src="https://elerac.github.io/plenoview/embed/plenoview.js"></script>'
   );
-  await expect(embedCode).toContainText('<prismifold-viewer');
+  await expect(embedCode).toContainText('<plenoview-viewer');
   await expect(embedCode).toContainText('src="cbox_rgb.exr"');
   await expect(embedCode).not.toContainText('name=');
   await expect(embedCode).toContainText('height="360"');
   await expect(embedCode.locator('.syntax-tag')).toHaveCount(4);
   await expect(embedCode.locator('.syntax-attribute')).toHaveCount(3);
   await expect(embedCode.locator('.syntax-string')).toHaveCount(3);
-  const liveEmbed = htmlEmbedItem.locator('.gallery-live-embed-frame prismifold-viewer');
+  const liveEmbed = htmlEmbedItem.locator('.gallery-live-embed-frame plenoview-viewer');
   await expect(liveEmbed).toHaveAttribute('src', 'cbox_rgb.exr');
   await expect(liveEmbed).not.toHaveAttribute('name');
   await expect(liveEmbed).toHaveAttribute('height', '360');
@@ -480,13 +480,13 @@ test('serves the project page with app, desktop, and VS Code download calls to a
     'embed/'
   );
   await htmlEmbedItem.scrollIntoViewIfNeeded();
-  const liveEmbedFrame = htmlEmbedItem.locator('prismifold-viewer iframe');
+  const liveEmbedFrame = htmlEmbedItem.locator('plenoview-viewer iframe');
   await expect(liveEmbedFrame).toBeVisible({ timeout: 30000 });
   await expect.poll(async () => {
     const iframeSrc = await liveEmbedFrame.getAttribute('src');
     return iframeSrc ? new URL(iframeSrc, page.url()).searchParams.get('ui') : null;
   }).toBe('embed');
-  const embedFrame = htmlEmbedItem.frameLocator('prismifold-viewer iframe');
+  const embedFrame = htmlEmbedItem.frameLocator('plenoview-viewer iframe');
   await expect(embedFrame.locator('.embed-shell')).toBeVisible({ timeout: 30000 });
   await expect(embedFrame.locator('.embed-source-label')).toBeHidden({ timeout: 30000 });
 
@@ -530,7 +530,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   });
 
   await expectGalleryCardLaunch(page, '3D view', {
-    accessibleName: /Prismifold 3D viewer with a position-map source/,
+    accessibleName: /Plenoview 3D viewer with a position-map source/,
     src: 'project-page/middlebury-position-inspection.png'
   }, {
     src: new RegExp(`/${MIDDLEBURY_CHESS1_RGB_P_URL}$`),
@@ -544,7 +544,7 @@ test('serves the project page with app, desktop, and VS Code download calls to a
   });
 
   await expectGalleryCardLaunch(page, 'Panorama view', {
-    accessibleName: /Prismifold panorama view with yaw 5\.37 pitch -34 and fov 180/,
+    accessibleName: /Plenoview panorama view with yaw 5\.37 pitch -34 and fov 180/,
     src: 'project-page/polyhaven-panorama-inspection.png'
   }, {
     src: BROWN_PHOTOSTUDIO_PANORAMA_URL,

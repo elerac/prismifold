@@ -23,18 +23,18 @@ jobs:
             arch: x64
             bundle: nsis
             tauri_args: --ci --bundles nsis
-            artifact_name: Prismifold-windows-x64-nsis
+            artifact_name: Plenoview-windows-x64-nsis
             artifact_path: src-tauri/target/release/bundle/nsis/*setup.exe
-            release_asset_name: Prismifold-windows-x64-setup.exe
+            release_asset_name: Plenoview-windows-x64-setup.exe
             apple_signing_identity: ''
           - os: macos-latest
             platform_label: macos
             arch: arm64
             bundle: dmg
             tauri_args: --ci --target aarch64-apple-darwin --bundles dmg
-            artifact_name: Prismifold-macos-arm64-dmg
+            artifact_name: Plenoview-macos-arm64-dmg
             artifact_path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-            release_asset_name: Prismifold-macos-arm64.dmg
+            release_asset_name: Plenoview-macos-arm64.dmg
             apple_signing_identity: '-'
 
     steps:
@@ -58,7 +58,7 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           package_version="$(node -p "require('./package.json').version")"
           tauri_version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
-          cargo_version="$(cargo metadata --locked --no-deps --manifest-path src-tauri/Cargo.toml --format-version 1 | node -e "let input = ''; process.stdin.on('data', (chunk) => { input += chunk; }); process.stdin.on('end', () => { const metadata = JSON.parse(input); const pkg = metadata.packages.find((candidate) => candidate.name === 'prismifold-desktop'); if (!pkg) { process.exit(1); } console.log(pkg.version); });")"
+          cargo_version="$(cargo metadata --locked --no-deps --manifest-path src-tauri/Cargo.toml --format-version 1 | node -e "let input = ''; process.stdin.on('data', (chunk) => { input += chunk; }); process.stdin.on('end', () => { const metadata = JSON.parse(input); const pkg = metadata.packages.find((candidate) => candidate.name === 'plenoview-desktop'); if (!pkg) { process.exit(1); } console.log(pkg.version); });")"
 
           if [ "$version" != "$package_version" ] || [ "$version" != "$tauri_version" ] || [ "$version" != "$cargo_version" ]; then
             {

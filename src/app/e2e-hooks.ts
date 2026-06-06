@@ -79,7 +79,7 @@ export function installE2EHooks(core: ViewerAppCore): () => void {
       };
       waiter.timeoutId = window.setTimeout(() => {
         waiters.delete(waiter);
-        reject(new Error(`Timed out waiting for Prismifold E2E state: ${JSON.stringify(snapshot())}`));
+        reject(new Error(`Timed out waiting for Plenoview E2E state: ${JSON.stringify(snapshot())}`));
       }, timeoutMs);
       waiters.add(waiter);
     });
@@ -124,7 +124,7 @@ export function installE2EHooks(core: ViewerAppCore): () => void {
     unsubscribe();
     for (const waiter of waiters) {
       window.clearTimeout(waiter.timeoutId);
-      waiter.reject(new Error('Prismifold E2E hooks were disposed.'));
+      waiter.reject(new Error('Plenoview E2E hooks were disposed.'));
     }
     waiters.clear();
     if (window.__openExrViewerE2E?.snapshot === snapshot) {

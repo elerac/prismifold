@@ -4,4 +4,4 @@ test/**
 tsconfig.json
 node_modules/**
 out/**/*.map
-media/prismifold/**/*.map
+media/plenoview/**/*.map

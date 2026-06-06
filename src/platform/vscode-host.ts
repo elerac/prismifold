@@ -276,12 +276,12 @@ export const vscodeHost: ViewerHost = {
         state: callbacks.getCommandState?.() ?? {}
       });
     };
-    window.addEventListener('prismifold:desktop-command-state-changed', postCommandState);
+    window.addEventListener('plenoview:desktop-command-state-changed', postCommandState);
     postCommandState();
     return {
       dispose: () => {
         listener.dispose();
-        window.removeEventListener('prismifold:desktop-command-state-changed', postCommandState);
+        window.removeEventListener('plenoview:desktop-command-state-changed', postCommandState);
       }
     };
   },

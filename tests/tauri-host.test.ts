@@ -319,7 +319,7 @@ describe('tauri host', () => {
 
   it('uses Rust-owned recent files and records successful grant loads', async () => {
     const recentChanged = vi.fn();
-    window.addEventListener('prismifold:desktop-recent-files-changed', recentChanged);
+    window.addEventListener('plenoview:desktop-recent-files-changed', recentChanged);
     invokeMock
       .mockResolvedValueOnce([
         {
@@ -353,7 +353,7 @@ describe('tauri host', () => {
       expect(invokeMock).toHaveBeenNthCalledWith(2, 'record_recent_file', { grantId: 'grant-1' });
       expect(recentChanged).toHaveBeenCalledTimes(1);
     } finally {
-      window.removeEventListener('prismifold:desktop-recent-files-changed', recentChanged);
+      window.removeEventListener('plenoview:desktop-recent-files-changed', recentChanged);
     }
   });
 
@@ -425,7 +425,7 @@ describe('tauri host', () => {
     const nativeWindowMenuItemLabels = readMenuItemLabels(windowMenuOptions);
     const nativeGalleryMenuItemLabels = readMenuItemLabels(galleryMenuOptions);
 
-    expect(nativeMenuLabels).toEqual(['Prismifold', 'File', 'View', 'Window', 'Gallery']);
+    expect(nativeMenuLabels).toEqual(['Plenoview', 'File', 'View', 'Window', 'Gallery']);
     expect(nativeMenuLabels).not.toContain('Edit');
     expect(nativeFileMenuItemLabels).toEqual([
       'Open...',
@@ -580,14 +580,14 @@ describe('tauri host', () => {
     });
     expect(setAsAppMenuMock).toHaveBeenCalledTimes(1);
 
-    window.dispatchEvent(new Event('prismifold:desktop-command-state-changed'));
-    window.dispatchEvent(new Event('prismifold:desktop-command-state-changed'));
+    window.dispatchEvent(new Event('plenoview:desktop-command-state-changed'));
+    window.dispatchEvent(new Event('plenoview:desktop-command-state-changed'));
     await vi.advanceTimersByTimeAsync(100);
     await Promise.resolve();
     expect(setAsAppMenuMock).toHaveBeenCalledTimes(1);
 
     exportEnabled = true;
-    window.dispatchEvent(new Event('prismifold:desktop-command-state-changed'));
+    window.dispatchEvent(new Event('plenoview:desktop-command-state-changed'));
     await vi.advanceTimersByTimeAsync(100);
     await Promise.resolve();
     expect(setAsAppMenuMock).toHaveBeenCalledTimes(2);

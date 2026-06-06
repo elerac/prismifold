@@ -1148,7 +1148,7 @@ describe('render cache service', () => {
 
     expectLastDisplayCacheUsage(ui, { totalTrackedBytes: 96 }, 128 * MB);
     expect(localStorage.setItem).toHaveBeenCalledWith(
-      'prismifold:display-cache-budget-mb:v1',
+      'plenoview:display-cache-budget-mb:v1',
       JSON.stringify({ mode: 'fixed', fixedMb: 128 })
     );
 

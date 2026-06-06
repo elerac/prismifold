@@ -3,7 +3,7 @@ import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const distDir = resolve(rootDir, 'vscode-extension', 'media', 'prismifold');
+const distDir = resolve(rootDir, 'vscode-extension', 'media', 'plenoview');
 const appDir = resolve(distDir, 'app');
 const colormapDir = resolve(appDir, 'colormaps');
 const manifestPath = resolve(colormapDir, 'manifest.json');

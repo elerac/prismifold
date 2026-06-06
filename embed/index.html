@@ -5,23 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Embed Prismifold OpenEXR viewers in HTML pages with the prismifold-viewer web component, declarative attributes, deferred loading, channel panels, and the JavaScript API."
+      content="Embed Plenoview OpenEXR viewers in HTML pages with the plenoview-viewer web component, declarative attributes, deferred loading, channel panels, and the JavaScript API."
     />
     <meta name="robots" content="index,follow" />
     <meta name="theme-color" content="#0b0f14" />
-    <meta name="application-name" content="Prismifold" />
-    <link rel="canonical" href="https://elerac.github.io/prismifold/embed/" />
+    <meta name="application-name" content="Plenoview" />
+    <link rel="canonical" href="https://elerac.github.io/plenoview/embed/" />
     <link rel="icon" type="image/png" href="../project-page/app-icon.png" />
     <link rel="apple-touch-icon" href="../project-page/app-icon.png" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Prismifold" />
-    <meta property="og:title" content="Prismifold Embed Guide" />
+    <meta property="og:site_name" content="Plenoview" />
+    <meta property="og:title" content="Plenoview Embed Guide" />
     <meta
       property="og:description"
-      content="Embed interactive OpenEXR viewers in HTML pages with Prismifold."
+      content="Embed interactive OpenEXR viewers in HTML pages with Plenoview."
     />
-    <meta property="og:url" content="https://elerac.github.io/prismifold/embed/" />
-    <meta property="og:image" content="https://elerac.github.io/prismifold/project-page/social-preview.jpg" />
+    <meta property="og:url" content="https://elerac.github.io/plenoview/embed/" />
+    <meta property="og:image" content="https://elerac.github.io/plenoview/project-page/social-preview.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta
@@ -29,24 +29,24 @@
       content="Luminous glass prism splitting RGB light beams on a dark technical viewer backdrop"
     />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Prismifold Embed Guide" />
+    <meta name="twitter:title" content="Plenoview Embed Guide" />
     <meta
       name="twitter:description"
-      content="Embed interactive OpenEXR viewers in HTML pages with Prismifold."
+      content="Embed interactive OpenEXR viewers in HTML pages with Plenoview."
     />
-    <meta name="twitter:image" content="https://elerac.github.io/prismifold/project-page/social-preview.jpg" />
+    <meta name="twitter:image" content="https://elerac.github.io/plenoview/project-page/social-preview.jpg" />
     <meta
       name="twitter:image:alt"
       content="Luminous glass prism splitting RGB light beams on a dark technical viewer backdrop"
     />
-    <title>Prismifold Embed Guide | OpenEXR Image Viewer</title>
-    <script src="prismifold.js"></script>
+    <title>Plenoview Embed Guide | OpenEXR Image Viewer</title>
+    <script src="plenoview.js"></script>
     <script type="module" src="/src/embed-page.ts"></script>
   </head>
   <body>
     <div class="intro-shell">
       <header class="site-header" aria-label="Embed guide navigation">
-        <a class="brand-link" href="../" aria-label="Prismifold project page">
+        <a class="brand-link" href="../" aria-label="Plenoview project page">
           <img
             class="brand-mark"
             src="../project-page/app-icon.png"
@@ -55,14 +55,14 @@
             alt=""
             aria-hidden="true"
           />
-          <span>Prismifold</span>
+          <span>Plenoview</span>
         </a>
         <nav class="site-nav" aria-label="Embed guide links">
           <a href="../">Project</a>
           <a href="#examples">Examples</a>
           <a href="#attributes">Attributes</a>
           <a href="#javascript-api">API</a>
-          <a href="https://github.com/elerac/prismifold">GitHub</a>
+          <a href="https://github.com/elerac/plenoview">GitHub</a>
         </nav>
       </header>
     </div>
@@ -71,21 +71,21 @@
       <section class="hero-section embed-hero-section" aria-labelledby="embed-hero-title">
         <div class="section-inner embed-hero-layout">
           <div class="embed-hero-copy">
-            <h1 id="embed-hero-title">Embed Prismifold</h1>
+            <h1 id="embed-hero-title">Embed Plenoview</h1>
             <p class="hero-lede">
               Publish interactive OpenEXR inspection directly inside documentation, papers,
-              datasets, and project pages. The hosted web component wraps the Prismifold viewer in
+              datasets, and project pages. The hosted web component wraps the Plenoview viewer in
               an iframe and can load EXR sources declaratively or through JavaScript.
             </p>
           </div>
           <div class="embed-hero-panel" aria-label="Embed setup summary">
             <strong>Hosted component</strong>
             <p>
-              Load <code>embed/prismifold.js</code>, then place
-              <code>&lt;prismifold-viewer&gt;</code> where the viewer should appear.
+              Load <code>embed/plenoview.js</code>, then place
+              <code>&lt;plenoview-viewer&gt;</code> where the viewer should appear.
             </p>
             <div class="embed-hero-mini-code">
-              <code>&lt;script src="https://elerac.github.io/prismifold/embed/prismifold.js"&gt;&lt;/script&gt;</code>
+              <code>&lt;script src="https://elerac.github.io/plenoview/embed/plenoview.js"&gt;&lt;/script&gt;</code>
             </div>
           </div>
         </div>
@@ -107,23 +107,23 @@
                 <h3 id="basic-embed-title">Basic custom element</h3>
                 <p>
                   The smallest embed loads the hosted script once and adds a
-                  <code>&lt;prismifold-viewer&gt;</code> element with a source and height.
+                  <code>&lt;plenoview-viewer&gt;</code> element with a source and height.
                 </p>
                 <div class="gallery-code-frame" aria-label="Basic embed code">
-                  <pre><code class="language-html"><span class="syntax-punctuation">&lt;</span><span class="syntax-tag">script</span> <span class="syntax-attribute">src</span><span class="syntax-punctuation">=</span><span class="syntax-string">"https://elerac.github.io/prismifold/embed/prismifold.js"</span><span class="syntax-punctuation">&gt;&lt;/</span><span class="syntax-tag">script</span><span class="syntax-punctuation">&gt;</span>
+                  <pre><code class="language-html"><span class="syntax-punctuation">&lt;</span><span class="syntax-tag">script</span> <span class="syntax-attribute">src</span><span class="syntax-punctuation">=</span><span class="syntax-string">"https://elerac.github.io/plenoview/embed/plenoview.js"</span><span class="syntax-punctuation">&gt;&lt;/</span><span class="syntax-tag">script</span><span class="syntax-punctuation">&gt;</span>
 
-<span class="syntax-punctuation">&lt;</span><span class="syntax-tag">prismifold-viewer</span>
+<span class="syntax-punctuation">&lt;</span><span class="syntax-tag">plenoview-viewer</span>
   <span class="syntax-attribute">src</span><span class="syntax-punctuation">=</span><span class="syntax-string">"../cbox_rgb.exr"</span>
   <span class="syntax-attribute">height</span><span class="syntax-punctuation">=</span><span class="syntax-string">"340"</span><span class="syntax-punctuation">&gt;</span>
-<span class="syntax-punctuation">&lt;/</span><span class="syntax-tag">prismifold-viewer</span><span class="syntax-punctuation">&gt;</span></code></pre>
+<span class="syntax-punctuation">&lt;/</span><span class="syntax-tag">plenoview-viewer</span><span class="syntax-punctuation">&gt;</span></code></pre>
                 </div>
               </div>
               <div class="exr-embed-frame embed-example-view">
-                <prismifold-viewer
+                <plenoview-viewer
                   class="embed-page-live"
                   src="../cbox_rgb.exr"
                   height="340"
-                  data-embed-page-responsive-height></prismifold-viewer>
+                  data-embed-page-responsive-height></plenoview-viewer>
               </div>
             </section>
 
@@ -136,22 +136,22 @@
                   the pixel probe readout.
                 </p>
                 <div class="gallery-code-frame" aria-label="Named channel embed code">
-                  <pre><code class="language-html"><span class="syntax-punctuation">&lt;</span><span class="syntax-tag">prismifold-viewer</span>
+                  <pre><code class="language-html"><span class="syntax-punctuation">&lt;</span><span class="syntax-tag">plenoview-viewer</span>
   <span class="syntax-attribute">src</span><span class="syntax-punctuation">=</span><span class="syntax-string">"../cbox_rgb.exr"</span>
   <span class="syntax-attribute">name</span><span class="syntax-punctuation">=</span><span class="syntax-string">"Cornell Box RGB"</span>
   <span class="syntax-attribute">bottom-panel</span><span class="syntax-punctuation">=</span><span class="syntax-string">"channels"</span>
   <span class="syntax-attribute">height</span><span class="syntax-punctuation">=</span><span class="syntax-string">"360"</span><span class="syntax-punctuation">&gt;</span>
-<span class="syntax-punctuation">&lt;/</span><span class="syntax-tag">prismifold-viewer</span><span class="syntax-punctuation">&gt;</span></code></pre>
+<span class="syntax-punctuation">&lt;/</span><span class="syntax-tag">plenoview-viewer</span><span class="syntax-punctuation">&gt;</span></code></pre>
                 </div>
               </div>
               <div class="exr-embed-frame embed-example-view">
-                <prismifold-viewer
+                <plenoview-viewer
                   class="embed-page-live"
                   src="../cbox_rgb.exr"
                   name="Cornell Box RGB"
                   bottom-panel="channels"
                   height="360"
-                  data-embed-page-responsive-height></prismifold-viewer>
+                  data-embed-page-responsive-height></plenoview-viewer>
               </div>
             </section>
 
@@ -164,18 +164,18 @@
                   bottom panel to keep the camera view clean.
                 </p>
                 <div class="gallery-code-frame" aria-label="Panorama embed code">
-                  <pre><code class="language-html"><span class="syntax-punctuation">&lt;</span><span class="syntax-tag">prismifold-viewer</span>
+                  <pre><code class="language-html"><span class="syntax-punctuation">&lt;</span><span class="syntax-tag">plenoview-viewer</span>
   <span class="syntax-attribute">src</span><span class="syntax-punctuation">=</span><span class="syntax-string">"https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/brown_photostudio_02_1k.exr"</span>
   <span class="syntax-attribute">name</span><span class="syntax-punctuation">=</span><span class="syntax-string">"Poly Haven Brown Photostudio 02"</span>
   <span class="syntax-attribute">view</span><span class="syntax-punctuation">=</span><span class="syntax-string">"panorama"</span>
   <span class="syntax-attribute">panorama-auto-rotate</span><span class="syntax-punctuation">=</span><span class="syntax-string">"true"</span>
   <span class="syntax-attribute">bottom-panel</span><span class="syntax-punctuation">=</span><span class="syntax-string">"none"</span>
   <span class="syntax-attribute">height</span><span class="syntax-punctuation">=</span><span class="syntax-string">"360"</span><span class="syntax-punctuation">&gt;</span>
-<span class="syntax-punctuation">&lt;/</span><span class="syntax-tag">prismifold-viewer</span><span class="syntax-punctuation">&gt;</span></code></pre>
+<span class="syntax-punctuation">&lt;/</span><span class="syntax-tag">plenoview-viewer</span><span class="syntax-punctuation">&gt;</span></code></pre>
                 </div>
               </div>
               <div class="exr-embed-frame embed-example-view">
-                <prismifold-viewer
+                <plenoview-viewer
                   class="embed-page-live"
                   src="https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/brown_photostudio_02_1k.exr"
                   name="Poly Haven Brown Photostudio 02"
@@ -183,7 +183,7 @@
                   panorama-auto-rotate="true"
                   bottom-panel="none"
                   height="360"
-                  data-embed-page-responsive-height></prismifold-viewer>
+                  data-embed-page-responsive-height></plenoview-viewer>
               </div>
             </section>
 
@@ -192,23 +192,23 @@
                 <h3 id="three-d-embed-title">3D view</h3>
                 <p>
                   Set <code>view="3d"</code> for EXR files that include RGB plus depth or position
-                  data. Prismifold opens the compact point-cloud viewer when it can infer a source
+                  data. Plenoview opens the compact point-cloud viewer when it can infer a source
                   such as <code>Z</code> or <code>P.X/P.Y/P.Z</code>, and the embed can animate an orbit for quick shape
                   inspection.
                 </p>
                 <div class="gallery-code-frame" aria-label="3D embed code">
-                  <pre><code class="language-html"><span class="syntax-punctuation">&lt;</span><span class="syntax-tag">prismifold-viewer</span>
+                  <pre><code class="language-html"><span class="syntax-punctuation">&lt;</span><span class="syntax-tag">plenoview-viewer</span>
   <span class="syntax-attribute">src</span><span class="syntax-punctuation">=</span><span class="syntax-string">"../middlebury_chess1_rgb_p.exr"</span>
   <span class="syntax-attribute">name</span><span class="syntax-punctuation">=</span><span class="syntax-string">"Middlebury RGB + Position"</span>
   <span class="syntax-attribute">view</span><span class="syntax-punctuation">=</span><span class="syntax-string">"3d"</span>
   <span class="syntax-attribute">three-d-auto-orbit</span><span class="syntax-punctuation">=</span><span class="syntax-string">"true"</span>
   <span class="syntax-attribute">bottom-panel</span><span class="syntax-punctuation">=</span><span class="syntax-string">"none"</span>
   <span class="syntax-attribute">height</span><span class="syntax-punctuation">=</span><span class="syntax-string">"360"</span><span class="syntax-punctuation">&gt;</span>
-<span class="syntax-punctuation">&lt;/</span><span class="syntax-tag">prismifold-viewer</span><span class="syntax-punctuation">&gt;</span></code></pre>
+<span class="syntax-punctuation">&lt;/</span><span class="syntax-tag">plenoview-viewer</span><span class="syntax-punctuation">&gt;</span></code></pre>
                 </div>
               </div>
               <div class="exr-embed-frame embed-example-view">
-                <prismifold-viewer
+                <plenoview-viewer
                   class="embed-page-live"
                   src="../middlebury_chess1_rgb_p.exr"
                   name="Middlebury RGB + Position"
@@ -216,7 +216,7 @@
                   three-d-auto-orbit="true"
                   bottom-panel="none"
                   height="360"
-                  data-embed-page-responsive-height></prismifold-viewer>
+                  data-embed-page-responsive-height></plenoview-viewer>
               </div>
             </section>
 
@@ -228,21 +228,21 @@
                   opts in. This is useful for pages with several heavy examples.
                 </p>
                 <div class="gallery-code-frame" aria-label="Deferred embed code">
-                  <pre><code class="language-html"><span class="syntax-punctuation">&lt;</span><span class="syntax-tag">prismifold-viewer</span>
+                  <pre><code class="language-html"><span class="syntax-punctuation">&lt;</span><span class="syntax-tag">plenoview-viewer</span>
   <span class="syntax-attribute">src</span><span class="syntax-punctuation">=</span><span class="syntax-string">"../cbox_rgb.exr"</span>
   <span class="syntax-attribute">name</span><span class="syntax-punctuation">=</span><span class="syntax-string">"Deferred Cornell Box"</span>
   <span class="syntax-attribute">auto-load</span><span class="syntax-punctuation">=</span><span class="syntax-string">"false"</span>
   <span class="syntax-attribute">height</span><span class="syntax-punctuation">=</span><span class="syntax-string">"340"</span><span class="syntax-punctuation">&gt;</span>
-<span class="syntax-punctuation">&lt;/</span><span class="syntax-tag">prismifold-viewer</span><span class="syntax-punctuation">&gt;</span></code></pre>
+<span class="syntax-punctuation">&lt;/</span><span class="syntax-tag">plenoview-viewer</span><span class="syntax-punctuation">&gt;</span></code></pre>
                 </div>
               </div>
               <div class="exr-embed-frame embed-example-view">
-                <prismifold-viewer
+                <plenoview-viewer
                   class="embed-page-live"
                   src="../cbox_rgb.exr"
                   name="Deferred Cornell Box"
                   auto-load="false"
-                  height="340"></prismifold-viewer>
+                  height="340"></plenoview-viewer>
               </div>
             </section>
 
@@ -254,7 +254,7 @@
                   state, or a local file input.
                 </p>
                 <div class="gallery-code-frame" aria-label="JavaScript API embed code">
-                  <pre><code class="language-js"><span class="syntax-keyword">const</span> controller <span class="syntax-punctuation">=</span> window.Prismifold.create<span class="syntax-punctuation">(</span><span class="syntax-string">"#prismifold-js-example"</span><span class="syntax-punctuation">,</span> <span class="syntax-punctuation">{</span>
+                  <pre><code class="language-js"><span class="syntax-keyword">const</span> controller <span class="syntax-punctuation">=</span> window.Plenoview.create<span class="syntax-punctuation">(</span><span class="syntax-string">"#plenoview-js-example"</span><span class="syntax-punctuation">,</span> <span class="syntax-punctuation">{</span>
   height<span class="syntax-punctuation">:</span> <span class="syntax-string">"360"</span><span class="syntax-punctuation">,</span>
   bottomPanel<span class="syntax-punctuation">:</span> <span class="syntax-string">"channels"</span>
 <span class="syntax-punctuation">});</span>
@@ -300,7 +300,7 @@ document.querySelector<span class="syntax-punctuation">(</span><span class="synt
               the default embed behavior.
             </p>
           </div>
-          <div class="embed-reference-grid" role="table" aria-label="prismifold-viewer attributes">
+          <div class="embed-reference-grid" role="table" aria-label="plenoview-viewer attributes">
             <div class="embed-reference-row embed-reference-row--head" role="row">
               <span role="columnheader">Attribute</span>
               <span role="columnheader">Values</span>
@@ -390,11 +390,11 @@ document.querySelector<span class="syntax-punctuation">(</span><span class="synt
           <div class="section-heading">
             <h2 id="methods-title">JavaScript methods</h2>
             <p>
-              <code>window.Prismifold.create</code> returns a controller for loading sources and
+              <code>window.Plenoview.create</code> returns a controller for loading sources and
               cleaning up the embedded element.
             </p>
           </div>
-          <div class="embed-reference-grid" role="table" aria-label="Prismifold JavaScript methods">
+          <div class="embed-reference-grid" role="table" aria-label="Plenoview JavaScript methods">
             <div class="embed-reference-row embed-reference-row--head" role="row">
               <span role="columnheader">Method</span>
               <span role="columnheader">Arguments</span>
@@ -457,7 +457,7 @@ document.querySelector<span class="syntax-punctuation">(</span><span class="synt
 
     <footer class="site-footer">
       <div>
-        <strong>Prismifold embed guide</strong>
+        <strong>Plenoview embed guide</strong>
         <span>Interactive OpenEXR views for technical pages and documentation.</span>
       </div>
     </footer>

@@ -156,7 +156,7 @@ test('shows readable channel thumbnail previews on mobile with saved desktop bot
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     window.localStorage.setItem(
-      'prismifold:panel-splits:v1',
+      'plenoview:panel-splits:v1',
       JSON.stringify({
         imagePanelWidth: 220,
         rightPanelWidth: 280,

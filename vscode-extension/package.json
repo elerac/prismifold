@@ -1,18 +1,18 @@
 {
-  "name": "prismifold-vscode",
-  "displayName": "Prismifold",
+  "name": "plenoview-vscode",
+  "displayName": "Plenoview",
   "description": "OpenEXR viewer for computational imaging, rendering, and vision workflows.",
   "icon": "icon.png",
   "version": "0.1.0",
   "publisher": "elerac",
   "license": "MIT",
-  "homepage": "https://elerac.github.io/prismifold/app/",
+  "homepage": "https://elerac.github.io/plenoview/app/",
   "bugs": {
-    "url": "https://github.com/elerac/openexr_viewer/issues"
+    "url": "https://github.com/elerac/plenoview/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/elerac/openexr_viewer.git",
+    "url": "https://github.com/elerac/plenoview.git",
     "directory": "vscode-extension"
   },
   "keywords": [
@@ -36,16 +36,16 @@
     "Other"
   ],
   "activationEvents": [
-    "onCustomEditor:prismifold.exrViewer",
-    "onCommand:prismifold.openFile",
-    "onCommand:prismifold.openFolder"
+    "onCustomEditor:plenoview.exrViewer",
+    "onCommand:plenoview.openFile",
+    "onCommand:plenoview.openFolder"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "customEditors": [
       {
-        "viewType": "prismifold.exrViewer",
-        "displayName": "Prismifold OpenEXR Viewer",
+        "viewType": "plenoview.exrViewer",
+        "displayName": "Plenoview OpenEXR Viewer",
         "selector": [
           {
             "filenamePattern": "*.exr"
@@ -59,78 +59,78 @@
     ],
     "commands": [
       {
-        "command": "prismifold.openFile",
-        "title": "Prismifold: Open EXR File"
+        "command": "plenoview.openFile",
+        "title": "Plenoview: Open EXR File"
       },
       {
-        "command": "prismifold.openFolder",
-        "title": "Prismifold: Open EXR Folder"
+        "command": "plenoview.openFolder",
+        "title": "Plenoview: Open EXR Folder"
       },
       {
-        "command": "prismifold.exportImage",
-        "title": "Prismifold: Export Image"
+        "command": "plenoview.exportImage",
+        "title": "Plenoview: Export Image"
       },
       {
-        "command": "prismifold.exportScreenshot",
-        "title": "Prismifold: Export Screenshot"
+        "command": "plenoview.exportScreenshot",
+        "title": "Plenoview: Export Screenshot"
       },
       {
-        "command": "prismifold.exportBatch",
-        "title": "Prismifold: Export Batch"
+        "command": "plenoview.exportBatch",
+        "title": "Plenoview: Export Batch"
       },
       {
-        "command": "prismifold.exportColormap",
-        "title": "Prismifold: Export Colormap"
+        "command": "plenoview.exportColormap",
+        "title": "Plenoview: Export Colormap"
       },
       {
-        "command": "prismifold.reloadAll",
-        "title": "Prismifold: Reload All"
+        "command": "plenoview.reloadAll",
+        "title": "Plenoview: Reload All"
       },
       {
-        "command": "prismifold.closeAll",
-        "title": "Prismifold: Close All"
+        "command": "plenoview.closeAll",
+        "title": "Plenoview: Close All"
       },
       {
-        "command": "prismifold.showMetadata",
-        "title": "Prismifold: Show Metadata"
+        "command": "plenoview.showMetadata",
+        "title": "Plenoview: Show Metadata"
       },
       {
-        "command": "prismifold.openSettings",
-        "title": "Prismifold: Open Settings"
+        "command": "plenoview.openSettings",
+        "title": "Plenoview: Open Settings"
       },
       {
-        "command": "prismifold.viewImage",
-        "title": "Prismifold: Image Viewer"
+        "command": "plenoview.viewImage",
+        "title": "Plenoview: Image Viewer"
       },
       {
-        "command": "prismifold.viewPanorama",
-        "title": "Prismifold: Panorama Viewer"
+        "command": "plenoview.viewPanorama",
+        "title": "Plenoview: Panorama Viewer"
       },
       {
-        "command": "prismifold.view3d",
-        "title": "Prismifold: 3D Viewer"
+        "command": "plenoview.view3d",
+        "title": "Plenoview: 3D Viewer"
       },
       {
-        "command": "prismifold.toggleRulers",
-        "title": "Prismifold: Toggle Rulers"
+        "command": "plenoview.toggleRulers",
+        "title": "Plenoview: Toggle Rulers"
       },
       {
-        "command": "prismifold.splitVertical",
-        "title": "Prismifold: Split Viewer Vertically"
+        "command": "plenoview.splitVertical",
+        "title": "Plenoview: Split Viewer Vertically"
       },
       {
-        "command": "prismifold.splitHorizontal",
-        "title": "Prismifold: Split Viewer Horizontally"
+        "command": "plenoview.splitHorizontal",
+        "title": "Plenoview: Split Viewer Horizontally"
       },
       {
-        "command": "prismifold.resetPanes",
-        "title": "Prismifold: Reset Viewer Panes"
+        "command": "plenoview.resetPanes",
+        "title": "Plenoview: Reset Viewer Panes"
       }
     ],
     "menus": {
       "explorer/context": [
         {
-          "command": "prismifold.openFile",
+          "command": "plenoview.openFile",
           "when": "resourceExtname == .exr || resourceExtname == .EXR",
           "group": "navigation@20"
         }

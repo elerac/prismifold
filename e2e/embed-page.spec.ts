@@ -1,13 +1,13 @@
 import { expect, test, type Page } from './helpers/test';
 
-const EMBED_GUIDE_TITLE = 'Prismifold Embed Guide | OpenEXR Image Viewer';
+const EMBED_GUIDE_TITLE = 'Plenoview Embed Guide | OpenEXR Image Viewer';
 const EMBED_GUIDE_DESCRIPTION =
-  'Embed Prismifold OpenEXR viewers in HTML pages with the prismifold-viewer web component, declarative attributes, deferred loading, channel panels, and the JavaScript API.';
-const EMBED_GUIDE_URL = 'https://elerac.github.io/prismifold/embed/';
+  'Embed Plenoview OpenEXR viewers in HTML pages with the plenoview-viewer web component, declarative attributes, deferred loading, channel panels, and the JavaScript API.';
+const EMBED_GUIDE_URL = 'https://elerac.github.io/plenoview/embed/';
 const POLYHAVEN_BROWN_PHOTOSTUDIO_URL =
   'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/brown_photostudio_02_1k.exr';
 const POLYHAVEN_BROWN_PHOTOSTUDIO_NAME = 'Poly Haven Brown Photostudio 02';
-const EMPTY_EMBED_SCRIPT_ROUTE = '**/prismifold.js';
+const EMPTY_EMBED_SCRIPT_ROUTE = '**/plenoview.js';
 
 const EXAMPLE_TITLE_IDS = {
   basic: 'basic-embed-title',
@@ -23,7 +23,7 @@ const EXPECTED_NAV_LINKS = [
   { text: 'Examples', href: '#examples' },
   { text: 'Attributes', href: '#attributes' },
   { text: 'API', href: '#javascript-api' },
-  { text: 'GitHub', href: 'https://github.com/elerac/prismifold' }
+  { text: 'GitHub', href: 'https://github.com/elerac/plenoview' }
 ] as const;
 
 const ATTRIBUTE_LABELS = [
@@ -100,7 +100,7 @@ async function expectExampleViewerAttributes(
   titleId: string,
   expectedAttributes: Record<string, string>
 ): Promise<void> {
-  const viewer = embedExample(page, titleId).locator('prismifold-viewer');
+  const viewer = embedExample(page, titleId).locator('plenoview-viewer');
   await expect(viewer).toHaveCount(1);
   const actualAttributes = await viewer.evaluate((element) => (
     Array.from(element.attributes).reduce<Record<string, string>>((attributes, attribute) => {
@@ -127,7 +127,7 @@ test('serves the embed guide static content and reference docs @smoke', async ({
   await expect(page.locator('head link[rel="icon"]')).toHaveAttribute('href', '../project-page/app-icon.png');
   await expect(page.locator('head meta[property="og:url"]')).toHaveAttribute('content', EMBED_GUIDE_URL);
 
-  await expect(page.locator('#embed-hero-title')).toHaveText('Embed Prismifold');
+  await expect(page.locator('#embed-hero-title')).toHaveText('Embed Plenoview');
   await expectSiteNavLinks(page);
   await expect(page.locator('.hero-lede')).toContainText(
     'Publish interactive OpenEXR inspection directly inside documentation, papers, datasets, and project pages.',
@@ -144,9 +144,9 @@ test('serves the embed guide static content and reference docs @smoke', async ({
 
   const basicCode = embedExampleCode(page, EXAMPLE_TITLE_IDS.basic);
   await expect(basicCode).toContainText(
-    '<script src="https://elerac.github.io/prismifold/embed/prismifold.js"></script>'
+    '<script src="https://elerac.github.io/plenoview/embed/plenoview.js"></script>'
   );
-  await expect(basicCode).toContainText('<prismifold-viewer');
+  await expect(basicCode).toContainText('<plenoview-viewer');
   await expect(basicCode).toContainText('src="../cbox_rgb.exr"');
   await expect(basicCode).toContainText('height="340"');
 
@@ -176,11 +176,11 @@ test('serves the embed guide static content and reference docs @smoke', async ({
   await expect(deferredCode).toContainText('name="Deferred Cornell Box"');
 
   const apiCode = embedExampleCode(page, EXAMPLE_TITLE_IDS.javascriptApi);
-  await expect(apiCode).toContainText('window.Prismifold.create("#prismifold-js-example"');
+  await expect(apiCode).toContainText('window.Plenoview.create("#plenoview-js-example"');
   await expect(apiCode).toContainText('controller.loadUrl("../cbox_rgb.exr"');
   await expect(apiCode).toContainText('controller.loadFile(file');
 
-  await expect(page.locator('prismifold-viewer.embed-page-live')).toHaveCount(5);
+  await expect(page.locator('plenoview-viewer.embed-page-live')).toHaveCount(5);
   await expectExampleViewerAttributes(page, EXAMPLE_TITLE_IDS.basic, {
     src: '../cbox_rgb.exr',
     height: '340'
@@ -219,12 +219,12 @@ test('serves the embed guide static content and reference docs @smoke', async ({
   await expect(page.locator('#embed-js-status')).toBeAttached();
 
   await expect(page.locator('#attributes-title')).toHaveText('Element attributes');
-  await expectReferenceLabels(page, '[role="table"][aria-label="prismifold-viewer attributes"]', ATTRIBUTE_LABELS);
+  await expectReferenceLabels(page, '[role="table"][aria-label="plenoview-viewer attributes"]', ATTRIBUTE_LABELS);
   await expect(page.locator('#methods-title')).toHaveText('JavaScript methods');
-  const methodsTableSelector = '[role="table"][aria-label="Prismifold JavaScript methods"]';
+  const methodsTableSelector = '[role="table"][aria-label="Plenoview JavaScript methods"]';
   await expectReferenceLabels(page, methodsTableSelector, METHOD_LABELS);
   await expect(page.locator(methodsTableSelector).locator('.feature-card')).toHaveCount(0);
-  await expect(page.locator('prismifold-viewer iframe')).toHaveCount(0);
+  await expect(page.locator('plenoview-viewer iframe')).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('#examples').scrollIntoViewIfNeeded();

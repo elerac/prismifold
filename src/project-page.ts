@@ -96,7 +96,7 @@ for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-gallery-l
   });
 }
 
-const embedViewers = document.querySelectorAll('prismifold-viewer[data-responsive-height]');
+const embedViewers = document.querySelectorAll('plenoview-viewer[data-responsive-height]');
 const mobileEmbedHeightQuery = window.matchMedia('(max-width: 620px)');
 
 function syncEmbedViewerHeight(): void {

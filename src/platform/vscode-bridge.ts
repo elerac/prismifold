@@ -9,7 +9,7 @@ import type {
   ExportSaveResult
 } from './types';
 
-export const VSCODE_BRIDGE_CHANNEL = 'prismifold:vscode' as const;
+export const VSCODE_BRIDGE_CHANNEL = 'plenoview:vscode' as const;
 
 export interface VscodeBridgeBinaryPayload {
   encoding: 'base64';

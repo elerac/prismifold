@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    prismifold_desktop_lib::run();
+    plenoview_desktop_lib::run();
 }

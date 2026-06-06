@@ -74,7 +74,7 @@ test('lets the parent page scroll over an unloaded deferred embed', async ({ pag
     <div class="spacer"></div>
     <iframe
       id="deferred-embed"
-      title="Deferred Prismifold embed"
+      title="Deferred Plenoview embed"
       src="/app/?ui=embed&src=%2Fcbox_rgb.exr&autoLoad=false"
     ></iframe>
     <div class="spacer"></div>
@@ -255,7 +255,7 @@ async function readEmbedPanoramaYaw(page: Page): Promise<number> {
       };
     }).__openExrViewerE2E;
     if (!hooks) {
-      throw new Error('Prismifold E2E hooks are not available.');
+      throw new Error('Plenoview E2E hooks are not available.');
     }
     return hooks.snapshot().panoramaYawDeg;
   });
@@ -269,7 +269,7 @@ async function readEmbedDepthView(page: Page): Promise<{ depthYawDeg: number; de
       };
     }).__openExrViewerE2E;
     if (!hooks) {
-      throw new Error('Prismifold E2E hooks are not available.');
+      throw new Error('Plenoview E2E hooks are not available.');
     }
     const snapshot = hooks.snapshot();
     return {

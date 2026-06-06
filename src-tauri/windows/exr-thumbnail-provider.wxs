@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?define ExrThumbnailProviderClsid = "{4D64B0F7-4E7E-49E2-8F8C-1DB4B1EF6C15}" ?>
+<?define ExrThumbnailProviderClsid = "{5A8746CB-B2D1-46C9-AD52-F5DF15DA71D9}" ?>
 <?define ThumbnailProviderHandler = "{e357fccd-a995-4576-b01f-234630154e96}" ?>
-<?define ExrProgId = "Prismifold.OpenEXR" ?>
+<?define ExrProgId = "Plenoview.OpenEXR" ?>
 <?define ExrGenericImageIcon = "%SystemRoot%\System32\imageres.dll,-72" ?>
 
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
@@ -28,51 +28,51 @@
           <RegistryKey Key="shell">
             <RegistryValue Type="string" Value="open" />
             <RegistryKey Key="open">
-              <RegistryValue Type="string" Value="Open with Prismifold" />
+              <RegistryValue Type="string" Value="Open with Plenoview" />
               <RegistryKey Key="command">
-                <RegistryValue Type="string" Value="&quot;[INSTALLDIR]Prismifold.exe&quot; &quot;%1&quot;" />
+                <RegistryValue Type="string" Value="&quot;[INSTALLDIR]Plenoview.exe&quot; &quot;%1&quot;" />
               </RegistryKey>
             </RegistryKey>
           </RegistryKey>
         </RegistryKey>
-        <RegistryKey Root="HKLM" Key="Software\Prismifold\Capabilities">
-          <RegistryValue Name="ApplicationName" Type="string" Value="Prismifold" />
-          <RegistryValue Name="ApplicationDescription" Type="string" Value="Prismifold OpenEXR image viewer" />
+        <RegistryKey Root="HKLM" Key="Software\Plenoview\Capabilities">
+          <RegistryValue Name="ApplicationName" Type="string" Value="Plenoview" />
+          <RegistryValue Name="ApplicationDescription" Type="string" Value="Plenoview OpenEXR image viewer" />
           <RegistryKey Key="FileAssociations">
             <RegistryValue Name=".exr" Type="string" Value="$(var.ExrProgId)" />
           </RegistryKey>
         </RegistryKey>
         <RegistryKey Root="HKLM" Key="Software\RegisteredApplications">
-          <RegistryValue Name="Prismifold" Type="string" Value="Software\Prismifold\Capabilities" />
+          <RegistryValue Name="Plenoview" Type="string" Value="Software\Plenoview\Capabilities" />
         </RegistryKey>
-        <RegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\Prismifold.exe">
-          <RegistryValue Type="string" Value="[INSTALLDIR]Prismifold.exe" />
+        <RegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\Plenoview.exe">
+          <RegistryValue Type="string" Value="[INSTALLDIR]Plenoview.exe" />
           <RegistryValue Name="Path" Type="string" Value="[INSTALLDIR]" />
         </RegistryKey>
-        <RegistryKey Root="HKLM" Key="Software\Classes\Applications\Prismifold.exe">
-          <RegistryValue Name="FriendlyAppName" Type="string" Value="Prismifold" />
+        <RegistryKey Root="HKLM" Key="Software\Classes\Applications\Plenoview.exe">
+          <RegistryValue Name="FriendlyAppName" Type="string" Value="Plenoview" />
           <RegistryKey Key="SupportedTypes">
             <RegistryValue Name=".exr" Type="string" Value="" />
           </RegistryKey>
           <RegistryKey Key="shell\open\command">
-            <RegistryValue Type="string" Value="&quot;[INSTALLDIR]Prismifold.exe&quot; &quot;%1&quot;" />
+            <RegistryValue Type="string" Value="&quot;[INSTALLDIR]Plenoview.exe&quot; &quot;%1&quot;" />
           </RegistryKey>
         </RegistryKey>
         <RegistryKey Root="HKLM" Key="Software\Classes\.exr\ShellEx\$(var.ThumbnailProviderHandler)">
           <RegistryValue Type="string" Value="$(var.ExrThumbnailProviderClsid)" KeyPath="yes" />
         </RegistryKey>
         <RegistryKey Root="HKLM" Key="Software\Classes\CLSID\$(var.ExrThumbnailProviderClsid)">
-          <RegistryValue Type="string" Value="Prismifold EXR Thumbnail Provider" />
+          <RegistryValue Type="string" Value="Plenoview EXR Thumbnail Provider" />
           <RegistryKey Key="InprocServer32">
-            <RegistryValue Type="string" Value="[INSTALLDIR]prismifold_exr_thumbnail.dll" />
+            <RegistryValue Type="string" Value="[INSTALLDIR]plenoview_exr_thumbnail.dll" />
             <RegistryValue Name="ThreadingModel" Type="string" Value="Apartment" />
           </RegistryKey>
         </RegistryKey>
         <RegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved">
-          <RegistryValue Name="$(var.ExrThumbnailProviderClsid)" Type="string" Value="Prismifold EXR Thumbnail Provider" />
+          <RegistryValue Name="$(var.ExrThumbnailProviderClsid)" Type="string" Value="Plenoview EXR Thumbnail Provider" />
         </RegistryKey>
-        <RemoveRegistryKey Root="HKLM" Key="Software\Classes\Applications\Prismifold.exe\DefaultIcon" Action="removeOnInstall" />
-        <RemoveRegistryKey Root="HKLM" Key="Software\Classes\Prismifold.exr" Action="removeOnInstall" />
+        <RemoveRegistryKey Root="HKLM" Key="Software\Classes\Applications\Plenoview.exe\DefaultIcon" Action="removeOnInstall" />
+        <RemoveRegistryKey Root="HKLM" Key="Software\Classes\Plenoview.exr" Action="removeOnInstall" />
       </Component>
     </DirectoryRef>
 

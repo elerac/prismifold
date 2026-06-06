@@ -2,7 +2,7 @@
   "app": {
     "windows": [
       {
-        "title": "Prismifold",
+        "title": "Plenoview",
         "url": "app/index.html",
         "width": 1440,
         "height": 960,
@@ -16,7 +16,7 @@
   },
   "bundle": {
     "resources": {
-      "target/thumbnail-provider/prismifold_exr_thumbnail.dll": "prismifold_exr_thumbnail.dll"
+      "target/thumbnail-provider/plenoview_exr_thumbnail.dll": "plenoview_exr_thumbnail.dll"
     },
     "windows": {
       "wix": {

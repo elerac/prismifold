@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const distDir = resolve(rootDir, 'vscode-extension', 'media', 'prismifold');
+const distDir = resolve(rootDir, 'vscode-extension', 'media', 'plenoview');
 const colormapOutputDir = resolve(distDir, 'app', 'colormaps');
 const colormapSourceDir = resolve(rootDir, 'public', 'colormaps');
 
@@ -13,4 +13,4 @@ await cp(colormapSourceDir, colormapOutputDir, {
   force: true
 });
 
-console.log('Staged VS Code assets: public/colormaps -> vscode-extension/media/prismifold/app/colormaps');
+console.log('Staged VS Code assets: public/colormaps -> vscode-extension/media/plenoview/app/colormaps');

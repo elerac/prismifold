@@ -91,7 +91,7 @@ async function readSpectrumThemeState(page: Page): Promise<{
 
     return {
       theme: document.documentElement.dataset.theme,
-      storedTheme: window.localStorage.getItem('prismifold:theme:v1'),
+      storedTheme: window.localStorage.getItem('plenoview:theme:v1'),
       themeSelectValue: themeSelect.value,
       settingsDialogHidden: settingsDialog.getClientRects().length === 0,
       settingsDialogBackdropHidden:
@@ -378,7 +378,7 @@ async function gotoViewerAppWithoutRuntime(
 ): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.addInitScript((storedValue) => {
-    window.localStorage.setItem('prismifold:panel-splits:v1', JSON.stringify(storedValue));
+    window.localStorage.setItem('plenoview:panel-splits:v1', JSON.stringify(storedValue));
   }, storedPanelSplits);
   await page.route('**/*', async (route) => {
     if (route.request().resourceType() === 'script') {
@@ -759,7 +759,7 @@ test('persists the cache budget and keeps open-file actions limited to reload an
   await expect(budgetBreakdownValue).toContainText('Fixed (128 MB)');
   await expect.poll(async () => {
     return await page.evaluate(() => {
-      return JSON.parse(window.localStorage.getItem('prismifold:display-cache-budget-mb:v1') ?? 'null');
+      return JSON.parse(window.localStorage.getItem('plenoview:display-cache-budget-mb:v1') ?? 'null');
     });
   }).toEqual({ mode: 'fixed', fixedMb: 128 });
 
@@ -973,7 +973,7 @@ test('persists Spectrum lattice as animated idle and frozen active chrome', asyn
   await expect.poll(async () => {
     return await page.evaluate(() => ({
       theme: document.documentElement.dataset.theme,
-      storedTheme: window.localStorage.getItem('prismifold:theme:v1')
+      storedTheme: window.localStorage.getItem('plenoview:theme:v1')
     }));
   }).toEqual({
     theme: 'spectrum-lattice',
@@ -1060,7 +1060,7 @@ test('follows reduced motion for Spectrum lattice without a Settings override', 
   expect(followSystemState.fallback).toBe(false);
   await expectSpectrumLatticeDrawCountToSettle(page);
   await expect.poll(async () => {
-    return await page.evaluate(() => window.localStorage.getItem('prismifold:spectrum-lattice-motion:v1'));
+    return await page.evaluate(() => window.localStorage.getItem('plenoview:spectrum-lattice-motion:v1'));
   }).toBeNull();
 });
 
@@ -1117,11 +1117,11 @@ test('resets settings back to the default budget and panel layout', async ({ pag
         imageExpanded: imageCollapseButton.getAttribute('aria-expanded'),
         rightExpanded: rightCollapseButton.getAttribute('aria-expanded'),
         bottomExpanded: bottomCollapseButton.getAttribute('aria-expanded'),
-        storedBudget: window.localStorage.getItem('prismifold:display-cache-budget-mb:v1'),
-        storedImageLoadWorkers: window.localStorage.getItem('prismifold:image-load-workers:v1'),
-        storedTheme: window.localStorage.getItem('prismifold:theme:v1'),
-        storedSpectrumMotion: window.localStorage.getItem('prismifold:spectrum-lattice-motion:v1'),
-        storedPanel: window.localStorage.getItem('prismifold:panel-splits:v1')
+        storedBudget: window.localStorage.getItem('plenoview:display-cache-budget-mb:v1'),
+        storedImageLoadWorkers: window.localStorage.getItem('plenoview:image-load-workers:v1'),
+        storedTheme: window.localStorage.getItem('plenoview:theme:v1'),
+        storedSpectrumMotion: window.localStorage.getItem('plenoview:spectrum-lattice-motion:v1'),
+        storedPanel: window.localStorage.getItem('plenoview:panel-splits:v1')
       };
     });
   };
@@ -1340,7 +1340,7 @@ test('resizes desktop panel splits and persists them', async ({ page }) => {
         viewerHeight: viewerContainer.getBoundingClientRect().height,
         canvasWidth: canvas.width,
         canvasHeight: canvas.height,
-        stored: window.localStorage.getItem('prismifold:panel-splits:v1')
+        stored: window.localStorage.getItem('plenoview:panel-splits:v1')
       };
     });
   };

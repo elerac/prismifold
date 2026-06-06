@@ -173,11 +173,11 @@ import {
 } from '../channel-recognition-name-rules';
 import type { AppFullscreenHost, DesktopCommandId, ExportSaveResult } from '../platform';
 
-const AUTO_FIT_IMAGE_ON_SELECT_STORAGE_KEY = 'prismifold:auto-fit-image-on-select:v1';
-const AUTO_EXPOSURE_STORAGE_KEY = 'prismifold:auto-exposure:v1';
-const AUTO_EXPOSURE_PERCENTILE_STORAGE_KEY = 'prismifold:auto-exposure-percentile:v1';
-const LEGACY_SPECTRUM_LATTICE_MOTION_STORAGE_KEY = 'prismifold:spectrum-lattice-motion:v1';
-const RULERS_VISIBLE_STORAGE_KEY = 'prismifold:rulers-visible:v1';
+const AUTO_FIT_IMAGE_ON_SELECT_STORAGE_KEY = 'plenoview:auto-fit-image-on-select:v1';
+const AUTO_EXPOSURE_STORAGE_KEY = 'plenoview:auto-exposure:v1';
+const AUTO_EXPOSURE_PERCENTILE_STORAGE_KEY = 'plenoview:auto-exposure-percentile:v1';
+const LEGACY_SPECTRUM_LATTICE_MOTION_STORAGE_KEY = 'plenoview:spectrum-lattice-motion:v1';
+const RULERS_VISIBLE_STORAGE_KEY = 'plenoview:rulers-visible:v1';
 const SCREENSHOT_SELECTION_DUPLICATE_OFFSET = 24;
 
 function createDefaultAppFullscreenHost(target: HTMLElement): AppFullscreenHost {
@@ -2766,7 +2766,7 @@ export class ViewerUi implements Disposable {
   }
 
   private notifyDesktopCommandStateChanged(): void {
-    window.dispatchEvent(new Event('prismifold:desktop-command-state-changed'));
+    window.dispatchEvent(new Event('plenoview:desktop-command-state-changed'));
   }
 
   private updateAutoFitImageButtonDisabled(): void {

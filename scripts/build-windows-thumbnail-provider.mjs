@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const manifestPath = resolve(repoRoot, 'src-tauri/thumbnail-provider/Cargo.toml');
-const stagingPath = resolve(repoRoot, 'src-tauri/target/thumbnail-provider/prismifold_exr_thumbnail.dll');
+const stagingPath = resolve(repoRoot, 'src-tauri/target/thumbnail-provider/plenoview_exr_thumbnail.dll');
 const cargoFlags = process.argv.slice(2);
 
 for (const flag of cargoFlags) {
@@ -19,12 +19,12 @@ const explicitTarget =
   process.env.TAURI_TARGET_TRIPLE ??
   process.env.TAURI_ENV_TARGET_TRIPLE ??
   process.env.TARGET ??
-  process.env.PRISMIFOLD_WINDOWS_THUMBNAIL_TARGET ??
+  process.env.PLENOVIEW_WINDOWS_THUMBNAIL_TARGET ??
   '';
 const shouldBuild =
   process.platform === 'win32' ||
   explicitTarget.includes('windows') ||
-  process.env.PRISMIFOLD_BUILD_WINDOWS_THUMBNAIL_PROVIDER === '1';
+  process.env.PLENOVIEW_BUILD_WINDOWS_THUMBNAIL_PROVIDER === '1';
 
 if (!shouldBuild) {
   console.log('Skipping Windows EXR thumbnail provider build on this platform.');
@@ -47,8 +47,8 @@ if (build.status !== 0) {
 }
 
 const builtDll = explicitTarget
-  ? resolve(repoRoot, 'src-tauri/thumbnail-provider/target', explicitTarget, 'release/prismifold_exr_thumbnail.dll')
-  : resolve(repoRoot, 'src-tauri/thumbnail-provider/target/release/prismifold_exr_thumbnail.dll');
+  ? resolve(repoRoot, 'src-tauri/thumbnail-provider/target', explicitTarget, 'release/plenoview_exr_thumbnail.dll')
+  : resolve(repoRoot, 'src-tauri/thumbnail-provider/target/release/plenoview_exr_thumbnail.dll');
 
 if (!existsSync(builtDll)) {
   throw new Error(`Windows thumbnail provider DLL was not built: ${builtDll}`);

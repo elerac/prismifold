@@ -2,7 +2,7 @@
   "app": {
     "windows": [
       {
-        "title": "Prismifold",
+        "title": "Plenoview",
         "url": "app/index.html",
         "width": 1440,
         "height": 960,

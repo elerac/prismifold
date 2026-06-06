@@ -15,10 +15,10 @@ describe('VS Code extension asset scripts', () => {
     ]);
 
     expect(packageJson).toContain('"build:vscode-web"');
-    expect(viteConfig).toContain("outDir: 'vscode-extension/media/prismifold'");
-    expect(stageScript).toContain("'vscode-extension', 'media', 'prismifold'");
+    expect(viteConfig).toContain("outDir: 'vscode-extension/media/plenoview'");
+    expect(stageScript).toContain("'vscode-extension', 'media', 'plenoview'");
     expect(stageScript).toContain("'app', 'colormaps'");
-    expect(verifyScript).toContain("'vscode-extension', 'media', 'prismifold'");
+    expect(verifyScript).toContain("'vscode-extension', 'media', 'plenoview'");
     expect(verifyScript).toContain('must not contain bundled EXR files');
   });
 });

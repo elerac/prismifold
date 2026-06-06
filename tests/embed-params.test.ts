@@ -79,7 +79,7 @@ describe('embed params', () => {
 
   it('builds static-hosting friendly full viewer URLs', () => {
     const url = buildFullViewerUrl({
-      baseUrl: '/prismifold/app/',
+      baseUrl: '/plenoview/app/',
       src: 'https://example.com/render.exr',
       name: 'render',
       handoffId: 'abc',
@@ -90,7 +90,7 @@ describe('embed params', () => {
     });
 
     const parsed = new URL(url);
-    expect(parsed.pathname).toBe('/prismifold/app/');
+    expect(parsed.pathname).toBe('/plenoview/app/');
     expect(parsed.searchParams.get('src')).toBe('https://example.com/render.exr');
     expect(parsed.searchParams.get('name')).toBe('render');
     expect(parsed.searchParams.get('state')).toBeTruthy();
